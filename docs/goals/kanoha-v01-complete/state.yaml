@@ -1,0 +1,310 @@
+version: 2
+
+goal:
+  title: "かのはアプリ v0.1 完成(設計レビュー指摘の改善)"
+  slug: "kanoha-v01-complete"
+  kind: existing_plan
+  tranche: "継続実行: W1〜W7 の縦切りパッケージを順に実装・検証し、実環境で v0.1 ループが1周するまで止まらない"
+  status: active
+  intake:
+    original_request: "設計の指摘を改善してアプリを最後まで作成するゴールを設定して"
+    interpreted_outcome: "レビュー指摘 A1〜A5/B1〜B15 を解消し、doc.md §24 の v0.1 ループが実 Supabase/Gemini/Slack で1周する状態にする"
+    input_shape: existing_plan
+    audience: "開発者本人(親)と小2の子ども"
+    authority: approved
+    proof_type: demo
+    completion_proof: "typecheck/lint/test/build 全緑 + E2E(答え非表示・子どもロック・4/5判定)緑 + 実環境で v0.1 ループ1周の実ログ(review_schedule/weakness_map/parent_reports の行と Slack 受信)"
+    likely_misfire: "テストが緑でもテスト済みロジックが本番から未参照のまま残る(B2/B3 の再発)。個別修正に終始し attempts→weakness→review→report の結線を通さない"
+    blind_spots_considered:
+      - ".env 不在。実環境工程はユーザーのキー提供までブロック"
+      - "親PIN は users への新カラム+マイグレーション+RLS テストが必要"
+      - "段階開示のサーバー化で LearningFlow の状態管理と E2E を作り直す"
+      - "JST 統一は既存の日付解釈を変える(既存データは無いので許容)"
+      - "rateLimit を DB 化すると RLS 対象テーブルが増える"
+    existing_plan_facts:
+      - "A1: モードcookie + 親PIN(4桁ハッシュを users に保存)、proxy.ts で /parent/* をリダイレクト、子ども画面から親画面リンク撤去"
+      - "A2: サーバー側段階開示。POST /api/problems/[id]/hint {level}。hint_level_used をサーバー記録。類題選択肢もサーバー生成"
+      - "A3: Asia/Tokyo を全体の基準日にする共通ヘルパ"
+      - "A4: mistakeType の正は lib/curriculum/mistakeTypes.ts(13種)。Zod/DB CHECK/doc.md を揃え、attempts へ伝搬"
+      - "A5: 単元の正は lib/curriculum/grade2Math.ts。lib/ai/index.ts の重複リスト廃止、Zod enum + DB CHECK"
+      - "B1〜B15 は goal.md の欠陥リスト参照(file:line 付き)"
+      - "パッケージ順序: W1→W2→[Judge]→W3→[Judge]→W4→W5→W6→W7→[最終監査]"
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/kanoha-v01-complete/"
+    command: "npx goalbuddy board docs/goals/kanoha-v01-complete"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T002
+
+tasks:
+  - id: T001
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "goal.md の欠陥リストと設計判断を検証し、W1(基盤整合)の allowed_files / verify / stop_if を確定する。W2〜W7 の依存関係と各パッケージの検証コマンドを表にする"
+    inputs:
+      - "docs/goals/kanoha-v01-complete/goal.md"
+      - "doc.md"
+      - "CLAUDE.md"
+      - "supabase/migrations/*.sql"
+      - "lib/ai/schemas.ts, lib/ai/index.ts, lib/curriculum/*.ts"
+      - "app/api/attempts/route.ts, app/api/reviews/schedule/route.ts"
+    constraints:
+      - "Read-only。実装しない"
+      - "レビューの file:line が現状と一致するか確認し、ズレがあれば受領証に記録"
+      - "W1 は動く状態で終わる縦切りにする(マイグレーション+Zod+curriculum 一本化+JST ヘルパ+モック既定+doc.md 更新+テスト)"
+    expected_output:
+      - "Decision"
+      - "W1 の正確な Worker objective / allowed_files / verify / stop_if"
+      - "W2〜W7 の依存表と検証コマンド"
+      - "レビューの前提で誤っていた点があればその修正"
+    receipt:
+      result: done
+      decision: approved
+      note: notes/T001-w1-package.md
+      summary: "B1〜B15 すべて CONFIRMED。訂正1点: attempts.mistake_type の DB CHECK は既に13種と一致(Zod と doc.md §10 のみ乖離)。W1 の allowed_files/決定事項/ハザードと W2 の allowed_files 事前整形を notes に記録"
+
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: medium
+    objective: "W1 基盤整合: (a) 新規マイグレーション 0008 で review_schedule UNIQUE(child_id, problem_id)、problems/generated_similar_problems.unit の CHECK(grade2Math の単元)、attempts.mistake_type の CHECK を mistakeTypes.ts と一致させる (b) lib/ai/schemas.ts の mistakeTypeSchema を MISTAKE_TYPE_IDS から、unit を GRADE_2_MATH_UNITS から導出 (c) lib/ai/index.ts の重複単元リスト廃止 (d) lib/utils/date.ts に Asia/Tokyo 基準の todayKey/addDays を作り、reports/slack・review/today・review/schedule・sessions/dailyLimit を置換 (e) AI_PROVIDER_TEXT の既定を本番では throw、dev/test のみ mock (f) doc.md §10/§11 を curriculum に合わせて更新 (g) 各項目にユニットテスト"
+    allowed_files:
+      - supabase/migrations/0008_curriculum_constraints.sql
+      - lib/utils/date.ts
+      - lib/ai/schemas.ts
+      - lib/ai/index.ts
+      - lib/ai/mock.ts
+      - lib/curriculum/grade2Math.ts
+      - lib/curriculum/mistakeTypes.ts
+      - lib/review/schedule.ts
+      - lib/review/today.ts
+      - lib/sessions/dailyLimit.ts
+      - lib/ai/usage.ts
+      - lib/reports/dashboard.ts
+      - app/api/reports/slack/route.ts
+      - app/api/sessions/route.ts
+      - app/api/ai/analyze-problem/route.ts
+      - app/api/ai/generate-image/route.ts
+      - app/api/attempts/route.ts
+      - app/api/ai/generate-similar-problems/route.ts
+      - doc.md
+      - .env.example
+      - tests/ai/schemas.test.ts
+      - tests/ai/provider.test.ts
+      - tests/ai/buildProblemRecords.test.ts
+      - tests/ai/usage.test.ts
+      - tests/review/schedule.test.ts
+      - tests/utils/date.test.ts
+      - tests/security/curriculum-migration.test.ts
+    verify:
+      - "npm run typecheck"
+      - "npm run lint"
+      - "npx vitest run"
+      - "npm run build"
+      - "grep -rn 'defaultUnits' lib app/api → 0件"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "既存マイグレーションファイルを書き換えたくなった(禁止。新規ファイルにする)"
+      - "DemoHome/LearningFlow/e2e の文言変更が必要(W6 の範囲)"
+      - "検証が2回連続で失敗"
+    receipt: null
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: "W2 学習中核ループ結線: (a) attempts 保存時に単元全体の accuracy を SQL 関数(security definer, upsert をアトミックに)で再計算し lib/review/weakness.ts を経由 (b) 最初の不正解で review_schedule を作成、正解 attempt で該当 review を done にし stage を進める(currentStage 伝搬、5/5 は繰り上げ、≤3/5 据え置き) (c) lowerDifficultyForRepeatedMistake を類題生成経路に結線 (d) AI 診断の mistakeType を problems.explanation_json から attempts.mistake_type に伝搬 (e) learning_sessions の duration をサーバー計測(started_at 基準で clamp)、未終了セッションも当日累計に含め、類題の区切りで上限判定して「今日はここまで」に誘導 (f) correct_count をサーバー側で導出 (g) lib/review/today.ts を order by created_at desc・残り分数考慮・類題候補含む形に (h) 結合テスト(Supabase モック)で attempts→weakness→review の1周を固定"
+    allowed_files: []
+    verify:
+      - "npm run typecheck"
+      - "npx vitest run"
+      - "npm run build"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "SQL 関数の RLS/権限設計が不明確"
+      - "検証が2回連続で失敗"
+    receipt: null
+
+  - id: T004
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "中核ループ境界レビュー: W1+W2 の差分を敵対的に検証(正しさ/回帰/テストが本番経路を通っているか)。CONFIRMED の欠陥があれば T003 に差し戻し、なければ W3 の allowed_files/verify/stop_if を確定"
+    inputs:
+      - "T002, T003 receipts"
+      - "git diff"
+    constraints:
+      - "Read-only"
+      - "「テストが緑」ではなく「本番経路が呼んでいるか」を grep で確認"
+    expected_output:
+      - "approved | rejected(理由と再現手順)"
+      - "W3 の Worker 指示"
+    receipt: null
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: "W3 子どもモード+段階開示: (a) マイグレーション 0009: users.parent_pin_hash、RLS 検証テスト (b) 親設定画面で PIN 設定、子どもモード開始ボタンで httpOnly cookie kanoha_mode=child を発行、PIN 入力で解除する API (c) proxy.ts で cookie 中は /parent/* と親向け API を拒否 (d) ChildHeader/child home の親画面リンク撤去 (e) POST /api/problems/[id]/hint {level} で1段ずつ返し hint_level_used をサーバー記録。problem ページの初期 props から correctAnswer/hints を除去、generate-hints も level 上限で返す (f) 類題の選択肢を generate-similar-problems 側で生成・Zod 検証(4択・単位整合)し makeChoices を削除 (g) LearningFlow を新 API に合わせて改修 (h) E2E: 答えが初期 HTML に含まれない / 子どもモードで /parent/settings が 302 / PIN で解除できる"
+    allowed_files: []
+    verify:
+      - "npm run typecheck"
+      - "npx vitest run"
+      - "npm run build"
+      - "npx playwright test e2e/child-learning.spec.ts"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "PIN の保存方式(ハッシュ関数)が決まらない → bcrypt 相当を使い、受領証に記録して続行"
+      - "検証が2回連続で失敗"
+    receipt: null
+
+  - id: T006
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "セキュリティ境界レビュー: 子どもモード・PIN・段階開示 API・RLS を敵対的に検証(cookie 偽造、PIN 総当たり、hint API の level 飛ばし、RSC payload への答え混入)。CONFIRMED があれば T005 に差し戻し、なければ W4 の指示を確定"
+    inputs:
+      - "T005 receipt"
+      - "git diff"
+    constraints:
+      - "Read-only"
+    expected_output:
+      - "approved | rejected"
+      - "W4 の Worker 指示"
+    receipt: null
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: "W4 AI層堅牢化: (a) Gemini 呼び出しに responseSchema(zod→JSON Schema)を渡し、キーは x-goog-api-key ヘッダーへ (b) ページ内の問題を1件ずつ Zod 検証し有効分のみ保存、失敗数を親に返す (c) lib/ai/pii.ts で学校名・氏名・住所・クラスのパターンを後段除去しテスト (d) ai_usage_daily を increment_ai_usage(user_id, cost) RPC でアトミック増分・呼び出し前に予約、読み取り失敗は fail-closed (e) recognize-handwriting の data に max と magic-byte 検証 (f) generate-hints で explanationLevel が異なる時は buildHintsPrompt で再生成(コストガード経由) (g) 画像生成の4条件: app_settings.enable_image_generation 追加(マイグレーション)、recommendedVisualTemplate null 判定、costGuard、テンプレキーを grade2Math.visualTemplate に統一し public/visuals に全単元の SVG を用意 (h) テスト"
+    allowed_files: []
+    verify:
+      - "npm run typecheck"
+      - "npx vitest run"
+      - "npm run build"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "検証が2回連続で失敗"
+    receipt: null
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: "W5 レポート/Slack/セキュリティ: (a) parent_reports を buildDashboard の集計から生成(§6.4 の8項目、§17 書式)、セッション終了時は PATCH と review 登録を待ってから送信、リトライ1回 (b) pg_cron に generate_daily_reports() を追加(未送信分を JST 21:00 に生成) (c) PATCH /api/settings/[childId] を GET と同じマッパーで返し secret_id を隠す (d) next.config.ts に全体のセキュリティヘッダー (e) rateLimit を api_rate_limits テーブル+アトミック RPC に置換(RLS付き)、全 mutating ルートに適用、children 作成数に上限 (f) package.json の supabase-js を固定し package-lock.json をコミット対象に (g) materials/[id] 削除順序を DB→Storage に (h) テスト"
+    allowed_files: []
+    verify:
+      - "npm run typecheck"
+      - "npx vitest run"
+      - "npm run build"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "検証が2回連続で失敗"
+    receipt: null
+
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: "W6 子どもUI仕上げ+E2E: (a) 子ども向け全文言と SimilarProblemCard を RubyAuto 経由にし、rubyDictionary の未収録漢字を dev 時に検出するテスト (b) 「もう一回やる」実装 (c) 類題の進捗を sessionStorage+サーバーで復元、失敗時の再試行ボタン (d) VoiceButton に onerror、SpeechRecognition の機能検出フォールバック確認 (e) HintStepper のかさ固定文削除、「絵で教えて」はヒント2以降に (f) 親画面: ニックネーム案内文、解析失敗の再実行ボタン (g) E2E をシード済み認証ユーザーで通す(ホーム→問題→ヒント→類題5問→結果→Slack モック) (h) ファイルサイズ/関数長/console.log の規約チェック"
+    allowed_files: []
+    verify:
+      - "npm run typecheck"
+      - "npm run lint"
+      - "npx vitest run"
+      - "npm run build"
+      - "npx playwright test"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "検証が2回連続で失敗"
+    receipt: null
+
+  - id: T010
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: "W7 実環境検証: (a) .env が無ければ必要キー一覧を受領証に書いてこの task をブロックし、ユーザーに提供を依頼(推測で書かない) (b) キーがあれば supabase db push でマイグレーション適用、RLS テスト(supabase/tests/rls_isolation.sql)実行 (c) 実プリント画像で アップロード→解析→問題保存 を確認 (d) 子どもモードで 今日のおすすめ→ヒント→類題5問→結果 を1周 (e) review_schedule / weakness_map / parent_reports の行と Slack 受信を実ログとして notes/T010-real-run.md に記録"
+    allowed_files: []
+    verify:
+      - "npm run build"
+      - "npx playwright test"
+    stop_if:
+      - ".env の実キーが無い(ブロックして T011 以外のローカル作業に戻る)"
+      - "本番/課金に影響する操作が必要(ユーザー確認)"
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "最終監査: 全受領証・最終検証・実環境ログを元に、レビュー指摘 A1〜A5/B1〜B15 が解消され doc.md §24 の v0.1 ループが実環境で1周したかを判定する"
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "notes/T010-real-run.md"
+      - "Current dirty diff"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if any of B1〜B15 is unresolved without a recorded owner decision."
+      - "Reject stopping only because a slice needs owner input, credentials, production access, destructive operations, or policy decisions."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: null
+    commands:
+      - "npm run typecheck (2026-09-01: エラー0)"
+      - "npx vitest run (2026-09-01: 37 files / 90 tests passed)"
+      - "npm run build (2026-09-01: 成功)"

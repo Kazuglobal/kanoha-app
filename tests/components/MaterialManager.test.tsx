@@ -1,0 +1,42 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MaterialManager } from "@/components/parent/MaterialManager";
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("MaterialManager", () => {
+  it("lists a child's uploads and deletes one after confirmation", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: [{ id: "child-1", nickname: "かのは" }],
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: [{
+          id: "material-1",
+          page_count: 2,
+          source_type: "school_print",
+          status: "done",
+          expires_at: "2026-07-01T00:00:00.000Z",
+          created_at: "2026-06-01T00:00:00.000Z",
+        }],
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: { deleted: true },
+      })));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+
+    render(<MaterialManager />);
+
+    expect(await screen.findByText("学校のプリント / 2ページ")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "画像を削除" }));
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/materials/material-1", { method: "DELETE" });
+    expect(screen.queryByText("学校のプリント / 2ページ")).not.toBeInTheDocument();
+    expect(screen.getByText("画像を削除しました。")).toBeInTheDocument();
+  });
+});
