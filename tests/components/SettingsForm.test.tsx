@@ -24,6 +24,7 @@ describe("SettingsForm", () => {
           daily_limit_minutes: 20,
           enable_audio: false,
           enable_voice_answer: true,
+          enable_image_generation: false,
           enable_slack: false,
           slack_configured: false,
         },
@@ -40,8 +41,10 @@ describe("SettingsForm", () => {
     expect(screen.getByLabelText("説明のやさしさ")).toHaveValue("standard");
     expect(screen.getByLabelText("1日の学習時間")).toHaveValue("20");
     expect(screen.getByLabelText("音声読み上げ")).not.toBeChecked();
+    expect(screen.getByLabelText("AIの図解生成")).not.toBeChecked();
 
     await user.selectOptions(screen.getByLabelText("1日の学習時間"), "10");
+    await user.click(screen.getByLabelText("AIの図解生成"));
     await user.click(screen.getByRole("button", { name: "設定を保存" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("保存しました");
@@ -55,6 +58,7 @@ describe("SettingsForm", () => {
           dailyLimitMinutes: 10,
           enableAudio: false,
           enableVoiceAnswer: true,
+          enableImageGeneration: true,
         }),
       }),
     );
@@ -74,6 +78,7 @@ describe("SettingsForm", () => {
           daily_limit_minutes: 15,
           enable_audio: true,
           enable_voice_answer: true,
+          enable_image_generation: false,
           enable_slack: false,
           slack_configured: false,
         },

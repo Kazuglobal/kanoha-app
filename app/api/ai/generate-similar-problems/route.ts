@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { getAiProvider } from "@/lib/ai";
-import { checkAiCost, costLimitsFromEnv } from "@/lib/ai/costGuard";
+import { costLimitsFromEnv } from "@/lib/ai/costGuard";
+import { scrubPiiFromSimilarProblem } from "@/lib/ai/pii";
 import { similarProblemDraftsSchema, unitSchema } from "@/lib/ai/schemas";
 import type { SimilarProblemDraft, SimilarProblemRequest } from "@/lib/ai/schemas";
-import { getDailyAiUsage, recordAiUsage } from "@/lib/ai/usage";
+import { reserveAiUsage } from "@/lib/ai/usage";
 import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 import { recentUnitAttempts } from "@/lib/review/loop";
 import { buildChoices } from "@/lib/review/choices";
 import { difficultyForNextSimilarSet } from "@/lib/review/recommend";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const provider = getAiProvider();
   if (provider.name === "mock") {
     const drafts = await provider.generateSimilarProblems(input);
-    return (await persistDrafts(auth, problem, drafts)).response;
+    return persistDrafts(auth, problem, drafts);
   }
   return generateWithGemini(auth, problem, provider, input);
 }
@@ -66,10 +66,12 @@ async function generateWithGemini(
   provider: ReturnType<typeof getAiProvider>,
   input: SimilarProblemRequest,
 ) {
-  const admin = createAdminClient();
-  const usage = await getDailyAiUsage(admin, auth.user!.id);
-  const decision = checkAiCost(usage, { estimatedCostUsd: SIMILAR_COST_USD }, costLimitsFromEnv());
-  if (!decision.allowed) {
+  // 予約はプロバイダ呼び出しの「前」。失敗しても払い戻さない(B10)。
+  const reservation = await reserveAiUsage(auth.supabase, auth.user!.id, SIMILAR_COST_USD, costLimitsFromEnv());
+  if (reservation.outcome === "unavailable") {
+    return apiError("AIをいまは利用できません。しばらくしてからお試しください。", 503);
+  }
+  if (reservation.outcome === "denied") {
     return apiError("AIの利用上限に達しました。しばらくしてからお試しください。", 429);
   }
 
@@ -80,20 +82,18 @@ async function generateWithGemini(
     return apiError("れんしゅう問題の生成に失敗しました。もう一度お試しください。", 502);
   }
 
-  const result = await persistDrafts(auth, problem, drafts);
-  if (result.ok) await recordAiUsage(admin, auth.user!.id, SIMILAR_COST_USD);
-  return result.response;
+  return persistDrafts(auth, problem, drafts);
 }
 
 /**
  * 4 択は生成時にサーバーが作って保存する(A2 / B13)。レスポンスに answer / explanation は含めない:
- * 正誤判定と解説は /api/attempts が返す。
+ * 正誤判定と解説は /api/attempts が返す。PII除去は Zod 検証後・insert 前(B12)。
  */
 async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly SimilarProblemDraft[]) {
   const validated = similarProblemDraftsSchema.safeParse(drafts);
-  if (!validated.success) return withOk(internalError());
+  if (!validated.success) return internalError();
 
-  const rows = validated.data.map((item, index) => ({
+  const rows = validated.data.map(scrubPiiFromSimilarProblem).map((item, index) => ({
     source_problem_id: problem.id,
     child_id: problem.child_id,
     problem_text: item.problemText,
@@ -108,8 +108,6 @@ async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly Simi
     .from("generated_similar_problems")
     .insert(rows)
     .select("id, problem_text, unit, sub_unit, difficulty, choices");
-  if (error) return withOk(internalError());
-  return withOk(apiSuccess(data, 201));
+  if (error) return internalError();
+  return apiSuccess(data, 201);
 }
-
-const withOk = (response: Response) => ({ ok: response.status < 400, response });

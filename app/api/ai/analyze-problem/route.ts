@@ -1,9 +1,11 @@
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAiProvider } from "@/lib/ai";
 import { buildProblemRecords } from "@/lib/ai/buildProblemRecords";
-import { checkAiCost, costLimitsFromEnv } from "@/lib/ai/costGuard";
-import { getDailyAiUsage, recordAiUsage } from "@/lib/ai/usage";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { costLimitsFromEnv } from "@/lib/ai/costGuard";
+import { scrubPiiFromProblem } from "@/lib/ai/pii";
+import { parsedProblemSchema, type ParsedProblem } from "@/lib/ai/schemas";
+import { reserveAiUsage } from "@/lib/ai/usage";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedMaterial } from "@/lib/utils/resources";
@@ -38,18 +40,9 @@ async function analyzeWithMock(
 ) {
   // The mock provider is the single source of demo problems (canonical curriculum units).
   const [mock] = await provider.analyzeProblems([]);
-  if (!mock) return internalError();
-  const { data, error } = await supabase
-    .from("problems")
-    .insert(buildProblemRecords([mock], material.child_id, material.id))
-    .select("id, problem_text, unit, sub_unit, difficulty, status")
-    .single();
-  if (error) {
-    await supabase.from("uploaded_materials").update({ status: "failed" }).eq("id", material.id);
-    return internalError();
-  }
-  await supabase.from("uploaded_materials").update({ status: "done" }).eq("id", material.id);
-  return apiSuccess(data, 201);
+  const validated = parsedProblemSchema.safeParse(mock);
+  if (!validated.success) return internalError();
+  return persistProblems(supabase, material, material.child_id, [validated.data], 0);
 }
 
 async function analyzeWithGemini(
@@ -58,10 +51,12 @@ async function analyzeWithGemini(
   provider: ReturnType<typeof getAiProvider>,
   childId: string,
 ) {
-  const admin = createAdminClient();
-  const usage = await getDailyAiUsage(admin, auth.user!.id);
-  const decision = checkAiCost(usage, { estimatedCostUsd: ANALYZE_COST_USD }, costLimitsFromEnv());
-  if (!decision.allowed) {
+  // 予約は必ずプロバイダ呼び出しの「前」。RPC不通は 503(フェイルクローズ、B10)。
+  const reservation = await reserveAiUsage(auth.supabase, auth.user!.id, ANALYZE_COST_USD, costLimitsFromEnv());
+  if (reservation.outcome === "unavailable") {
+    return apiError("AIをいまは利用できません。しばらくしてからお試しください。", 503);
+  }
+  if (reservation.outcome === "denied") {
     return apiError("AIの利用上限に達しました。しばらくしてからお試しください。", 429);
   }
 
@@ -77,18 +72,47 @@ async function analyzeWithGemini(
       }),
     );
 
-    const problems = await provider.analyzeProblems(images);
-    const { data, error } = await auth.supabase
-      .from("problems")
-      .insert(buildProblemRecords(problems, childId, material.id))
-      .select("id, problem_text, unit, sub_unit, difficulty, status");
-    if (error) throw error;
-
-    await auth.supabase.from("uploaded_materials").update({ status: "done" }).eq("id", material.id);
-    await recordAiUsage(admin, auth.user!.id, ANALYZE_COST_USD);
-    return apiSuccess(data, 201);
+    // 1件ずつ検証し、有効な問題だけ保存する(B11)。検証失敗数は failed として親UIへ返す。
+    const results = (await provider.analyzeProblems(images)).map((item) =>
+      parsedProblemSchema.safeParse(item),
+    );
+    const problems = results.flatMap((result) => (result.success ? [result.data] : []));
+    const failed = results.length - problems.length;
+    if (problems.length === 0) {
+      await auth.supabase.from("uploaded_materials").update({ status: "failed" }).eq("id", material.id);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "問題を読み取れませんでした。画像を確認してもう一度お試しください。",
+          data: { saved: 0, failed },
+        },
+        { status: 422 },
+      );
+    }
+    return persistProblems(auth.supabase, material, childId, problems, failed);
   } catch {
     await auth.supabase.from("uploaded_materials").update({ status: "failed" }).eq("id", material.id);
     return apiError("画像の解析に失敗しました。もう一度お試しください。", 502);
   }
+}
+
+/** PII除去(scrubPiiFromProblem)は Zod 検証後・insert 前にここで一括適用する(B12)。 */
+async function persistProblems(
+  supabase: Auth["supabase"],
+  material: Material,
+  childId: string,
+  problems: readonly ParsedProblem[],
+  failed: number,
+) {
+  const scrubbed = problems.map(scrubPiiFromProblem);
+  const { data, error } = await supabase
+    .from("problems")
+    .insert(buildProblemRecords(scrubbed, childId, material.id))
+    .select("id, problem_text, unit, sub_unit, difficulty, status");
+  if (error || !data?.length) {
+    await supabase.from("uploaded_materials").update({ status: "failed" }).eq("id", material.id);
+    return internalError();
+  }
+  await supabase.from("uploaded_materials").update({ status: "done" }).eq("id", material.id);
+  return apiSuccess({ ...data[0], saved: data.length, failed, problems: data }, 201);
 }

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="さんかくと しかく">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">さんかくと しかく</text>
+  <polygon points="115,90 55,210 175,210" fill="#7fc8f8" stroke="#17324d" stroke-width="4"/>
+  <rect x="225" y="110" width="120" height="100" fill="#f8a97f" stroke="#17324d" stroke-width="4"/>
+  <text x="115" y="245" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">へんが 3つ</text>
+  <text x="285" y="245" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">へんが 4つ</text>
+</svg>

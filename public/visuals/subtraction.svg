@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="ひきざん">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ひきざん</text>
+  <g fill="#a3de83">
+    <circle cx="80" cy="150" r="18"/><circle cx="130" cy="150" r="18"/><circle cx="180" cy="150" r="18"/>
+    <circle cx="230" cy="150" r="18"/><circle cx="280" cy="150" r="18"/>
+  </g>
+  <g stroke="#e2607e" stroke-width="5" stroke-linecap="round">
+    <line x1="215" y1="135" x2="245" y2="165"/><line x1="245" y1="135" x2="215" y2="165"/>
+    <line x1="265" y1="135" x2="295" y2="165"/><line x1="295" y1="135" x2="265" y2="165"/>
+  </g>
+  <text x="200" y="230" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#17324d">2こ とると のこりは いくつかな</text>
+</svg>

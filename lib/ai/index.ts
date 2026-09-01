@@ -11,11 +11,22 @@ import {
 } from "./prompts";
 import type { AiProvider } from "./provider";
 import {
+  handwritingResponseSchema,
+  hintsResponseSchema,
+  parsedProblemsResponseSchema,
+  similarProblemsResponseSchema,
+} from "./responseSchemas";
+import {
   handwritingAnswerSchema,
-  parsedProblemSchema,
+  hintsSchema,
   similarProblemDraftsSchema,
 } from "./schemas";
 
+/**
+ * 構造化呼び出しは必ず responseSchema(lib/ai/responseSchemas.ts)を渡す(B8)。
+ * analyzeProblems は配列の形だけ確認して生データを返し、1件ずつの Zod 検証は
+ * Route Handler 側で行う(B11: 1問の不良で全問を捨てない)。
+ */
 const createGeminiProvider = (env: Record<string, string | undefined>): AiProvider => {
   const client = createGeminiClient({ env });
   return {
@@ -24,8 +35,8 @@ const createGeminiProvider = (env: Record<string, string | undefined>): AiProvid
       client.generateStructured(
         "vision",
         buildAnalyzeProblemsPrompt(GRADE_2_MATH_UNITS),
-        z.array(parsedProblemSchema),
-        undefined,
+        z.array(z.unknown()),
+        parsedProblemsResponseSchema,
         images,
       ),
     recognizeHandwriting: (images, problemText) =>
@@ -33,15 +44,18 @@ const createGeminiProvider = (env: Record<string, string | undefined>): AiProvid
         "vision",
         buildHandwritingPrompt(problemText),
         handwritingAnswerSchema,
-        undefined,
+        handwritingResponseSchema,
         images,
       ),
     generateSimilarProblems: (input) =>
       client.generateStructured(
-        "text",
+        "structured",
         buildSimilarProblemsPrompt(input),
         similarProblemDraftsSchema,
+        similarProblemsResponseSchema,
       ),
+    generateHints: (prompt) =>
+      client.generateStructured("structured", prompt, hintsSchema, hintsResponseSchema),
   };
 };
 

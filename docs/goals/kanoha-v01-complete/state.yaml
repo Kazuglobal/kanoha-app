@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T012
+active_task: T007
 
 tasks:
   - id: T001
@@ -521,7 +521,7 @@ tasks:
   - id: T012
     type: pm
     assignee: PM
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W3 fix-up(T006 差し戻し、Worker が利用上限のため PM が実施): (S1) app/api/child-mode/route.ts の DELETE を削除(解除は /api/parent/pin/verify のみ)、tests/api/child-mode.test.ts・tests/auth/childMode.test.ts を DELETE→405 に更新、e2e/child-mode.spec.ts にケース追加、doc.md §16 更新 (D2b) app/api/reviews/schedule/route.ts の countSimilarCorrect を『類題ごとに最初の attempt』基準にし、(child, source_problem) の最新5件の generated_similar_problems に限定。tests/api/learning-loop.test.ts 更新 (doc) §15 に cookie 24h 失効の割り切りを記載"
     inputs:
@@ -544,12 +544,39 @@ tasks:
     stop_if:
       - "allowed_files 外の変更が必要"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - app/api/child-mode/route.ts
+        - app/api/reviews/schedule/route.ts
+        - tests/api/child-mode.test.ts
+        - tests/api/learning-loop.test.ts
+        - e2e/child-mode.spec.ts
+        - doc.md
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "49 files / 321 tests passed"
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "npx playwright test e2e/child-mode.spec.ts"
+          status: pass
+          tail: "14 passed (新規: DELETE→405 とその後も /parent が 302 のまま)"
+        - cmd: "grep 'export async function DELETE' app/api/child-mode/route.ts"
+          status: pass
+          tail: "0件"
+      summary: "S1: DELETE /api/child-mode を削除(解除は pin/verify のみ)。D2b: 類題正解数を『最新5件の生成セット × 類題ごと最初の attempt』に変更し再送水増しとセット合算を遮断。doc §15/§16 更新(24h 失効の割り切りを明記)"
+      deviations:
+        - "tests/auth/childMode.test.ts は変更不要だった(DELETE は parent-only 判定の対象外のままで正しい)"
 
   - id: T007
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: medium
     objective: "W4 AI層堅牢化: (a) Gemini 呼び出しに responseSchema(zod→JSON Schema)を渡し、キーは x-goog-api-key ヘッダーへ (b) ページ内の問題を1件ずつ Zod 検証し有効分のみ保存、失敗数を親に返す (c) lib/ai/pii.ts で学校名・氏名・住所・クラスのパターンを後段除去しテスト (d) ai_usage_daily を increment_ai_usage(user_id, cost) RPC でアトミック増分・呼び出し前に予約、読み取り失敗は fail-closed (e) recognize-handwriting の data に max と magic-byte 検証 (f) generate-hints で explanationLevel が異なる時は buildHintsPrompt で再生成(コストガード経由) (g) 画像生成の4条件: app_settings.enable_image_generation 追加(マイグレーション)、recommendedVisualTemplate null 判定、costGuard、テンプレキーを grade2Math.visualTemplate に統一し public/visuals に全単元の SVG を用意 (h) テスト"
     inputs:
@@ -674,9 +701,9 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T005
+    task: T012
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 49 files / 320 tests passed)"
-      - "npx playwright test e2e/child-learning.spec.ts e2e/child-mode.spec.ts (2026-09-02: 16 passed)"
+      - "npx vitest run (2026-09-02: 49 files / 321 tests passed)"
+      - "npx playwright test e2e/child-mode.spec.ts (2026-09-02: 14 passed)"
       - "npm run build (2026-09-02: 成功)"

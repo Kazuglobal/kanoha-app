@@ -45,9 +45,10 @@ const timeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
 
 const createRestRunner = (apiKey: string): GeminiRunner => {
   return async ({ generationConfig, images, model, prompt }) => {
+    // The API key travels only in the x-goog-api-key header, never in the URL (B9: keys leak via logs).
     const endpoint =
       `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      `${encodeURIComponent(model)}:generateContent`;
     const imageParts = (images ?? []).map(({ data, mimeType }) => ({
       inlineData: { data, mimeType },
     }));
@@ -56,7 +57,7 @@ const createRestRunner = (apiKey: string): GeminiRunner => {
         contents: [{ parts: [...imageParts, { text: prompt }], role: "user" }],
         generationConfig,
       }),
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
       method: "POST",
     });
     if (!response.ok) throw new Error(`Gemini request failed with status ${response.status}`);
@@ -91,7 +92,8 @@ export const createGeminiClient = ({
     images?: readonly GeminiImagePart[],
   ): Promise<string> => {
     const key = modelEnvKey[kind];
-    const model = env[key];
+    // structured falls back to the text model when GEMINI_STRUCTURED_MODEL is unset.
+    const model = env[key] ?? (kind === "structured" ? env[modelEnvKey.text] : undefined);
     if (!model) throw new Error(`${key} is required`);
 
     let lastError: unknown;

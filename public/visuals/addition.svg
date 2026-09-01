@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="たしざん">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">たしざん</text>
+  <g fill="#7fc8f8"><circle cx="80" cy="140" r="18"/><circle cx="125" cy="140" r="18"/><circle cx="80" cy="185" r="18"/></g>
+  <text x="170" y="175" text-anchor="middle" font-size="44" font-family="sans-serif" font-weight="700" fill="#17324d">+</text>
+  <g fill="#f8a97f"><circle cx="220" cy="140" r="18"/><circle cx="265" cy="140" r="18"/></g>
+  <text x="310" y="175" text-anchor="middle" font-size="44" font-family="sans-serif" font-weight="700" fill="#17324d">=</text>
+  <text x="355" y="175" text-anchor="middle" font-size="44" font-family="sans-serif" font-weight="700" fill="#0d9f8c">?</text>
+  <text x="200" y="262" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">あわせて いくつかな</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="とけい">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="42" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">とけいを よもう</text>
+  <circle cx="200" cy="170" r="95" fill="#ffffff" stroke="#17324d" stroke-width="6"/>
+  <text x="200" y="100" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#17324d">12</text>
+  <text x="272" y="178" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#17324d">3</text>
+  <text x="200" y="252" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#17324d">6</text>
+  <text x="128" y="178" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#17324d">9</text>
+  <line x1="200" y1="170" x2="200" y2="115" stroke="#e2607e" stroke-width="8" stroke-linecap="round"/>
+  <line x1="200" y1="170" x2="250" y2="170" stroke="#0d9f8c" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="200" cy="170" r="8" fill="#17324d"/>
+</svg>

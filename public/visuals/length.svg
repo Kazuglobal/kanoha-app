@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="ながさ">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ながさ(cm・mm)</text>
+  <rect x="60" y="130" width="280" height="60" rx="8" fill="#ffe9a8" stroke="#17324d" stroke-width="4"/>
+  <g stroke="#17324d" stroke-width="3">
+    <line x1="88" y1="130" x2="88" y2="155"/><line x1="116" y1="130" x2="116" y2="148"/>
+    <line x1="144" y1="130" x2="144" y2="155"/><line x1="172" y1="130" x2="172" y2="148"/>
+    <line x1="200" y1="130" x2="200" y2="155"/><line x1="228" y1="130" x2="228" y2="148"/>
+    <line x1="256" y1="130" x2="256" y2="155"/><line x1="284" y1="130" x2="284" y2="148"/>
+    <line x1="312" y1="130" x2="312" y2="155"/>
+  </g>
+  <text x="200" y="255" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">1cmは 10mm だよ</text>
+</svg>

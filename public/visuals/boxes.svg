@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="はこの かたち">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">はこの かたち</text>
+  <polygon points="120,120 250,120 250,230 120,230" fill="#ffe9a8" stroke="#17324d" stroke-width="4"/>
+  <polygon points="120,120 160,85 290,85 250,120" fill="#f8d27f" stroke="#17324d" stroke-width="4"/>
+  <polygon points="250,120 290,85 290,195 250,230" fill="#eec06a" stroke="#17324d" stroke-width="4"/>
+  <text x="200" y="268" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">めん・へん・ちょうてんを さがそう</text>
+</svg>

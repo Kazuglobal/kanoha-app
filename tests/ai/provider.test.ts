@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { getAiProvider, parsedProblemSchema } from "@/lib/ai";
+import { getAiProvider, hintsSchema, parsedProblemSchema } from "@/lib/ai";
+import { buildHintsPrompt } from "@/lib/ai/prompts";
 
 describe("getAiProvider", () => {
   it("selects deterministic mock data", async () => {
     const provider = getAiProvider({ AI_PROVIDER_TEXT: "mock" });
-    const problems = await provider.analyzeProblems([]);
+    const raw = await provider.analyzeProblems([]);
+    const problems = raw.map((item) => parsedProblemSchema.parse(item));
 
     expect(provider.name).toBe("mock");
     expect(problems).toHaveLength(3);
     expect(problems.map(({ unit }) => unit)).toEqual(["水のかさ", "たし算", "かけ算"]);
-    expect(problems.every((problem) => parsedProblemSchema.safeParse(problem).success)).toBe(true);
     expect(problems[0].recommendedVisualTemplate).toBe("volume");
   });
 
@@ -52,5 +53,17 @@ describe("getAiProvider", () => {
     expect(problems.every((item) => item.difficulty === "standard")).toBe(true);
     expect(problems.every((item) => item.answer.length > 0)).toBe(true);
     expect(problems.every((item) => item.explanation.length > 0)).toBe(true);
+  });
+
+  it("regenerates valid hints in mock mode, with simpler texts for very_easy", async () => {
+    const provider = getAiProvider({ AI_PROVIDER_TEXT: "mock" });
+    const standard = await provider.generateHints(buildHintsPrompt("1Lは何mLですか。", "standard"));
+    const veryEasy = await provider.generateHints(buildHintsPrompt("1Lは何mLですか。", "very_easy"));
+
+    expect(hintsSchema.safeParse(standard).success).toBe(true);
+    expect(hintsSchema.safeParse(veryEasy).success).toBe(true);
+    expect(veryEasy.hint1).not.toBe(standard.hint1);
+    expect(veryEasy.solution.length).toBeLessThan(standard.solution.length);
+    expect(veryEasy.answer).toBe(standard.answer);
   });
 });

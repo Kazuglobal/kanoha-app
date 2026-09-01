@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="ぼうグラフ">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ひょうと グラフ</text>
+  <line x1="70" y1="250" x2="340" y2="250" stroke="#17324d" stroke-width="4"/>
+  <line x1="70" y1="250" x2="70" y2="80" stroke="#17324d" stroke-width="4"/>
+  <rect x="95" y="170" width="40" height="80" fill="#7fc8f8"/>
+  <rect x="155" y="120" width="40" height="130" fill="#f8a97f"/>
+  <rect x="215" y="190" width="40" height="60" fill="#a3de83"/>
+  <rect x="275" y="140" width="40" height="110" fill="#d3a5f0"/>
+  <text x="115" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">りんご</text>
+  <text x="175" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">みかん</text>
+  <text x="235" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">ぶどう</text>
+  <text x="295" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">もも</text>
+</svg>

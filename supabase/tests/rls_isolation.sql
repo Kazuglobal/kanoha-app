@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap;
-select plan(10);
+select plan(11);
 
 insert into auth.users (id, email)
 values
@@ -110,6 +110,13 @@ select throws_ok(
   '42501',
   null::text,
   'authenticated cannot reset the PIN lockout counter'
+);
+
+select throws_ok(
+  $$select * from public.increment_ai_usage(
+    '00000000-0000-0000-0000-000000000002', 0.01, 100, 2.0)$$,
+  'ai usage owner mismatch',
+  'increment_ai_usage refuses another user id'
 );
 
 select * from finish();

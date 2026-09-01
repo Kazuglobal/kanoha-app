@@ -58,6 +58,84 @@ describe("Gemini client", () => {
     );
   });
 
+  it("sends the API key only in the x-goog-api-key header, never in the URL", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: "ok" }] } }] }),
+        { status: 200 },
+      ),
+    );
+    const client = createGeminiClient({
+      env: { GEMINI_API_KEY: "secret-key", GEMINI_TEXT_MODEL: "text-from-env" },
+      retries: 0,
+      timeoutMs: 100,
+    });
+
+    await client.generateText("text", "prompt");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).not.toContain("secret-key");
+    expect(String(url)).not.toContain("key=");
+    expect((init?.headers as Record<string, string>)["x-goog-api-key"]).toBe("secret-key");
+    fetchMock.mockRestore();
+  });
+
+  it("falls back to GEMINI_TEXT_MODEL for structured calls when GEMINI_STRUCTURED_MODEL is unset", async () => {
+    const run = vi.fn().mockResolvedValue("{}");
+    const client = createGeminiClient({
+      env: { GEMINI_API_KEY: "test", GEMINI_TEXT_MODEL: "text-from-env" },
+      retries: 0,
+      run,
+      timeoutMs: 100,
+    });
+
+    await client.generateText("structured", "prompt");
+    expect(run.mock.calls[0][0].model).toBe("text-from-env");
+  });
+
+  it("prefers GEMINI_STRUCTURED_MODEL for structured calls when set", async () => {
+    const run = vi.fn().mockResolvedValue("{}");
+    const client = createGeminiClient({
+      env: {
+        GEMINI_API_KEY: "test",
+        GEMINI_STRUCTURED_MODEL: "structured-from-env",
+        GEMINI_TEXT_MODEL: "text-from-env",
+      },
+      retries: 0,
+      run,
+      timeoutMs: 100,
+    });
+
+    await client.generateText("structured", "prompt");
+    expect(run.mock.calls[0][0].model).toBe("structured-from-env");
+  });
+
+  it("passes the responseSchema through to generationConfig for structured output", async () => {
+    const run = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        answer: "4",
+        hint1: "h1",
+        hint2: "h2",
+        praise: "p",
+        solution: "s",
+      }),
+    );
+    const client = createGeminiClient({
+      env: { GEMINI_API_KEY: "test", GEMINI_TEXT_MODEL: "text-from-env" },
+      retries: 0,
+      run,
+      timeoutMs: 100,
+    });
+    const responseSchema = { type: "object" };
+
+    await client.generateStructured("text", "prompt", hintsSchema, responseSchema);
+
+    expect(run.mock.calls[0][0].generationConfig).toEqual({
+      responseMimeType: "application/json",
+      responseSchema,
+    });
+  });
+
   it("passes image parts through to the runner for vision requests", async () => {
     const run = vi.fn().mockResolvedValue("[]");
     const client = createGeminiClient({

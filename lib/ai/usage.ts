@@ -1,29 +1,41 @@
-import type { createAdminClient } from "@/lib/supabase/admin";
-import { todayKeyJst } from "@/lib/utils/date";
-import type { AiDailyUsage } from "./costGuard";
+import type { createClient } from "@/lib/supabase/server";
 
-type AdminClient = ReturnType<typeof createAdminClient>;
+import type { AiCostLimits } from "./costGuard";
 
-const today = () => todayKeyJst();
+type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-export async function getDailyAiUsage(admin: AdminClient, userId: string): Promise<AiDailyUsage> {
-  const { data } = await admin
-    .from("ai_usage_daily")
-    .select("calls, cost_usd")
-    .eq("user_id", userId)
-    .eq("usage_date", today())
-    .maybeSingle();
+export type AiUsageReservation =
+  | { outcome: "allowed"; calls: number; costUsd: number }
+  | { outcome: "denied"; calls: number; costUsd: number }
+  | { outcome: "unavailable" };
 
-  return { calls: data?.calls ?? 0, costUsd: data?.cost_usd ?? 0 };
-}
-
-export async function recordAiUsage(admin: AdminClient, userId: string, costUsd: number) {
-  const usage = await getDailyAiUsage(admin, userId);
-  await admin.from("ai_usage_daily").upsert({
-    user_id: userId,
-    usage_date: today(),
-    calls: usage.calls + 1,
-    cost_usd: Math.round((usage.costUsd + costUsd) * 1_000_000) / 1_000_000,
-    updated_at: new Date().toISOString(),
+/**
+ * increment_ai_usage RPC(0011)で、プロバイダ呼び出しの「前」に当日(JST)の利用枠を
+ * 原子的に予約する。上限超過は denied、RPC エラー・不正応答は unavailable(フェイルクローズ)。
+ * プロバイダ側が失敗しても払い戻しはしない(読んだ分は使った扱い)。
+ */
+export async function reserveAiUsage(
+  supabase: Supabase,
+  userId: string,
+  costUsd: number,
+  limits: AiCostLimits,
+): Promise<AiUsageReservation> {
+  const { data, error } = await supabase.rpc("increment_ai_usage", {
+    p_call_limit: limits.dailyCallLimit,
+    p_cost: costUsd,
+    p_cost_limit: limits.dailyCostLimitUsd,
+    p_user: userId,
   });
+  if (error) return { outcome: "unavailable" };
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { allowed?: unknown; calls?: unknown; cost_usd?: unknown }
+    | null
+    | undefined;
+  if (!row || typeof row.allowed !== "boolean") return { outcome: "unavailable" };
+  return {
+    calls: Number(row.calls ?? 0),
+    costUsd: Number(row.cost_usd ?? 0),
+    outcome: row.allowed ? "allowed" : "denied",
+  };
 }

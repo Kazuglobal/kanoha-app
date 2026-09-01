@@ -172,6 +172,8 @@ export interface AppSettings {
   slackWebhookSecretId: Uuid | null;
   enableAudio: boolean;
   enableVoiceAnswer: boolean;
+  /** AI画像生成の親許可(0011)。既定 false。テンプレ図解には影響しない。 */
+  enableImageGeneration: boolean;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
 }

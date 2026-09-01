@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="かけざん">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">かけざん</text>
+  <g fill="#d3a5f0">
+    <circle cx="120" cy="110" r="16"/><circle cx="170" cy="110" r="16"/><circle cx="220" cy="110" r="16"/><circle cx="270" cy="110" r="16"/>
+    <circle cx="120" cy="160" r="16"/><circle cx="170" cy="160" r="16"/><circle cx="220" cy="160" r="16"/><circle cx="270" cy="160" r="16"/>
+    <circle cx="120" cy="210" r="16"/><circle cx="170" cy="210" r="16"/><circle cx="220" cy="210" r="16"/><circle cx="270" cy="210" r="16"/>
+  </g>
+  <text x="200" y="266" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">4こずつ 3れつで 4×3</text>
+</svg>

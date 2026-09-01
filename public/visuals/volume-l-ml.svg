@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500">
-  <rect width="900" height="500" rx="48" fill="#fff9e8"/>
-  <g fill="#dff5f3" stroke="#0d9f8c" stroke-width="8">
-    <path d="M80 160h120l-12 220H92Z"/><path d="M230 160h120l-12 220H242Z"/><path d="M380 160h120l-12 220H392Z"/><path d="M530 160h120l-12 220H542Z"/><path d="M680 160h120l-12 220H692Z"/>
-  </g>
-  <text x="450" y="105" text-anchor="middle" font-size="46" font-family="sans-serif" font-weight="700" fill="#17324d">100mL × 10 = 1000mL = 1L</text>
-</svg>
-

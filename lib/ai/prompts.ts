@@ -54,6 +54,16 @@ export const buildHandwritingPrompt = (problemText: string): string =>
     "指定されたJSON形式だけを出力してください。",
   ].join("\n");
 
+export const buildVisualImagePrompt = (problemText: string, unit: string): string =>
+  [
+    "小学2年生向けの算数の図解イラストを1枚作ってください。",
+    privacyRule,
+    `単元: ${unit}`,
+    `問題: ${problemText}`,
+    "やさしい色のフラットな図で、考え方が伝わるように描いてください。文字は最小限にします。",
+    "答えそのものは絵に書き込まないでください。",
+  ].join("\n");
+
 export const buildParentReportPrompt = (summary: string): string =>
   [
     "保護者向けに、簡潔で前向きな日次算数学習レポートを作ってください。",

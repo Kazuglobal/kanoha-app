@@ -13,6 +13,7 @@ interface SettingsState {
   dailyLimitMinutes: number;
   enableAudio: boolean;
   enableVoiceAnswer: boolean;
+  enableImageGeneration: boolean;
 }
 
 const defaults: SettingsState = {
@@ -20,6 +21,7 @@ const defaults: SettingsState = {
   dailyLimitMinutes: 15,
   enableAudio: true,
   enableVoiceAnswer: true,
+  enableImageGeneration: false,
 };
 
 export function SettingsForm() {
@@ -49,6 +51,7 @@ export function SettingsForm() {
       dailyLimitMinutes: body.data.daily_limit_minutes,
       enableAudio: body.data.enable_audio,
       enableVoiceAnswer: body.data.enable_voice_answer,
+      enableImageGeneration: Boolean(body.data.enable_image_generation),
     });
     setSlackConfigured(body.data.slack_configured);
     setSlackEnabled(body.data.enable_slack);
@@ -172,6 +175,7 @@ export function SettingsForm() {
       </label>
       <label className={styles.switchRow}><span><strong>音声読み上げ</strong><br /><small className={styles.tiny}>子どもが押したときだけ再生</small></span><input aria-label="音声読み上げ" checked={settings.enableAudio} disabled={pending || !childId} type="checkbox" onChange={(event) => setSettings({ ...settings, enableAudio: event.target.checked })} /></label>
       <label className={styles.switchRow}><span><strong>音声回答</strong><br /><small className={styles.tiny}>対応端末で利用</small></span><input aria-label="音声回答" checked={settings.enableVoiceAnswer} disabled={pending || !childId} type="checkbox" onChange={(event) => setSettings({ ...settings, enableVoiceAnswer: event.target.checked })} /></label>
+      <label className={styles.switchRow}><span><strong>AIの図解生成</strong><br /><small className={styles.tiny}>テンプレ図がない問題でだけAIが図を作ります(AI利用料がかかります)</small></span><input aria-label="AIの図解生成" checked={settings.enableImageGeneration} disabled={pending || !childId} type="checkbox" onChange={(event) => setSettings({ ...settings, enableImageGeneration: event.target.checked })} /></label>
       <button className={styles.primaryButton} disabled={pending || !childId} type="button" onClick={() => void saveSettings()}>
         {pending ? "処理しています..." : "設定を保存"}
       </button>

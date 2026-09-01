@@ -199,9 +199,9 @@ uploaded_materials に記録(expires_at = now + MATERIAL_RETENTION_DAYS)
 ↓
 個人情報(学校名・氏名等)を検出したら該当テキストを破棄
 ↓
-問題ごとに分割し JSON 構造化(responseSchema + Zod検証)
+問題ごとに分割し JSON 構造化(responseSchema + 1問ずつZod検証。不合格の問題だけ除外)
 ↓
-problems に保存(解析失敗ページは status=failed で記録し親に通知)
+problems に保存(1問以上保存できたら material は done、0問なら failed。レスポンスの { saved, failed } で親に通知)
 ```
 
 ### 8.2 問題解析JSON(ParsedProblem)
@@ -448,9 +448,9 @@ type MistakeType =
 | `POST /api/materials/upload` | 画像をStorageへ保存 → `uploaded_materials` 記録 → 解析ジョブ起動 |
 | `POST /api/ai/analyze-problem` | Gemini Visionで画像解析 → ParsedProblem[] → `problems` 保存 |
 | `POST /api/problems/[id]/hint` | 段階開示(A2)。`{ childId, sessionId, level 1..4 }`。`level <= max_level+1` のときだけその1段を返し、`problem_hint_views.max_level` を更新。答え(level 4)はここ以外から返さない。Supabase 未設定時はデモ問題(`lib/ai/mock.ts`)を cookie で段階管理して返す |
-| `POST /api/ai/generate-hints` | ヒント再生成(「もっとかんたんに」含む)。`explanationLevel` + `sessionId` 指定。返すのは `max_level` までの段階のみ |
+| `POST /api/ai/generate-hints` | ヒント再生成(「もっとかんたんに」)。`explanationLevel` + `sessionId` 指定で Gemini に再生成させる(コスト予約後)。返すのは `max_level` までの段階のみ。再生成結果は保存しない |
 | `POST /api/ai/generate-similar-problems` | 類題5問生成 → 4択(`choices`)をサーバーで生成して `generated_similar_problems` 保存。レスポンスに `answer` / `explanation` は含めない |
-| `POST /api/ai/generate-image` | 図解画像生成(テンプレ不可時のみ。コスト上限チェック) |
+| `POST /api/ai/generate-image` | 図解。単元テンプレ(`public/visuals/<visualTemplate>.svg`)を最優先で返す。テンプレ不可時のみ、親の許可(`enable_image_generation`)+ コスト予約を満たすと GPT Image で生成しデータURLで返す(保存しない) |
 | `POST /api/attempts` | 回答保存 → `weakness_map` 更新。正誤はサーバー判定、`hint_level_used` は `problem_hint_views` から。tap 回答は保存済み `choices` の1つであること。類題の不正解時のみ `explanation` を返す |
 | `POST /api/reviews/schedule` | 復習予定の作成・更新。`{ childId, problemId, sessionId }`。類題の正解数はそのセッションの attempts からサーバーが導出する(クライアントは送らない) |
 | `POST /api/parent/pin` | 親PIN(4桁)の登録・変更。親専用。ハッシュは返さない |
@@ -535,14 +535,15 @@ interface ApiResponse<T> {
 
 ## 19. 画像生成(図解)仕様
 
-1. **テンプレ画像優先**: 単元ごとに静的テンプレを `public/visuals/` に用意
-   (L/mL変換・cm/mm変換・時計・文章題・図形・たし算・ひき算・九九)
+1. **テンプレ画像優先**: 単元マスタ(`lib/curriculum/grade2Math.ts`)の `visualTemplate` ごとに
+   静的テンプレを `public/visuals/<visualTemplate>.svg` に用意(全11単元ぶん)
 2. **AI画像生成の条件**(すべて満たす場合のみ):
-   - テンプレで説明しにくい(`recommendedVisualTemplate` が null)
-   - 子どもが「絵で教えて」を押した
-   - 親が画像生成を許可している
-   - 当日のAPIコスト上限内
-3. 生成画像は表示後破棄(Storageに保存しない)
+   - テンプレで説明しにくい(単元テンプレが引けない = `recommendedVisualTemplate` が null 相当)
+   - 子どもが「絵で教えて」を押した(`requestedByChild`)
+   - 親が画像生成を許可している(`app_settings.enable_image_generation`、既定オフ)
+   - 当日のAPIコスト上限内(`increment_ai_usage` RPC で呼び出し前に予約。超過は 429、RPC不通は 503)
+3. 生成画像はデータURLで返し、表示後破棄(Storage・DBに保存しない)。`OPENAI_API_KEY` /
+   `IMAGE_GENERATION_MODEL` 未設定時は 503(テンプレ図解は影響を受けない)
 
 ---
 
@@ -579,7 +580,17 @@ APP_URL=
 MATERIAL_RETENTION_DAYS=30
 DAILY_LEARNING_LIMIT_MINUTES=15
 AI_DAILY_COST_LIMIT_USD=2
+AI_DAILY_CALL_LIMIT=100
+AI_ANALYZE_COST_USD=0.01
+AI_RECOGNIZE_COST_USD=0.005
+AI_SIMILAR_COST_USD=0.005
+AI_HINTS_COST_USD=0.002
+AI_IMAGE_COST_USD=0.04
 ```
+
+- `GEMINI_STRUCTURED_MODEL` 未設定時は `GEMINI_TEXT_MODEL` にフォールバックする
+- `AI_*_COST_USD` は1回の呼び出しの見積もりコスト。`increment_ai_usage` RPC が呼び出し前に
+  当日(JST)の calls / cost を原子的に予約し、上限超過は 429、RPC不通は 503(フェイルクローズ)
 
 ※ `SLACK_WEBHOOK_URL` は環境変数ではなく `app_settings` に親ごとに暗号化保存(マルチ家庭対応のため)。
 

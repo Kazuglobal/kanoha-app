@@ -76,6 +76,6 @@ describe("child mode migration (0010): problem_hint_views", () => {
     expect(rlsTest).toContain("a parent cannot record hint views for another parent child");
     expect(rlsTest).toContain("authenticated cannot read parent_pin_hash");
     expect(rlsTest).toContain("authenticated cannot reset the PIN lockout counter");
-    expect(rlsTest).toContain("select plan(10);");
+    expect(rlsTest).toContain("select plan(11);");
   });
 });

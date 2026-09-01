@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="おおきい かず">
+  <rect width="400" height="300" rx="24" fill="#fff9e8"/>
+  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">おおきい かず</text>
+  <rect x="55" y="100" width="100" height="100" fill="#7fc8f8" stroke="#17324d" stroke-width="4"/>
+  <rect x="185" y="140" width="60" height="60" fill="#a3de83" stroke="#17324d" stroke-width="4"/>
+  <rect x="285" y="170" width="30" height="30" fill="#f8a97f" stroke="#17324d" stroke-width="4"/>
+  <text x="105" y="235" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">100</text>
+  <text x="215" y="235" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">10</text>
+  <text x="300" y="235" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">1</text>
+  <text x="200" y="272" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">くらいごとに かんがえよう</text>
+</svg>

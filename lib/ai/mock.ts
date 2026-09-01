@@ -6,6 +6,7 @@ import type {
   SimilarProblemRequest,
 } from "./schemas";
 
+/** analyzeProblems は unknown[] を返す契約だが、モックは常に有効な ParsedProblem を返す。 */
 interface MockProblemSpec {
   correctAnswer: string;
   hints?: Partial<Omit<Hints, "answer">>;
@@ -95,8 +96,27 @@ const makeSimilarProblem = (
   };
 };
 
+/** 「もっとかんたんに」用の固定ヒント。very_easy はより短くやさしい文にする。 */
+const STANDARD_MOCK_HINTS: Hints = {
+  answer: "1000mL",
+  hint1: "1Lの中には、100mLがいくつあるか考えよう。",
+  hint2: "100mLが10こで1Lになるよ。",
+  praise: "じっくり考えられているね。",
+  solution: "100mLを10こあつめると1000mLです。だから1Lは1000mLです。",
+};
+
+const VERY_EASY_MOCK_HINTS: Hints = {
+  answer: "1000mL",
+  hint1: "えを 見てみよう。",
+  hint2: "100が 10こ あるよ。",
+  praise: "がんばっているね。",
+  solution: "100が 10こで 1000だよ。",
+};
+
 export const mockAiProvider: AiProvider = {
   analyzeProblems: async () => [...mockProblems],
+  generateHints: async (prompt) =>
+    prompt.includes("very_easy") ? VERY_EASY_MOCK_HINTS : STANDARD_MOCK_HINTS,
   generateSimilarProblems: async (input) =>
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),
   name: "mock",
