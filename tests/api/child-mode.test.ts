@@ -63,7 +63,7 @@ describe("proxy: child mode gating runs before session refresh", () => {
   it("lets child-allowed APIs and pages through to the session refresh", async () => {
     const { proxy } = await import("@/proxy");
     const { updateSession } = await import("@/lib/supabase/middleware");
-    for (const [path, method] of [["/api/attempts", "POST"], ["/api/parent/pin/verify", "POST"], ["/child/home", "GET"], ["/api/child-mode", "DELETE"]]) {
+    for (const [path, method] of [["/api/attempts", "POST"], ["/api/parent/pin/verify", "POST"], ["/child/home", "GET"]]) {
       const response = await proxy(request(path, method, "kanoha_mode=child"));
       expect(response.status, `${method} ${path}`).toBe(200);
     }
@@ -104,7 +104,7 @@ describe("proxy: child mode gating runs before session refresh", () => {
   });
 });
 
-describe("POST/DELETE /api/child-mode", () => {
+describe("POST /api/child-mode", () => {
   beforeEach(() => {
     state.user = { id: USER };
   });
@@ -130,11 +130,9 @@ describe("POST/DELETE /api/child-mode", () => {
     expect((await POST()).status).toBe(401);
   });
 
-  it("DELETE clears the cookie", async () => {
-    const { DELETE } = await import("@/app/api/child-mode/route");
-    const response = await DELETE();
-    expect(response.status).toBe(200);
-    expect(setCookieOf(response)).toMatch(/kanoha_mode=;.*Max-Age=0/);
+  it("has no DELETE handler: the cookie can only be cleared by PIN verification (S1)", async () => {
+    const route = await import("@/app/api/child-mode/route");
+    expect("DELETE" in route).toBe(false);
   });
 });
 

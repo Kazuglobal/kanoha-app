@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { childModeCookie, clearedChildModeCookie } from "@/lib/auth/childMode";
+import { childModeCookie } from "@/lib/auth/childMode";
 import { loadPinRow } from "@/lib/auth/pin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, internalError, requireUser, type ApiResponse } from "@/lib/utils/api";
@@ -9,6 +9,8 @@ const isProduction = () => process.env.NODE_ENV === "production";
 /**
  * 子どもモード開始(A1)。親専用(proxy.ts が子どもモード中の POST を 403 にする)。
  * PIN 未設定のまま始めると親画面に戻れなくなるため 409 で断る。
+ * 解除 API は意図的に無い: 親セッション=子どものセッションなので、cookie を消す経路は
+ * PIN 照合(/api/parent/pin/verify)だけにする(S1)。
  */
 export async function POST() {
   const auth = await requireUser();
@@ -23,18 +25,5 @@ export async function POST() {
 
   const response = NextResponse.json<ApiResponse<{ mode: "child" }>>({ success: true, data: { mode: "child" } });
   response.cookies.set(childModeCookie(isProduction()));
-  return response;
-}
-
-/**
- * 子どもモード cookie の削除。PIN 照合(/api/parent/pin/verify)が唯一の正規経路で、
- * ここは PIN 照合済みの後始末とテスト用。cookie を消すだけで権限は上がらない
- * (親画面はセッション認証で守られている)ため PIN を再要求しない。
- */
-export async function DELETE() {
-  const auth = await requireUser();
-  if (!auth.user) return apiError("Authentication required", 401);
-  const response = NextResponse.json<ApiResponse<{ mode: "parent" }>>({ success: true, data: { mode: "parent" } });
-  response.cookies.set(clearedChildModeCookie(isProduction()));
   return response;
 }

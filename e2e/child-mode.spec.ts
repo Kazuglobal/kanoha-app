@@ -38,6 +38,13 @@ test.describe("child mode (kanoha_mode=child cookie)", () => {
     }
   });
 
+  test("the child cookie cannot be cleared without the PIN (no DELETE handler)", async ({ page }) => {
+    const response = await page.request.delete("/api/child-mode");
+    expect(response.status()).toBe(405);
+    const again = await page.request.get("/parent/settings", { maxRedirects: 0 });
+    expect(again.status()).toBe(302);
+  });
+
   test("child-allowed APIs are still reachable", async ({ page }) => {
     const hint = await page.request.post("/api/problems/volume-1/hint", { data: { level: 1 } });
     expect(hint.status()).toBe(200);

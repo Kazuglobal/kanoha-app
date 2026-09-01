@@ -302,11 +302,11 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     },
   );
 
-  it("schedule: counts only the latest attempt per similar problem", async () => {
+  it("schedule: counts only the FIRST attempt per similar problem (re-posting the right choice cannot inflate it)", async () => {
     const attempts = (call: QueryCall) => {
       if (call.operation !== "select") return [];
       if (filterValue(call, "problem_id")) return [];
-      // 新しい順: similar-0 は最新が不正解、similar-1 は最新が正解(古い不正解は無視)。
+      // 古い順: similar-0 は最初が不正解(後で正解を再送)、similar-1 は最初が正解。
       return [
         { similar_problem_id: "similar-0", is_correct: false },
         { similar_problem_id: "similar-0", is_correct: true },
@@ -314,7 +314,7 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
         { similar_problem_id: "similar-1", is_correct: false },
         { similar_problem_id: "similar-2", is_correct: true },
         { similar_problem_id: "similar-3", is_correct: true },
-        { similar_problem_id: "similar-4", is_correct: true },
+        { similar_problem_id: "similar-4", is_correct: false },
       ];
     };
     const fake = fakeSupabase({
@@ -324,8 +324,23 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
     const body = await (await POST(post("/api/reviews/schedule", scheduleBody))).json();
-    expect(body.data.similar_correct_count).toBe(4);
-    expect(body.data.mastery_level).toBe("mastered");
+    expect(body.data.similar_correct_count).toBe(3);
+    expect(body.data.mastery_level).not.toBe("mastered");
+    const attemptLookup = callsFor(fake.calls, "attempts", "select").find((call) => !filterValue(call, "problem_id"))!;
+    expect(attemptLookup.order).toEqual({ column: "created_at", ascending: true });
+  });
+
+  it("schedule: scopes the count to the latest generated set of 5, so merged sets cannot reach 4 (D2b)", async () => {
+    const fake = fakeSupabase({
+      tables: scheduleTables({ review_stage: 1, status: "pending" }, 0, null),
+    });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    await POST(post("/api/reviews/schedule", scheduleBody));
+    const generated = callsFor(fake.calls, "generated_similar_problems", "select")[0];
+    expect(generated.order).toEqual({ column: "created_at", ascending: false });
+    expect(generated.limit).toBe(5);
   });
 
   it("schedule: 5/5 with no existing review and a correct original creates no review row (doc §12.1)", async () => {

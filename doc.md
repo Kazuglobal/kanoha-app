@@ -434,7 +434,8 @@ type MistakeType =
 - 親が `POST /api/child-mode` で `kanoha_mode=child` cookie(httpOnly / sameSite=lax / 24h / 署名なし)を立てる。偽造しても権限は下がるだけ
 - cookie がある間、`proxy.ts` はセッション更新より前に `/parent/*` → 302 `/child/home`、親専用 API → 403 `{ success:false, error }` にする
 - 親専用: `/api/children*`、`/api/materials*`、`/api/ai/analyze-problem`、`/api/settings/*`、`POST /api/parent/pin`、`POST /api/child-mode`
-- 解除は `POST /api/parent/pin/verify`(4桁、5回失敗で5分ロック)。成功時に cookie を消す。子ども画面に親画面へのリンクは置かない
+- 解除は `POST /api/parent/pin/verify`(4桁、5回失敗で5分ロック)だけ。成功時に cookie を消す。cookie を消す他の API は置かない(親セッション=子どものセッションなので、消せる経路=親権限に戻る経路)。子ども画面に親画面へのリンクは置かない
+- cookie は 24 時間で失効し、失効後は PIN なしで親画面に戻れる(PIN を忘れた場合の回復経路として許容する割り切り)
 
 ---
 
@@ -454,7 +455,7 @@ type MistakeType =
 | `POST /api/reviews/schedule` | 復習予定の作成・更新。`{ childId, problemId, sessionId }`。類題の正解数はそのセッションの attempts からサーバーが導出する(クライアントは送らない) |
 | `POST /api/parent/pin` | 親PIN(4桁)の登録・変更。親専用。ハッシュは返さない |
 | `POST /api/parent/pin/verify` | 親PIN照合。成功で子どもモード cookie を削除。5回失敗で5分ロック(423) |
-| `POST /api/child-mode` / `DELETE /api/child-mode` | 子どもモード cookie の設定(親専用、PIN 未登録なら 409)/ 削除 |
+| `POST /api/child-mode` | 子どもモード cookie の設定(親専用、PIN 未登録なら 409)。解除は `pin/verify` のみ(DELETE は無い) |
 | `POST /api/reports/slack` | 日次レポート生成 + Slack送信 |
 | `GET /api/recommendations/today` | 今日のおすすめ問題(ルールベース選定) |
 

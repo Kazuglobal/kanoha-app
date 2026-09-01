@@ -67,14 +67,16 @@ interface SimilarAttemptRow {
 
 /**
  * そのセッションで解いた、この元問題の類題の正解数(0〜5)。
- * 同じ類題を複数回答えていたら最新の attempt だけを数える。
+ * 対象は直近に生成した 1 セット(最新 5 件)だけ。同じ類題を複数回答えていたら
+ * 最初の attempt だけを数える(正解を知ってから再送しても水増しできない: D2b)。
  */
 async function countSimilarCorrect(supabase: Supabase, input: Input): Promise<number | null> {
   const similar = await supabase.from("generated_similar_problems")
     .select("id")
     .eq("child_id", input.childId)
     .eq("source_problem_id", input.problemId)
-    .limit(SIMILAR_LOOKUP_LIMIT);
+    .order("created_at", { ascending: false })
+    .limit(SIMILAR_SET_SIZE);
   if (similar.error) return null;
   const ids = (similar.data ?? []).map((row) => row.id as string);
   if (ids.length === 0) return 0;
@@ -84,14 +86,14 @@ async function countSimilarCorrect(supabase: Supabase, input: Input): Promise<nu
     .eq("child_id", input.childId)
     .eq("session_id", input.sessionId)
     .in("similar_problem_id", ids)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: true })
     .limit(SIMILAR_LOOKUP_LIMIT);
   if (attempts.error) return null;
-  const latest = (attempts.data ?? []).reduce<Map<string, boolean>>(
+  const first = (attempts.data ?? []).reduce<Map<string, boolean>>(
     (acc, row: SimilarAttemptRow) => (acc.has(row.similar_problem_id) ? acc : new Map(acc).set(row.similar_problem_id, row.is_correct)),
     new Map(),
   );
-  return Math.min(SIMILAR_SET_SIZE, [...latest.values()].filter(Boolean).length);
+  return Math.min(SIMILAR_SET_SIZE, [...first.values()].filter(Boolean).length);
 }
 
 /**

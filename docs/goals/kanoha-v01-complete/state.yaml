@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T005
+active_task: T012
 
 tasks:
   - id: T001
@@ -366,7 +366,7 @@ tasks:
   - id: T005
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W3 子どもモード+段階開示: (a) マイグレーション 0010: users.parent_pin_hash / failed_attempts / locked_until、problem_hint_views テーブル、generated_similar_problems.choices、RLS 検証テスト (b) 親設定画面で PIN 設定、子どもモード開始ボタンで httpOnly cookie kanoha_mode=child を発行、PIN 入力で解除する API (c) proxy.ts で cookie 中は /parent/* と親向け API を拒否 (d) ChildHeader/child home の親画面リンク撤去 (e) POST /api/problems/[id]/hint {level} で1段ずつ返し hint_level_used をサーバー記録。problem ページの初期 props から correctAnswer/hints を除去、generate-hints も level 上限で返す (f) 類題の選択肢を generate-similar-problems 側で生成・Zod 検証(4択・単位整合)し makeChoices を削除 (g) LearningFlow を新 API に合わせて改修 (h) E2E: 答えが初期 HTML に含まれない / 子どもモードで /parent/settings が 302 / PIN で解除できる"
     inputs:
@@ -429,12 +429,77 @@ tasks:
       - "allowed_files 外の変更が必要"
       - "PIN の保存方式(ハッシュ関数)が決まらない → bcrypt 相当を使い、受領証に記録して続行"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - supabase/migrations/0010_child_mode_hints.sql
+        - supabase/tests/rls_isolation.sql
+        - proxy.ts
+        - lib/auth/childMode.ts
+        - lib/auth/pin.ts
+        - lib/review/choices.ts
+        - lib/ai/schemas.ts
+        - lib/ai/mock.ts
+        - lib/utils/resources.ts
+        - lib/sessions/complete.ts
+        - app/api/parent/pin/route.ts
+        - app/api/parent/pin/verify/route.ts
+        - app/api/child-mode/route.ts
+        - app/api/problems/[id]/hint/route.ts
+        - app/api/ai/generate-hints/route.ts
+        - app/api/ai/generate-similar-problems/route.ts
+        - app/api/attempts/route.ts
+        - app/api/reviews/schedule/route.ts
+        - app/child/problem/[id]/page.tsx
+        - app/child/home/page.tsx
+        - app/parent/settings/page.tsx
+        - components/child/ChildHeader.tsx
+        - components/child/LearningFlow.tsx
+        - components/child/HintStepper.tsx
+        - components/child/SimilarProblemCard.tsx
+        - components/parent/PinSettings.tsx
+        - components/parent/ParentShell.tsx
+        - types/database.ts
+        - doc.md
+        - e2e/child-learning.spec.ts
+        - e2e/child-mode.spec.ts
+        - tests/auth/*
+        - tests/review/choices.test.ts
+        - tests/api/child-mode.test.ts
+        - tests/api/hint.test.ts
+        - tests/api/learning-loop.test.ts
+        - tests/sessions/complete.test.ts
+        - tests/components/LearningFlowHints.test.tsx
+        - tests/components/LearningFlowLimit.test.tsx
+        - tests/components/LearningFlowVisual.test.tsx
+        - tests/security/child-mode-migration.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "49 files / 320 tests passed"
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "npx playwright test e2e/child-learning.spec.ts e2e/child-mode.spec.ts"
+          status: pass
+          tail: "16 passed (chromium + mobile)"
+        - cmd: "grep makeChoices|hintLevelUsed components app lib"
+          status: pass
+          tail: "コメント1件のみ"
+      summary: "Worker が実装を完了した直後に利用上限で停止したため、残りのテスト4ファイル更新・E2E 実行・受領証作成は PM が引き継いだ。0010(PIN 列は service_role 専用、problem_hint_views、choices)、scrypt PIN + 5回/5分ロック、kanoha_mode cookie を proxy.ts が updateSession の前に遮断、hint API は level<=max+1 で1段ずつ、page props から答え/ヒントを除去、選択肢はサーバー生成・永続化、similarCorrectCount は attempts から導出(D2)"
+      deviations:
+        - "PM 発見・修正: proxy.ts の CSRF 検査が nextUrl.origin と比較しており next start 配下で 127.0.0.1 の Origin が 403 になっていた(W3 以前からの潜在バグ、E2E で露見)。Host ヘッダー比較に変更し回帰テスト追加"
+        - "PM 懸念(T006 で確認): DELETE /api/child-mode が PIN なしで cookie を消せる。親セッション=子どものセッションなので、これは A1 の抜け穴になり得る"
+        - "Playwright chromium を npx playwright install chromium でローカル導入"
+        - "PIN 設定→子どもモード→PIN 解除の Playwright はシード済みユーザーが必要で W6 に持ち越し(vitest のルートテストで代替)"
 
   - id: T006
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "セキュリティ境界レビュー: 子どもモード・PIN・段階開示 API・RLS を敵対的に検証(cookie 偽造、PIN 総当たり、hint API の level 飛ばし、RSC payload への答え混入)。CONFIRMED があれば T005 に差し戻し、なければ W4 の指示を確定"
     inputs:
@@ -445,6 +510,40 @@ tasks:
     expected_output:
       - "approved | rejected"
       - "W4 の Worker 指示"
+    receipt:
+      result: done
+      decision: rejected
+      full_outcome_complete: false
+      note: notes/T006-w4-package.md
+      rationale: "S1(high): DELETE /api/child-mode が PIN なしで cookie を消せる(親セッション=子どものセッションなので親権限が戻る)。D2b(medium): 類題正解数が最新 attempt 基準で再送により水増し可能、同一セッションの複数セットが合算される。両方とも小さい修正で T012 に戻す。子どもモードの経路列挙・段階開示・0010・RSC・テスト強度・Origin/Host 修正は問題なし"
+      blocked_tasks: []
+
+  - id: T012
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: medium
+    objective: "W3 fix-up(T006 差し戻し、Worker が利用上限のため PM が実施): (S1) app/api/child-mode/route.ts の DELETE を削除(解除は /api/parent/pin/verify のみ)、tests/api/child-mode.test.ts・tests/auth/childMode.test.ts を DELETE→405 に更新、e2e/child-mode.spec.ts にケース追加、doc.md §16 更新 (D2b) app/api/reviews/schedule/route.ts の countSimilarCorrect を『類題ごとに最初の attempt』基準にし、(child, source_problem) の最新5件の generated_similar_problems に限定。tests/api/learning-loop.test.ts 更新 (doc) §15 に cookie 24h 失効の割り切りを記載"
+    inputs:
+      - "notes/T006-w4-package.md"
+    allowed_files:
+      - app/api/child-mode/route.ts
+      - app/api/reviews/schedule/route.ts
+      - tests/api/child-mode.test.ts
+      - tests/auth/childMode.test.ts
+      - tests/api/learning-loop.test.ts
+      - e2e/child-mode.spec.ts
+      - doc.md
+    verify:
+      - "npm run typecheck"
+      - "npm run lint"
+      - "npx vitest run"
+      - "npm run build"
+      - "npx playwright test e2e/child-mode.spec.ts"
+      - "grep -n 'export async function DELETE' app/api/child-mode/route.ts → 0件"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+      - "検証が2回連続で失敗"
     receipt: null
 
   - id: T007
@@ -453,13 +552,49 @@ tasks:
     status: queued
     reasoning_hint: medium
     objective: "W4 AI層堅牢化: (a) Gemini 呼び出しに responseSchema(zod→JSON Schema)を渡し、キーは x-goog-api-key ヘッダーへ (b) ページ内の問題を1件ずつ Zod 検証し有効分のみ保存、失敗数を親に返す (c) lib/ai/pii.ts で学校名・氏名・住所・クラスのパターンを後段除去しテスト (d) ai_usage_daily を increment_ai_usage(user_id, cost) RPC でアトミック増分・呼び出し前に予約、読み取り失敗は fail-closed (e) recognize-handwriting の data に max と magic-byte 検証 (f) generate-hints で explanationLevel が異なる時は buildHintsPrompt で再生成(コストガード経由) (g) 画像生成の4条件: app_settings.enable_image_generation 追加(マイグレーション)、recommendedVisualTemplate null 判定、costGuard、テンプレキーを grade2Math.visualTemplate に統一し public/visuals に全単元の SVG を用意 (h) テスト"
-    allowed_files: []
+    inputs:
+      - "notes/T006-w4-package.md (W4 Worker package: 全決定事項)"
+    allowed_files:
+      - lib/ai/gemini.ts
+      - lib/ai/responseSchemas.ts
+      - lib/ai/prompts.ts
+      - lib/ai/index.ts
+      - lib/ai/provider.ts
+      - lib/ai/mock.ts
+      - lib/ai/schemas.ts
+      - lib/ai/usage.ts
+      - lib/ai/costGuard.ts
+      - lib/ai/pii.ts
+      - lib/ai/image.ts
+      - lib/ai/buildProblemRecords.ts
+      - lib/curriculum/grade2Math.ts
+      - app/api/ai/*/route.ts
+      - app/api/settings/[childId]/route.ts
+      - components/parent/SettingsForm.tsx
+      - supabase/migrations/0011_ai_hardening.sql
+      - supabase/tests/rls_isolation.sql
+      - types/database.ts
+      - public/visuals/*.svg
+      - .env.example
+      - doc.md
+      - tests/ai/*
+      - tests/api/ai-*.test.ts
+      - tests/security/ai-hardening-migration.test.ts
+      - tests/curriculum/visuals.test.ts
+      - tests/components/SettingsForm.test.tsx
     verify:
       - "npm run typecheck"
+      - "npm run lint"
       - "npx vitest run"
       - "npm run build"
+      - "grep -n 'key=' lib/ai/gemini.ts → 0件"
+      - "grep -n 'volume-l-ml\|templates\[' app/api/ai/generate-image/route.ts → 0件"
+      - "ls public/visuals/*.svg | wc -l → 11"
+      - "grep -rn scrubPii app/api lib/ai → analyze/similar/hints 経路から参照"
     stop_if:
-      - "allowed_files 外の変更が必要"
+      - "allowed_files 外の変更が必要(child-mode/hint/proxy/attempts は触らない)"
+      - "GPT Image の応答形式が不明 → lib/ai/image.ts は 503 スタブで止めて受領証に記録し続行"
+      - "RPC の同時実行意味論が SQL 単文で書けない"
       - "検証が2回連続で失敗"
     receipt: null
 
@@ -539,8 +674,9 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T011
+    task: T005
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 43 files / 208 tests passed)"
+      - "npx vitest run (2026-09-02: 49 files / 320 tests passed)"
+      - "npx playwright test e2e/child-learning.spec.ts e2e/child-mode.spec.ts (2026-09-02: 16 passed)"
       - "npm run build (2026-09-02: 成功)"
