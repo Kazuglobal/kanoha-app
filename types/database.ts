@@ -19,6 +19,10 @@ export interface User {
   id: Uuid;
   email: string;
   displayName: string | null;
+  /** 親 PIN(scrypt ハッシュ)。service_role 以外は読めない(0010)。 */
+  parentPinHash: string | null;
+  parentPinFailedAttempts: number;
+  parentPinLockedUntil: IsoDateTime | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
 }
@@ -103,7 +107,18 @@ export interface GeneratedSimilarProblem {
   unit: string;
   subUnit: string;
   difficulty: Difficulty;
+  /** サーバー生成の 4 択。数値で解釈できない答えは null(文字入力)。 */
+  choices: readonly string[] | null;
   createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+}
+
+/** (child, problem, session) ごとに子どもが開いた最大ヒント段階(A2)。 */
+export interface ProblemHintView {
+  childId: Uuid;
+  problemId: Uuid;
+  sessionId: Uuid;
+  maxLevel: HintLevel;
   updatedAt: IsoDateTime;
 }
 

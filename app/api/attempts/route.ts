@@ -1,15 +1,25 @@
 import { z } from "zod";
 import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { readStoredChoices } from "@/lib/review/choices";
 import {
   mistakeTypeFromExplanation,
   recomputeWeakness,
   transitionReview,
 } from "@/lib/review/loop";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
-import { ownedProblem, ownedSession, ownedSimilarProblemRecord } from "@/lib/utils/resources";
+import {
+  hintMaxLevel,
+  ownedProblem,
+  ownedSession,
+  ownedSimilarProblemRecord,
+} from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
 import { answersMatch } from "@/lib/utils/answers";
 
+/**
+ * hint_level_used はクライアントから受け取らず problem_hint_views(サーバー記録)から読む(A2)。
+ * 未知のキー(旧 hintLevelUsed など)は無視される。
+ */
 const schema = z.object({
   childId: uuid,
   sessionId: uuid,
@@ -17,16 +27,13 @@ const schema = z.object({
   similarProblemId: uuid.optional(),
   childAnswer: z.string().trim().min(1).max(500),
   answerType: z.enum(["tap", "text", "voice", "handwriting"]),
-  isCorrect: z.boolean().optional(),
-  hintLevelUsed: z.number().int().min(0).max(4).default(0),
   mistakeType: z.enum(MISTAKE_TYPE_IDS).nullable().optional(),
   aiFeedback: z.string().trim().max(1000).nullable().optional(),
 }).refine((value) => Boolean(value.problemId) !== Boolean(value.similarProblemId), {
   message: "Exactly one problem reference is required",
 });
 
-// parseJson は z.ZodType<T> で入力型に単一化されるため input 型で受ける(hintLevelUsed の default は下で補う)。
-type Input = z.input<typeof schema>;
+type Input = z.infer<typeof schema>;
 type Auth = Awaited<ReturnType<typeof requireOwnedChild>>;
 
 interface AttemptTarget {
@@ -35,6 +42,10 @@ interface AttemptTarget {
   subUnit: string;
   unit: string;
   explanation: unknown;
+  /** 類題の保存済み 4 択(null = 文字入力)。元問題は null。 */
+  choices: readonly string[] | null;
+  /** 類題の解説。不正解のときだけ返す(元問題は何も返さない)。 */
+  similarExplanation: string | null;
 }
 
 export async function POST(request: Request) {
@@ -44,11 +55,14 @@ export async function POST(request: Request) {
   const auth = await requireOwnedChild(input.childId);
   if (auth.response) return auth.response;
 
-  const [sessionOk, target] = await Promise.all([
+  const [sessionOk, target, hintLevel] = await Promise.all([
     ownedSession(auth.supabase, input.childId, input.sessionId),
     loadTarget(auth, input),
+    input.problemId ? hintMaxLevel(auth.supabase, input.childId, input.problemId, input.sessionId) : 0,
   ]);
   if (!sessionOk || !target) return apiError("Learning resource not found", 404);
+  if (hintLevel === null) return internalError();
+  if (!tapAnswerAllowed(input, target)) return apiError("Invalid attempt");
   const isCorrect = answersMatch(input.childAnswer, target.expectedAnswer);
   const mistakeType = resolveMistakeType(input, isCorrect, target.explanation);
 
@@ -60,7 +74,7 @@ export async function POST(request: Request) {
     child_answer: input.childAnswer,
     answer_type: input.answerType,
     is_correct: isCorrect,
-    hint_level_used: input.hintLevelUsed ?? 0,
+    hint_level_used: hintLevel,
     mistake_type: mistakeType,
     ai_feedback: input.aiFeedback ?? null,
   }).select("id, is_correct, created_at").single();
@@ -86,12 +100,18 @@ export async function POST(request: Request) {
 
   return apiSuccess({
     ...data,
+    hint_level_used: hintLevel,
     mistake_type: mistakeType,
     mastery_level: weakness.masteryLevel,
     accuracy_rate: weakness.accuracyRate,
     review,
+    explanation: !isCorrect && target.similarExplanation ? target.similarExplanation : null,
   }, 201);
 }
+
+/** タップ回答は保存済みの 4 択のどれかでなければならない(選択肢はサーバーが作る)。 */
+const tapAnswerAllowed = (input: Input, target: AttemptTarget): boolean =>
+  input.answerType !== "tap" || !target.choices || target.choices.includes(input.childAnswer);
 
 /** 元問題または類題(とその元問題の診断)を所有確認つきで読む。 */
 async function loadTarget(auth: Auth, input: Input): Promise<AttemptTarget | null> {
@@ -103,6 +123,8 @@ async function loadTarget(auth: Auth, input: Input): Promise<AttemptTarget | nul
       subUnit: problem.sub_unit,
       unit: problem.unit,
       explanation: problem.explanation_json,
+      choices: null,
+      similarExplanation: null,
     } : null;
   }
   const similar = await ownedSimilarProblemRecord(auth.supabase, input.childId, input.similarProblemId!);
@@ -114,6 +136,8 @@ async function loadTarget(auth: Auth, input: Input): Promise<AttemptTarget | nul
     subUnit: similar.sub_unit,
     unit: similar.unit,
     explanation: source?.explanation_json ?? null,
+    choices: readStoredChoices(similar.choices),
+    similarExplanation: typeof similar.explanation === "string" ? similar.explanation : null,
   };
 }
 

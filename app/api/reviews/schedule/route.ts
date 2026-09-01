@@ -5,13 +5,18 @@ import { uuid } from "@/lib/utils/schemas";
 import { calculateReviewSchedule, toReviewStage } from "@/lib/review/schedule";
 import { masteryAfterSimilarSet, type MasteryLevel } from "@/lib/review/weakness";
 
+/**
+ * 類題の正解数はクライアントから受け取らず、そのセッションの attempts から導出する(D2)。
+ * sessionId は必須: 元問題の正誤も類題の結果も、同じセッション内で判定する。
+ */
 const schema = z.object({
   childId: uuid,
   problemId: uuid,
-  /** 類題セットを解いたセッション。指定があれば、そのセッション内の元問題 attempt で判定する。 */
-  sessionId: uuid.optional(),
-  similarCorrectCount: z.number().int().min(0).max(5),
+  sessionId: uuid,
 });
+
+const SIMILAR_SET_SIZE = 5;
+const SIMILAR_LOOKUP_LIMIT = 50;
 
 type Input = z.infer<typeof schema>;
 type Supabase = Awaited<ReturnType<typeof requireOwnedChild>>["supabase"];
@@ -29,9 +34,11 @@ export async function POST(request: Request) {
   if (auth.response) return auth.response;
   const [problem, sessionOk] = await Promise.all([
     ownedProblem(auth.supabase, input.childId, input.problemId),
-    input.sessionId ? ownedSession(auth.supabase, input.childId, input.sessionId) : true,
+    ownedSession(auth.supabase, input.childId, input.sessionId),
   ]);
   if (!problem || !sessionOk) return apiError("Learning resource not found", 404);
+  const similarCorrectCount = await countSimilarCorrect(auth.supabase, input);
+  if (similarCorrectCount === null) return internalError();
 
   const existing = await auth.supabase.from("review_schedule")
     .select("review_stage, status")
@@ -43,17 +50,53 @@ export async function POST(request: Request) {
 
   const eligible = await reviewEligible(auth.supabase, input, current);
   if (eligible === null) return internalError();
-  const review = eligible ? await upsertReview(auth.supabase, input, problem, current) : { scheduled: false as const };
+  const review = eligible
+    ? await upsertReview(auth.supabase, input, problem, current, similarCorrectCount)
+    : { scheduled: false as const };
   if (review === null) return internalError();
 
-  const mastery = await applySimilarSetMastery(auth.supabase, input, problem.unit, problem.sub_unit);
+  const mastery = await applySimilarSetMastery(auth.supabase, input, problem, similarCorrectCount);
   if (mastery === null) return internalError();
-  return apiSuccess({ ...review, mastery_level: mastery });
+  return apiSuccess({ ...review, mastery_level: mastery, similar_correct_count: similarCorrectCount });
+}
+
+interface SimilarAttemptRow {
+  similar_problem_id: string;
+  is_correct: boolean;
+}
+
+/**
+ * そのセッションで解いた、この元問題の類題の正解数(0〜5)。
+ * 同じ類題を複数回答えていたら最新の attempt だけを数える。
+ */
+async function countSimilarCorrect(supabase: Supabase, input: Input): Promise<number | null> {
+  const similar = await supabase.from("generated_similar_problems")
+    .select("id")
+    .eq("child_id", input.childId)
+    .eq("source_problem_id", input.problemId)
+    .limit(SIMILAR_LOOKUP_LIMIT);
+  if (similar.error) return null;
+  const ids = (similar.data ?? []).map((row) => row.id as string);
+  if (ids.length === 0) return 0;
+
+  const attempts = await supabase.from("attempts")
+    .select("similar_problem_id, is_correct")
+    .eq("child_id", input.childId)
+    .eq("session_id", input.sessionId)
+    .in("similar_problem_id", ids)
+    .order("created_at", { ascending: false })
+    .limit(SIMILAR_LOOKUP_LIMIT);
+  if (attempts.error) return null;
+  const latest = (attempts.data ?? []).reduce<Map<string, boolean>>(
+    (acc, row: SimilarAttemptRow) => (acc.has(row.similar_problem_id) ? acc : new Map(acc).set(row.similar_problem_id, row.is_correct)),
+    new Map(),
+  );
+  return Math.min(SIMILAR_SET_SIZE, [...latest.values()].filter(Boolean).length);
 }
 
 /**
  * doc.md §12.1: 復習に載るのは「間違えた問題」だけ。
- * 既に pending の復習があるか、元問題の attempt(sessionId 指定時はそのセッション内)が不正解のときだけ作成/更新する。
+ * 既に pending の復習があるか、そのセッション内の元問題の attempt が不正解のときだけ作成/更新する。
  */
 async function reviewEligible(
   supabase: Supabase,
@@ -61,11 +104,11 @@ async function reviewEligible(
   current: ExistingReview | null,
 ): Promise<boolean | null> {
   if (current?.status === "pending") return true;
-  const query = supabase.from("attempts")
+  const { data, error } = await supabase.from("attempts")
     .select("is_correct")
     .eq("child_id", input.childId)
-    .eq("problem_id", input.problemId);
-  const { data, error } = await (input.sessionId ? query.eq("session_id", input.sessionId) : query)
+    .eq("problem_id", input.problemId)
+    .eq("session_id", input.sessionId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -79,9 +122,10 @@ async function upsertReview(
   input: Input,
   problem: { unit: string; sub_unit: string },
   current: ExistingReview | null,
+  similarCorrectCount: number,
 ) {
   const { scheduledFor, reviewStage } = calculateReviewSchedule({
-    correctCount: input.similarCorrectCount,
+    correctCount: similarCorrectCount,
     currentStage: toReviewStage(current?.review_stage),
     reviewedAt: new Date(),
   });
@@ -104,9 +148,10 @@ async function upsertReview(
 async function applySimilarSetMastery(
   supabase: Supabase,
   input: Input,
-  unit: string,
-  subUnit: string,
+  problem: { unit: string; sub_unit: string },
+  similarCorrectCount: number,
 ): Promise<MasteryLevel | null> {
+  const { unit, sub_unit: subUnit } = problem;
   const current = await supabase.from("weakness_map")
     .select("mastery_level")
     .eq("child_id", input.childId)
@@ -115,7 +160,7 @@ async function applySimilarSetMastery(
     .maybeSingle();
   if (current.error) return null;
   const currentLevel = (current.data?.mastery_level ?? "learning") as MasteryLevel;
-  const next = masteryAfterSimilarSet(currentLevel, input.similarCorrectCount);
+  const next = masteryAfterSimilarSet(currentLevel, similarCorrectCount);
   if (next === currentLevel) return next;
 
   const { error } = await supabase.from("weakness_map").upsert({

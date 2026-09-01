@@ -6,6 +6,7 @@ import type { SimilarProblemDraft, SimilarProblemRequest } from "@/lib/ai/schema
 import { getDailyAiUsage, recordAiUsage } from "@/lib/ai/usage";
 import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 import { recentUnitAttempts } from "@/lib/review/loop";
+import { buildChoices } from "@/lib/review/choices";
 import { difficultyForNextSimilarSet } from "@/lib/review/recommend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
@@ -84,11 +85,15 @@ async function generateWithGemini(
   return result.response;
 }
 
+/**
+ * 4 択は生成時にサーバーが作って保存する(A2 / B13)。レスポンスに answer / explanation は含めない:
+ * 正誤判定と解説は /api/attempts が返す。
+ */
 async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly SimilarProblemDraft[]) {
   const validated = similarProblemDraftsSchema.safeParse(drafts);
   if (!validated.success) return withOk(internalError());
 
-  const rows = validated.data.map((item) => ({
+  const rows = validated.data.map((item, index) => ({
     source_problem_id: problem.id,
     child_id: problem.child_id,
     problem_text: item.problemText,
@@ -97,11 +102,12 @@ async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly Simi
     unit: item.unit,
     sub_unit: item.subUnit,
     difficulty: item.difficulty,
+    choices: buildChoices(item.answer, `${problem.id}:${index}`),
   }));
   const { data, error } = await auth.supabase
     .from("generated_similar_problems")
     .insert(rows)
-    .select("id, problem_text, answer, explanation, unit, sub_unit, difficulty");
+    .select("id, problem_text, unit, sub_unit, difficulty, choices");
   if (error) return withOk(internalError());
   return withOk(apiSuccess(data, 201));
 }

@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T011
+active_task: T005
 
 tasks:
   - id: T001
@@ -305,7 +305,7 @@ tasks:
   - id: T011
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W2 fix-up(T004 差し戻し): (D1) 0009 の weakness upsert で mastery_level を sticky に(excluded か既存が mastered なら mastered、降格は masteryAfterSimilarSet <4/5 のみ)、nullif(attempt_count,0) ガード、recomputeWeakness は DB 行の mastery を真とし updateWeakness も mastered を維持 (D1') reviews/schedule は『pending review が既にある or そのセッションの元問題 attempt が不正解』の時だけ review を作成/更新(5/5 かつ既存無しは行を作らない: doc §12.1) (OS) 未終了セッションは min(now, max(last attempt created_at, started_at)+10分) - started_at で計上(純粋関数)。loadDailyLimit/today.ts に session→last attempt の map を渡す (T) sticky 句のマイグレーションテスト、mastered→不正解でも維持のテスト、grace のテスト"
     inputs:
@@ -331,12 +331,42 @@ tasks:
     stop_if:
       - "allowed_files 外の変更が必要"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - supabase/migrations/0009_learning_loop.sql
+        - lib/review/weakness.ts
+        - lib/review/loop.ts
+        - lib/review/today.ts
+        - lib/sessions/dailyLimit.ts
+        - app/api/sessions/route.ts
+        - app/api/reviews/schedule/route.ts
+        - app/api/attempts/route.ts
+        - tests/security/learning-loop-migration.test.ts
+        - tests/review/loop.test.ts
+        - tests/review/weakness.test.ts
+        - tests/review/fakeSupabase.ts
+        - tests/sessions/daily-limit.test.ts
+        - tests/api/learning-loop.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "43 files / 208 tests passed (PM 再実行でも同結果)"
+        - cmd: "npm run build"
+          status: pass
+      summary: "D1: upsert の mastery_level を sticky に、nullif ガード、loop.ts は DB 行を真とする。D1': review は pending 既存 or 元問題 attempt 不正解の時のみ作成。OS: 未終了セッションは最終 attempt+10分猶予で計上。PM が diff を目視確認(sticky CASE 句・eligible 判定)しコミット"
+      deviations:
+        - "/api/reviews/schedule の sessionId は optional(lib/sessions/complete.ts は T005 の範囲)。T005 で client が sessionId を送るようにする"
+        - "初回 vitest で learning-loop の1テストが並列負荷で 5s timeout、再実行で緑。timeout は変更していない"
 
   - id: T005
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: medium
     objective: "W3 子どもモード+段階開示: (a) マイグレーション 0010: users.parent_pin_hash / failed_attempts / locked_until、problem_hint_views テーブル、generated_similar_problems.choices、RLS 検証テスト (b) 親設定画面で PIN 設定、子どもモード開始ボタンで httpOnly cookie kanoha_mode=child を発行、PIN 入力で解除する API (c) proxy.ts で cookie 中は /parent/* と親向け API を拒否 (d) ChildHeader/child home の親画面リンク撤去 (e) POST /api/problems/[id]/hint {level} で1段ずつ返し hint_level_used をサーバー記録。problem ページの初期 props から correctAnswer/hints を除去、generate-hints も level 上限で返す (f) 類題の選択肢を generate-similar-problems 側で生成・Zod 検証(4択・単位整合)し makeChoices を削除 (g) LearningFlow を新 API に合わせて改修 (h) E2E: 答えが初期 HTML に含まれない / 子どもモードで /parent/settings が 302 / PIN で解除できる"
     inputs:
@@ -380,6 +410,13 @@ tasks:
       - tests/api/hint.test.ts
       - tests/api/learning-loop.test.ts
       - tests/security/child-mode-migration.test.ts
+      - tests/sessions/complete.test.ts
+      - tests/components/LearningFlowHints.test.tsx
+      - tests/components/LearningFlowLimit.test.tsx
+      - tests/components/LearningFlowVisual.test.tsx
+      - tests/components/LearningFlowPreferences.test.tsx
+      - tests/components/SimilarProblemCard.test.tsx
+      - tests/components/HintStepper.test.tsx
     verify:
       - "npm run typecheck"
       - "npm run lint"
@@ -502,8 +539,8 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T003
+    task: T011
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 43 files / 183 tests passed)"
+      - "npx vitest run (2026-09-02: 43 files / 208 tests passed)"
       - "npm run build (2026-09-02: 成功)"

@@ -360,6 +360,8 @@ type MistakeType =
 
 `auth.users` と1:1。`id uuid PK references auth.users(id) on delete cascade`、`email`、`display_name`。
 サインアップ時にDBトリガーで自動作成する。
+親PIN(A1): `parent_pin_hash`(scrypt、`scrypt$salt$hash`)、`parent_pin_failed_attempts`、`parent_pin_locked_until`。
+この3列は `authenticated` / `anon` から SELECT / UPDATE できない(列単位の grant)。読み書きは service_role のみ(0010)。
 
 ### 14.2 child_profiles
 
@@ -385,7 +387,14 @@ type MistakeType =
 
 ### 14.7 generated_similar_problems
 
-`source_problem_id → problems`、`child_id`。`problem_text`、`answer`、`explanation`、`unit`、`sub_unit`、`difficulty`。
+`source_problem_id → problems`、`child_id`。`problem_text`、`answer`、`explanation`、`unit`、`sub_unit`、`difficulty`、
+`choices jsonb`(サーバーが生成時に作る4択。数値+単位で解釈できない答えは null → 子ども画面は文字入力)。
+クライアントへ返すのは `id / problem_text / unit / sub_unit / difficulty / choices` のみ。`answer` / `explanation` は返さない。
+
+### 14.7b problem_hint_views
+
+`(child_id, problem_id, session_id)` PK。`max_level smallint 0..4`(そのセッションで子どもが開いた最大ヒント段階)。
+`POST /api/problems/[id]/hint` が `level <= max_level + 1` の規則で upsert し、`attempts.hint_level_used` はここから読む(クライアント値は使わない)。
 
 ### 14.8 weakness_map
 
@@ -416,7 +425,16 @@ type MistakeType =
 - その他の子テーブル: `child_id IN (SELECT id FROM child_profiles WHERE user_id = auth.uid())` の行のみ操作可
 - `app_settings.slack_webhook_url`: 復号は親本人のセッションのみ。クライアントには返さない(送信処理はサーバー側で完結)
 - Storage: パス `materials/{user_id}/...` の `{user_id}` が `auth.uid()` と一致する場合のみ read/write 可能なポリシー
-- サービスロールキーはサーバー側のバッチ処理(pg_cron代替・解析ジョブ)のみで使用
+- サービスロールキーはサーバー側のバッチ処理(pg_cron代替・解析ジョブ)と、親PIN列(`users.parent_pin_*`)の読み書きのみで使用
+- `problem_hint_views`: 他の子テーブルと同じ `owns_child(child_id)` ポリシー
+- `users.parent_pin_hash / parent_pin_failed_attempts / parent_pin_locked_until`: `authenticated` に列権限を付与しない(`select('*')` でも返らない)
+
+### 子どもモード(A1)
+
+- 親が `POST /api/child-mode` で `kanoha_mode=child` cookie(httpOnly / sameSite=lax / 24h / 署名なし)を立てる。偽造しても権限は下がるだけ
+- cookie がある間、`proxy.ts` はセッション更新より前に `/parent/*` → 302 `/child/home`、親専用 API → 403 `{ success:false, error }` にする
+- 親専用: `/api/children*`、`/api/materials*`、`/api/ai/analyze-problem`、`/api/settings/*`、`POST /api/parent/pin`、`POST /api/child-mode`
+- 解除は `POST /api/parent/pin/verify`(4桁、5回失敗で5分ロック)。成功時に cookie を消す。子ども画面に親画面へのリンクは置かない
 
 ---
 
@@ -428,11 +446,15 @@ type MistakeType =
 |---|---|
 | `POST /api/materials/upload` | 画像をStorageへ保存 → `uploaded_materials` 記録 → 解析ジョブ起動 |
 | `POST /api/ai/analyze-problem` | Gemini Visionで画像解析 → ParsedProblem[] → `problems` 保存 |
-| `POST /api/ai/generate-hints` | ヒント再生成(「もっとかんたんに」含む)。`explanationLevel` 指定 |
-| `POST /api/ai/generate-similar-problems` | 類題5問生成 → `generated_similar_problems` 保存 |
+| `POST /api/problems/[id]/hint` | 段階開示(A2)。`{ childId, sessionId, level 1..4 }`。`level <= max_level+1` のときだけその1段を返し、`problem_hint_views.max_level` を更新。答え(level 4)はここ以外から返さない。Supabase 未設定時はデモ問題(`lib/ai/mock.ts`)を cookie で段階管理して返す |
+| `POST /api/ai/generate-hints` | ヒント再生成(「もっとかんたんに」含む)。`explanationLevel` + `sessionId` 指定。返すのは `max_level` までの段階のみ |
+| `POST /api/ai/generate-similar-problems` | 類題5問生成 → 4択(`choices`)をサーバーで生成して `generated_similar_problems` 保存。レスポンスに `answer` / `explanation` は含めない |
 | `POST /api/ai/generate-image` | 図解画像生成(テンプレ不可時のみ。コスト上限チェック) |
-| `POST /api/attempts` | 回答保存 → `weakness_map` 更新 |
-| `POST /api/reviews/schedule` | 復習予定の作成・更新(類題結果による調整含む) |
+| `POST /api/attempts` | 回答保存 → `weakness_map` 更新。正誤はサーバー判定、`hint_level_used` は `problem_hint_views` から。tap 回答は保存済み `choices` の1つであること。類題の不正解時のみ `explanation` を返す |
+| `POST /api/reviews/schedule` | 復習予定の作成・更新。`{ childId, problemId, sessionId }`。類題の正解数はそのセッションの attempts からサーバーが導出する(クライアントは送らない) |
+| `POST /api/parent/pin` | 親PIN(4桁)の登録・変更。親専用。ハッシュは返さない |
+| `POST /api/parent/pin/verify` | 親PIN照合。成功で子どもモード cookie を削除。5回失敗で5分ロック(423) |
+| `POST /api/child-mode` / `DELETE /api/child-mode` | 子どもモード cookie の設定(親専用、PIN 未登録なら 409)/ 削除 |
 | `POST /api/reports/slack` | 日次レポート生成 + Slack送信 |
 | `GET /api/recommendations/today` | 今日のおすすめ問題(ルールベース選定) |
 

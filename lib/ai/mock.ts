@@ -65,6 +65,21 @@ export const mockProblems: readonly ParsedProblem[] = [
   }),
 ];
 
+/** Supabase 未設定時のデモ問題(app/child/home の /child/problem/volume-1)。 */
+export const DEMO_PROBLEM_ID = "volume-1";
+
+/** デモ問題を DB 行と同じ形で返す(/api/problems/[id]/hint の Supabase 未設定経路)。 */
+export const demoProblemById = (id: string) => {
+  if (id !== DEMO_PROBLEM_ID) return null;
+  const problem = mockProblems[0];
+  return {
+    correct_answer: problem.correctAnswer,
+    explanation_json: { ...problem.hints },
+    problem_text: problem.problemText,
+    unit: problem.unit,
+  };
+};
+
 const makeSimilarProblem = (
   input: SimilarProblemRequest,
   index: number,

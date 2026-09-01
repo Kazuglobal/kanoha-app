@@ -7,8 +7,14 @@ import { RubyAuto } from "./RubyText";
 
 const labels = ["ヒント 1", "ヒント 2", "ときかた", "こたえ"] as const;
 
+/**
+ * 段階式ヒント(A2)。表示できるのは親から渡された `revealed`(サーバーが 1 段ずつ返した文)だけ。
+ * 次の段階は `onRequestNext` でサーバーに取りに行く。`hints` は静的フォールバック(テスト用)。
+ */
 export function HintStepper({
   hints,
+  revealed,
+  onRequestNext,
   readingMode = "kanji_with_ruby",
   onReveal,
   onSimplify,
@@ -17,7 +23,9 @@ export function HintStepper({
   visualPending = false,
   visualUrl,
 }: {
-  hints: readonly [string, string, string, string];
+  hints?: readonly string[];
+  revealed?: readonly string[];
+  onRequestNext?: () => Promise<boolean>;
   readingMode?: "kanji_with_ruby" | "hiragana";
   onReveal?: (visibleCount: number) => void;
   onSimplify?: () => void;
@@ -26,13 +34,29 @@ export function HintStepper({
   visualPending?: boolean;
   visualUrl?: string;
 }) {
-  const [visibleCount, setVisibleCount] = useState(0);
+  const [localRevealed, setLocalRevealed] = useState<readonly string[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showVisual, setShowVisual] = useState(false);
+  const shown = revealed ?? localRevealed;
+  const nextIndex = Math.min(shown.length, labels.length - 1);
+
+  async function revealNext() {
+    if (loading || shown.length >= labels.length) return;
+    if (onRequestNext) {
+      setLoading(true);
+      const ok = await onRequestNext();
+      setLoading(false);
+      if (!ok) return;
+    } else if (hints) {
+      setLocalRevealed(hints.slice(0, shown.length + 1));
+    }
+    onReveal?.(shown.length + 1);
+  }
 
   return (
     <section className={styles.hintArea} aria-label="だんかいヒント">
       <div className={styles.hintSteps}>
-        {hints.slice(0, visibleCount).map((hint, index) => (
+        {shown.map((hint, index) => (
           <article className={styles.hintItem} key={labels[index]}>
             <strong>{labels[index]}</strong>
             <p><RubyAuto text={hint} readingMode={readingMode} /></p>
@@ -53,18 +77,10 @@ export function HintStepper({
         ) : null}
       </div>
       <div className={styles.hintActions}>
-        {visibleCount < hints.length ? (
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onClick={() => setVisibleCount((count) => {
-              const next = count + 1;
-              onReveal?.(next);
-              return next;
-            })}
-          >
+        {shown.length < labels.length ? (
+          <button className={styles.primaryButton} disabled={loading} type="button" onClick={() => void revealNext()}>
             <Eye size={20} aria-hidden="true" />
-            {visibleCount === 0 ? "ヒントを みる" : `つぎの ${labels[visibleCount]}を みる`}
+            {loading ? "じゅんび中..." : shown.length === 0 ? "ヒントを みる" : `つぎの ${labels[nextIndex]}を みる`}
           </button>
         ) : null}
         <button

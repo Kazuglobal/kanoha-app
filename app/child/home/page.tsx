@@ -48,7 +48,6 @@ export default async function ChildHomePage({
           <section className={`${styles.card} ${styles.resultHero}`}>
             <h1 className={styles.pageTitle}>プロフィールを つくろう</h1>
             <p className={styles.lead}>おうちのかたに、子どもプロフィールを作ってもらってね。</p>
-            <Link className={styles.primaryButton} href="/parent/settings">せっていへ</Link>
           </section>
         </main>
       </div>
@@ -75,9 +74,10 @@ function RealHome({
   selected: ChildProfile;
 }) {
   const first = problems[0];
+  // 子ども画面から親画面へは遷移しない(A1)。問題が無いときはホームに留まる。
   const startHref = first
     ? `/child/problem/${first.id}?childId=${selected.id}` as const
-    : "/parent/upload" as const;
+    : `/child/home?childId=${selected.id}` as const;
 
   return (
     <div className={styles.childShell}>

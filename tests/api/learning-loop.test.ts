@@ -58,11 +58,16 @@ const rpcResult = (attempts: number, correct: number) => ({
   error: null,
 });
 
+const SIMILAR_CHOICES = ["2000mL", "200mL", "20000mL", "1000mL"];
+const SIMILAR_IDS = Array.from({ length: 5 }, (_, index) => `similar-${index}`);
+
 const baseTables = (review: Row | null) => ({
   learning_sessions: () => [{ id: SESSION }],
   problems: () => [problemRow],
+  problem_hint_views: () => [{ max_level: 2 }],
   generated_similar_problems: () => [{
     id: SIMILAR, source_problem_id: PROBLEM, unit: "水のかさ", sub_unit: "LとmL", answer: "2000mL",
+    explanation: "1Lは1000mLだよ。", choices: SIMILAR_CHOICES,
   }],
   attempts: (call: QueryCall) => (call.operation === "insert"
     ? [{ id: "attempt-1", is_correct: (call.payload as Row).is_correct, created_at: "now" }]
@@ -85,6 +90,7 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
 
     const response = await POST(post("/api/attempts", {
       childId: CHILD, sessionId: SESSION, problemId: PROBLEM, childAnswer: "100mL", answerType: "text",
+      hintLevelUsed: 4,
     }));
     const body = await response.json();
 
@@ -92,6 +98,13 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     const inserted = callsFor(fake.calls, "attempts", "insert")[0].payload as Row;
     expect(inserted.is_correct).toBe(false);
     expect(inserted.mistake_type).toBe("unit_conversion_error");
+    // hint_level_used はクライアント値(4)ではなく problem_hint_views の max_level(2)。
+    expect(inserted.hint_level_used).toBe(2);
+    const hintLookup = callsFor(fake.calls, "problem_hint_views", "select")[0];
+    expect(filterValue(hintLookup, "session_id")).toBe(SESSION);
+    expect(body.data.hint_level_used).toBe(2);
+    expect(body.data.explanation).toBeNull();
+    expect(JSON.stringify(body)).not.toContain("1000mL");
     expect(fake.rpcCalls).toEqual([{
       name: "recompute_weakness",
       args: { target_child_id: CHILD, target_unit: "水のかさ", target_sub_unit: "LとmL" },
@@ -152,12 +165,65 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
 
     expect(response.status).toBe(201);
     expect(callsFor(fake.calls, "attempts", "insert")[0].payload).toMatchObject({
-      similar_problem_id: SIMILAR, problem_id: null, mistake_type: "unit_conversion_error",
+      similar_problem_id: SIMILAR, problem_id: null, mistake_type: "unit_conversion_error", hint_level_used: 0,
     });
     expect(fake.rpcCalls[0].args).toEqual({
       target_child_id: CHILD, target_unit: "水のかさ", target_sub_unit: "LとmL",
     });
     expect(callsFor(fake.calls, "review_schedule")).toHaveLength(0);
+    expect(callsFor(fake.calls, "problem_hint_views")).toHaveLength(0);
+    const body = await response.json();
+    expect(body.data.is_correct).toBe(false);
+    expect(body.data.explanation).toBe("1Lは1000mLだよ。");
+  });
+
+  it("similar-problem tap answers must be one of the stored choices", async () => {
+    const fake = fakeSupabase({ tables: baseTables(null), rpc: () => rpcResult(1, 0) });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/attempts/route");
+
+    const response = await POST(post("/api/attempts", {
+      childId: CHILD, sessionId: SESSION, similarProblemId: SIMILAR, childAnswer: "2001mL", answerType: "tap",
+    }));
+
+    expect(response.status).toBe(400);
+    expect(callsFor(fake.calls, "attempts", "insert")).toHaveLength(0);
+  });
+
+  it("a correct similar-problem answer returns no explanation", async () => {
+    const fake = fakeSupabase({ tables: baseTables(null), rpc: () => rpcResult(2, 1) });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/attempts/route");
+
+    const response = await POST(post("/api/attempts", {
+      childId: CHILD, sessionId: SESSION, similarProblemId: SIMILAR, childAnswer: "2000mL", answerType: "tap",
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.data.is_correct).toBe(true);
+    expect(body.data.explanation).toBeNull();
+  });
+
+  it("typed similar-problem answers are accepted when the problem has no choices", async () => {
+    const fake = fakeSupabase({
+      tables: {
+        ...baseTables(null),
+        generated_similar_problems: () => [{
+          id: SIMILAR, source_problem_id: PROBLEM, unit: "水のかさ", sub_unit: "LとmL", answer: "3L50mL",
+          explanation: "e", choices: null,
+        }],
+      },
+      rpc: () => rpcResult(2, 1),
+    });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/attempts/route");
+
+    const response = await POST(post("/api/attempts", {
+      childId: CHILD, sessionId: SESSION, similarProblemId: SIMILAR, childAnswer: "3L50mL", answerType: "text",
+    }));
+    expect(response.status).toBe(201);
+    expect((await response.json()).data.is_correct).toBe(true);
   });
 
   it("fails closed when the RPC errors", async () => {
@@ -174,6 +240,24 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     expect(response.status).toBe(500);
   });
 
+  /**
+   * D2: 類題の正解数はクライアントから受け取らず、そのセッションの attempts から導出する。
+   * problem_id で引かれたら元問題の attempt、similar_problem_id (in) で引かれたら類題 5 問の attempt を返す。
+   */
+  const sessionAttempts = (similarCorrect: number, originalCorrect: boolean | null) => (call: QueryCall) => {
+    if (call.operation !== "select") return [];
+    if (filterValue(call, "problem_id")) return originalCorrect === null ? [] : [{ is_correct: originalCorrect }];
+    return SIMILAR_IDS.map((id, index) => ({ similar_problem_id: id, is_correct: index < similarCorrect }));
+  };
+
+  const scheduleTables = (review: Row | null, similarCorrect: number, originalCorrect: boolean | null) => ({
+    ...baseTables(review),
+    generated_similar_problems: () => SIMILAR_IDS.map((id) => ({ id })),
+    attempts: sessionAttempts(similarCorrect, originalCorrect),
+  });
+
+  const scheduleBody = { childId: CHILD, problemId: PROBLEM, sessionId: SESSION };
+
   it.each([
     [4, 1, 2, 3, "mastered"],
     [5, 1, 2, 7, "mastered"],
@@ -182,15 +266,16 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     [3, 2, 2, 1, "learning"],
     [0, 3, 3, 1, "learning"],
   ])(
-    "schedule: %i/5 from stage %i → stage %i after %i days, mastery %s",
+    "schedule: %i/5 (derived from attempts) from stage %i → stage %i after %i days, mastery %s",
     async (similarCorrectCount, currentStage, expectedStage, days, mastery) => {
-      const fake = fakeSupabase({ tables: baseTables({ review_stage: currentStage, status: "pending" }) });
+      const fake = fakeSupabase({
+        tables: scheduleTables({ review_stage: currentStage, status: "pending" }, similarCorrectCount, null),
+      });
       state.supabase = fake.client;
       const { POST } = await import("@/app/api/reviews/schedule/route");
 
-      const response = await POST(post("/api/reviews/schedule", {
-        childId: CHILD, problemId: PROBLEM, similarCorrectCount,
-      }));
+      // クライアントが similarCorrectCount を送っても無視される。
+      const response = await POST(post("/api/reviews/schedule", { ...scheduleBody, similarCorrectCount: 5 }));
 
       expect(response.status).toBe(200);
       const upsert = callsFor(fake.calls, "review_schedule", "upsert")[0];
@@ -200,7 +285,10 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
         status: "pending",
       });
       expect(upsert.options).toEqual({ onConflict: "child_id,problem_id" });
-      expect(callsFor(fake.calls, "attempts", "select")).toHaveLength(0);
+      const similarLookup = callsFor(fake.calls, "attempts", "select")
+        .find((call) => call.filters.some((filter) => filter.op === "in"))!;
+      expect(filterValue(similarLookup, "session_id")).toBe(SESSION);
+      expect(filterValue(similarLookup, "similar_problem_id")).toEqual(SIMILAR_IDS);
       const masteryWrites = callsFor(fake.calls, "weakness_map", "upsert");
       if (mastery === "mastered") {
         expect(masteryWrites[0].payload).toMatchObject({ mastery_level: "mastered", unit: "水のかさ" });
@@ -210,20 +298,42 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
       const body = await response.json();
       expect(body.data.mastery_level).toBe(mastery);
       expect(body.data.scheduled).toBe(true);
+      expect(body.data.similar_correct_count).toBe(similarCorrectCount);
     },
   );
 
-  const attemptsOnProblem = (isCorrect: boolean) => (call: QueryCall) =>
-    (call.operation === "select" ? [{ is_correct: isCorrect }] : []);
-
-  it("schedule: 5/5 with no existing review and a correct original creates no review row (doc §12.1)", async () => {
-    const fake = fakeSupabase({ tables: { ...baseTables(null), attempts: attemptsOnProblem(true) } });
+  it("schedule: counts only the latest attempt per similar problem", async () => {
+    const attempts = (call: QueryCall) => {
+      if (call.operation !== "select") return [];
+      if (filterValue(call, "problem_id")) return [];
+      // 新しい順: similar-0 は最新が不正解、similar-1 は最新が正解(古い不正解は無視)。
+      return [
+        { similar_problem_id: "similar-0", is_correct: false },
+        { similar_problem_id: "similar-0", is_correct: true },
+        { similar_problem_id: "similar-1", is_correct: true },
+        { similar_problem_id: "similar-1", is_correct: false },
+        { similar_problem_id: "similar-2", is_correct: true },
+        { similar_problem_id: "similar-3", is_correct: true },
+        { similar_problem_id: "similar-4", is_correct: true },
+      ];
+    };
+    const fake = fakeSupabase({
+      tables: { ...scheduleTables({ review_stage: 1, status: "pending" }, 0, null), attempts },
+    });
     state.supabase = fake.client;
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
-    const response = await POST(post("/api/reviews/schedule", {
-      childId: CHILD, problemId: PROBLEM, sessionId: SESSION, similarCorrectCount: 5,
-    }));
+    const body = await (await POST(post("/api/reviews/schedule", scheduleBody))).json();
+    expect(body.data.similar_correct_count).toBe(4);
+    expect(body.data.mastery_level).toBe("mastered");
+  });
+
+  it("schedule: 5/5 with no existing review and a correct original creates no review row (doc §12.1)", async () => {
+    const fake = fakeSupabase({ tables: scheduleTables(null, 5, true) });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", scheduleBody));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -231,33 +341,42 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     expect(body.data.scheduled).toBe(false);
     expect(body.data.mastery_level).toBe("mastered");
     expect(callsFor(fake.calls, "review_schedule", "upsert")).toHaveLength(0);
-    const lookup = callsFor(fake.calls, "attempts", "select")[0];
+    const lookup = callsFor(fake.calls, "attempts", "select")
+      .find((call) => filterValue(call, "problem_id"))!;
     expect(filterValue(lookup, "problem_id")).toBe(PROBLEM);
     expect(filterValue(lookup, "session_id")).toBe(SESSION);
     expect(lookup.order).toEqual({ column: "created_at", ascending: false });
   });
 
   it("schedule: no original attempt at all creates no review row", async () => {
-    const fake = fakeSupabase({ tables: { ...baseTables(null), attempts: () => [] } });
+    const fake = fakeSupabase({ tables: scheduleTables(null, 4, null) });
     state.supabase = fake.client;
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
-    const response = await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM, similarCorrectCount: 4 }));
+    const response = await POST(post("/api/reviews/schedule", scheduleBody));
 
     expect((await response.json()).data.scheduled).toBe(false);
     expect(callsFor(fake.calls, "review_schedule", "upsert")).toHaveLength(0);
-    expect(callsFor(fake.calls, "attempts", "select")[0].filters.map((filter) => filter.column))
-      .toEqual(["child_id", "problem_id"]);
   });
 
-  it("schedule: a wrong original with no existing review creates the review (stage 1 → 3 days on 4/5)", async () => {
-    const fake = fakeSupabase({ tables: { ...baseTables(null), attempts: attemptsOnProblem(false) } });
+  it("schedule: no similar problems at all counts as 0/5 without querying attempts for them", async () => {
+    const fake = fakeSupabase({
+      tables: { ...scheduleTables({ review_stage: 1, status: "pending" }, 0, null), generated_similar_problems: () => [] },
+    });
     state.supabase = fake.client;
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
-    const response = await POST(post("/api/reviews/schedule", {
-      childId: CHILD, problemId: PROBLEM, sessionId: SESSION, similarCorrectCount: 4,
-    }));
+    const body = await (await POST(post("/api/reviews/schedule", scheduleBody))).json();
+    expect(body.data.similar_correct_count).toBe(0);
+    expect(callsFor(fake.calls, "attempts", "select").some((call) => call.filters.some((f) => f.op === "in"))).toBe(false);
+  });
+
+  it("schedule: a wrong original with no existing review creates the review (stage 1 → 3 days on 4/5)", async () => {
+    const fake = fakeSupabase({ tables: scheduleTables(null, 4, false) });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", scheduleBody));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -269,11 +388,11 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
 
   it("schedule: a done review with a correct original stays untouched", async () => {
     const done = { id: REVIEW, status: "done", review_stage: 2 };
-    const fake = fakeSupabase({ tables: { ...baseTables(done), attempts: attemptsOnProblem(true) } });
+    const fake = fakeSupabase({ tables: scheduleTables(done, 5, true) });
     state.supabase = fake.client;
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
-    const response = await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM, similarCorrectCount: 5 }));
+    const response = await POST(post("/api/reviews/schedule", scheduleBody));
 
     expect((await response.json()).data.scheduled).toBe(false);
     expect(callsFor(fake.calls, "review_schedule", "upsert")).toHaveLength(0);
@@ -283,7 +402,7 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     const pending = { id: REVIEW, status: "pending", review_stage: 1 };
     const fake = fakeSupabase({
       tables: {
-        ...baseTables(pending),
+        ...scheduleTables(pending, 3, null),
         weakness_map: (call: QueryCall) => (call.operation === "select"
           ? [{ mastery_level: "mastered" }]
           : [call.payload as Row]),
@@ -292,21 +411,19 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
     state.supabase = fake.client;
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
-    const response = await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM, similarCorrectCount: 3 }));
+    const response = await POST(post("/api/reviews/schedule", scheduleBody));
 
     expect((await response.json()).data.mastery_level).toBe("reviewing");
     expect(callsFor(fake.calls, "weakness_map", "upsert")[0].payload).toMatchObject({ mastery_level: "reviewing" });
   });
 
-  it("schedule: rejects a session the child does not own", async () => {
-    const fake = fakeSupabase({ tables: { ...baseTables(null), learning_sessions: () => [] } });
+  it("schedule: rejects a session the child does not own and requires sessionId", async () => {
+    const fake = fakeSupabase({ tables: { ...scheduleTables(null, 5, true), learning_sessions: () => [] } });
     state.supabase = fake.client;
     const { POST } = await import("@/app/api/reviews/schedule/route");
 
-    const response = await POST(post("/api/reviews/schedule", {
-      childId: CHILD, problemId: PROBLEM, sessionId: SESSION, similarCorrectCount: 5,
-    }));
-    expect(response.status).toBe(404);
+    expect((await POST(post("/api/reviews/schedule", scheduleBody))).status).toBe(404);
+    expect((await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM }))).status).toBe(400);
   });
 });
 
@@ -481,6 +598,17 @@ describe("learning loop: repeated mistakes lower similar-problem difficulty", ()
       mistakeType: "unit_conversion_error",
       unit: "水のかさ",
     }));
+    const inserted = callsFor(fake.calls, "generated_similar_problems", "insert")[0];
+    const rows = inserted.payload as Row[];
+    expect(rows).toHaveLength(5);
+    for (const row of rows) {
+      expect(row.choices).toHaveLength(4);
+      expect(row.choices).toContain(row.answer);
+      expect(new Set(row.choices as string[]).size).toBe(4);
+    }
+    expect(inserted.columns).toBe("id, problem_text, unit, sub_unit, difficulty, choices");
+    expect(inserted.columns).not.toContain("answer");
+    expect(inserted.columns).not.toContain("explanation");
     vi.doUnmock("@/lib/ai");
   });
 });

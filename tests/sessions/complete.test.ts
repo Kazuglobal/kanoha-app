@@ -6,7 +6,6 @@ const input = {
   durationSeconds: 600,
   sessionId: "22222222-2222-4222-8222-222222222222",
   problemId: "33333333-3333-4333-8333-333333333333",
-  score: 4,
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -33,8 +32,15 @@ describe("completeLearningSession", () => {
       body: JSON.stringify({ childId: input.childId, durationSeconds: 600 }),
     }));
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/reviews/schedule", expect.objectContaining({
-      body: JSON.stringify({ childId: input.childId, problemId: input.problemId, similarCorrectCount: 4 }),
+      body: JSON.stringify({ childId: input.childId, problemId: input.problemId, sessionId: input.sessionId }),
     }));
+  });
+
+  it("does not let the client claim the similar-problem score (server derives it from attempts)", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    await completeLearningSession(input);
+    const scheduleBody = String((fetchMock.mock.calls[1][1] as RequestInit).body);
+    expect(scheduleBody).not.toContain("similarCorrectCount");
   });
 
   it("does not send counts the server derives itself", async () => {

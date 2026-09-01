@@ -92,6 +92,9 @@ export const similarProblemsSchema = z
 
 export const similarProblemDraftsSchema = z.array(similarProblemSchema).length(5);
 
+/** サーバーが生成して保存する類題の 4 択(lib/review/choices.ts)。null は文字入力にフォールバック。 */
+export const similarChoicesSchema = z.array(answerText).length(4).nullable();
+
 export const handwritingAnswerSchema = z
   .object({
     answer: answerText,
@@ -114,6 +117,7 @@ export type SimilarProblemRequest = z.infer<typeof similarProblemRequestSchema>;
 export type Difficulty = z.infer<typeof difficultySchema>;
 export type MistakeTypeId = z.infer<typeof mistakeTypeSchema>;
 export type Unit = z.infer<typeof unitSchema>;
+export type SimilarChoices = z.infer<typeof similarChoicesSchema>;
 export type HandwritingAnswer = z.infer<typeof handwritingAnswerSchema>;
 export type Hints = z.infer<typeof hintsSchema>;
 export type ParsedProblem = z.infer<typeof parsedProblemSchema>;

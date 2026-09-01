@@ -2,7 +2,6 @@ interface CompleteLearningSessionInput {
   childId: string;
   durationSeconds: number;
   problemId: string;
-  score: number;
   sessionId: string;
 }
 
@@ -29,7 +28,7 @@ const safeFetch = async (input: string, init: RequestInit): Promise<boolean> => 
 /**
  * セッション終了 → 復習予定 → Slack レポートの順に直列で送る。
  * レポートは保存済みの結果から作られるため、前2つを待ってから送る(並列にしない)。
- * 正解数・問題数はサーバーが attempts から導出するので送らない。
+ * 正解数・問題数・類題の正解数はサーバーが attempts から導出するので送らない(D2)。
  */
 export async function completeLearningSession(
   input: CompleteLearningSessionInput,
@@ -41,7 +40,7 @@ export async function completeLearningSession(
   const reviewScheduled = await safeFetch("/api/reviews/schedule", jsonRequest({
     childId: input.childId,
     problemId: input.problemId,
-    similarCorrectCount: input.score,
+    sessionId: input.sessionId,
   }));
   const reportSent = await safeFetch("/api/reports/slack", jsonRequest({ childId: input.childId }));
   return { sessionSaved, reviewScheduled, reportSent };
