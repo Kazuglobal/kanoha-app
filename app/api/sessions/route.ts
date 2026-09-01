@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { dailyLimitFromSessions, tokyoDayRange, type SessionUsage } from "@/lib/sessions/dailyLimit";
+import { loadSessionUsage } from "@/lib/review/today";
+import { dailyLimitFromSessions } from "@/lib/sessions/dailyLimit";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
 
@@ -9,26 +10,22 @@ const DEFAULT_LIMIT_MINUTES = 15;
 type Supabase = Awaited<ReturnType<typeof requireOwnedChild>>["supabase"];
 
 /**
- * 当日(Asia/Tokyo)の利用時間。終了済みは duration_seconds、未終了は now - started_at で数える。
+ * 当日(Asia/Tokyo)の利用時間。終了済みは duration_seconds、未終了は
+ * 最終 attempt(無ければ開始)+ 猶予までの経過時間で数える(lib/sessions/dailyLimit.ts)。
  * クライアントの申告値は使わない(B7)。
  */
 async function loadDailyLimit(supabase: Supabase, childId: string, now = new Date()) {
-  const range = tokyoDayRange(now);
   const [settings, sessions] = await Promise.all([
     supabase.from("app_settings")
       .select("daily_limit_minutes")
       .eq("child_id", childId)
       .maybeSingle(),
-    supabase.from("learning_sessions")
-      .select("started_at, ended_at, duration_seconds")
-      .eq("child_id", childId)
-      .gte("started_at", range.start)
-      .lt("started_at", range.end),
+    loadSessionUsage(supabase, childId, now),
   ]);
   if (settings.error || sessions.error) return null;
   return dailyLimitFromSessions(
     settings.data?.daily_limit_minutes ?? DEFAULT_LIMIT_MINUTES,
-    (sessions.data ?? []) as SessionUsage[],
+    sessions.data,
     now,
   );
 }

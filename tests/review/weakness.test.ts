@@ -31,6 +31,32 @@ describe("updateWeakness", () => {
     });
     expect(current.attemptCount).toBe(4);
   });
+
+  it("keeps mastered after a wrong attempt (demotion only via masteryAfterSimilarSet)", () => {
+    const mastered = {
+      accuracyRate: 0.8,
+      attemptCount: 5,
+      correctCount: 4,
+      masteryLevel: "mastered" as const,
+      mistakeCount: 1,
+    };
+    const next = updateWeakness(mastered, { isCorrect: false });
+    expect(next).toEqual({
+      accuracyRate: 0.6667,
+      attemptCount: 6,
+      correctCount: 4,
+      masteryLevel: "mastered",
+      mistakeCount: 2,
+    });
+    expect(updateWeakness(next, { isCorrect: false }).masteryLevel).toBe("mastered");
+    expect(masteryAfterSimilarSet(next.masteryLevel, 3)).toBe("reviewing");
+  });
+
+  it("still promotes and demotes normally below mastered", () => {
+    const reviewing = { accuracyRate: 1, attemptCount: 1, correctCount: 1, masteryLevel: "reviewing" as const, mistakeCount: 0 };
+    expect(updateWeakness(reviewing, { isCorrect: false }).masteryLevel).toBe("reviewing");
+    expect(updateWeakness(null, { isCorrect: true }).masteryLevel).toBe("reviewing");
+  });
 });
 
 describe("masteryAfterSimilarSet", () => {

@@ -4,8 +4,9 @@ import {
   clampDurationSeconds,
   mistakeTypeFromExplanation,
   recentUnitAttempts,
+  recomputeWeakness,
   transitionReview,
-  weaknessStatsAfterAttempt,
+  weaknessStatsFromRow,
 } from "@/lib/review/loop";
 import { addDaysJst, todayKeyJst } from "@/lib/utils/date";
 import { callsFor, fakeSupabase, type QueryCall, type Row } from "@/tests/review/fakeSupabase";
@@ -13,19 +14,50 @@ import { callsFor, fakeSupabase, type QueryCall, type Row } from "@/tests/review
 const CHILD = "11111111-1111-4111-8111-111111111111";
 const PROBLEM = "33333333-3333-4333-8333-333333333333";
 
-describe("weaknessStatsAfterAttempt", () => {
-  it("routes the RPC counts through updateWeakness", () => {
-    expect(weaknessStatsAfterAttempt(
+describe("weaknessStatsFromRow", () => {
+  it("maps the RPC row (numeric strings included) without recomputing mastery", () => {
+    expect(weaknessStatsFromRow(
       { attempt_count: "5", correct_count: "4", mistake_count: 1, accuracy_rate: "0.8", mastery_level: "mastered" },
-      true,
     )).toEqual({ accuracyRate: 0.8, attemptCount: 5, correctCount: 4, masteryLevel: "mastered", mistakeCount: 1 });
   });
 
-  it("treats the first attempt as having no previous statistics", () => {
-    expect(weaknessStatsAfterAttempt(
-      { attempt_count: 1, correct_count: 0, mistake_count: 1, accuracy_rate: 0, mastery_level: "learning" },
-      false,
-    )).toEqual({ accuracyRate: 0, attemptCount: 1, correctCount: 0, masteryLevel: "learning", mistakeCount: 1 });
+  it("keeps the DB's sticky mastered even when the latest attempt was wrong", () => {
+    expect(weaknessStatsFromRow(
+      { attempt_count: 6, correct_count: 4, mistake_count: 2, accuracy_rate: 0.6667, mastery_level: "mastered" },
+    ).masteryLevel).toBe("mastered");
+  });
+
+  it("falls back to learning for an unknown mastery string", () => {
+    expect(weaknessStatsFromRow(
+      { attempt_count: 1, correct_count: 0, mistake_count: 1, accuracy_rate: 0, mastery_level: "bogus" },
+    ).masteryLevel).toBe("learning");
+  });
+});
+
+describe("recomputeWeakness", () => {
+  const unit = { childId: CHILD, unit: "たし算", subUnit: "" };
+
+  it("returns the row the RPC upserted as the truth (mastered stays after a wrong attempt)", async () => {
+    const fake = fakeSupabase({
+      tables: {},
+      rpc: () => ({
+        data: [{ attempt_count: 6, correct_count: 4, mistake_count: 2, accuracy_rate: 0.6667, mastery_level: "mastered" }],
+        error: null,
+      }),
+    });
+    const stats = await recomputeWeakness(fake.client, unit);
+    expect(stats).toEqual({ accuracyRate: 0.6667, attemptCount: 6, correctCount: 4, masteryLevel: "mastered", mistakeCount: 2 });
+    expect(fake.rpcCalls).toEqual([{
+      name: "recompute_weakness",
+      args: { target_child_id: CHILD, target_unit: "たし算", target_sub_unit: "" },
+    }]);
+  });
+
+  it("returns null when the RPC fails or returns no row", async () => {
+    const failing = fakeSupabase({ tables: {}, rpc: () => ({ data: null, error: { message: "boom" } }) });
+    expect(await recomputeWeakness(failing.client, unit)).toBeNull();
+    const empty = fakeSupabase({ tables: {}, rpc: () => ({ data: [], error: null }) });
+    expect(await recomputeWeakness(empty.client, unit)).toBeNull();
   });
 });
 

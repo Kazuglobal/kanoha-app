@@ -46,6 +46,22 @@ describe("learning loop migration (recompute_weakness)", () => {
     expect(body).toContain("else 'learning'");
   });
 
+  it("keeps mastered sticky on conflict (T011 D1): only the schedule route may demote", () => {
+    const body = functionBody();
+    const update = body.slice(body.indexOf("on conflict (child_id, unit, sub_unit) do update"));
+    expect(update).toMatch(
+      /mastery_level = case\s+when excluded\.mastery_level = 'mastered'\s+or public\.weakness_map\.mastery_level = 'mastered' then 'mastered'\s+else excluded\.mastery_level\s+end/,
+    );
+    expect(update).not.toMatch(/mastery_level = excluded\.mastery_level\s*,/);
+  });
+
+  it("guards the accuracy division with nullif(attempt_count, 0)", () => {
+    const body = functionBody();
+    expect(body).toContain("coalesce(round(stats.correct_count::numeric / nullif(stats.attempt_count, 0), 4), 0)");
+    expect(body).toContain("stats.correct_count::numeric / nullif(stats.attempt_count, 0) >= 0.8");
+    expect(body).not.toMatch(/correct_count::numeric \/ stats\.attempt_count\b/);
+  });
+
   it("revokes public/anon execution and grants only authenticated", () => {
     expect(migration).toContain(
       "revoke all on function public.recompute_weakness(uuid, text, text) from public, anon;",

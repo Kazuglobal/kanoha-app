@@ -184,7 +184,7 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
   ])(
     "schedule: %i/5 from stage %i → stage %i after %i days, mastery %s",
     async (similarCorrectCount, currentStage, expectedStage, days, mastery) => {
-      const fake = fakeSupabase({ tables: baseTables({ review_stage: currentStage }) });
+      const fake = fakeSupabase({ tables: baseTables({ review_stage: currentStage, status: "pending" }) });
       state.supabase = fake.client;
       const { POST } = await import("@/app/api/reviews/schedule/route");
 
@@ -200,15 +200,138 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
         status: "pending",
       });
       expect(upsert.options).toEqual({ onConflict: "child_id,problem_id" });
+      expect(callsFor(fake.calls, "attempts", "select")).toHaveLength(0);
       const masteryWrites = callsFor(fake.calls, "weakness_map", "upsert");
       if (mastery === "mastered") {
         expect(masteryWrites[0].payload).toMatchObject({ mastery_level: "mastered", unit: "水のかさ" });
       } else {
         expect(masteryWrites).toHaveLength(0);
       }
-      expect((await response.json()).data.mastery_level).toBe(mastery);
+      const body = await response.json();
+      expect(body.data.mastery_level).toBe(mastery);
+      expect(body.data.scheduled).toBe(true);
     },
   );
+
+  const attemptsOnProblem = (isCorrect: boolean) => (call: QueryCall) =>
+    (call.operation === "select" ? [{ is_correct: isCorrect }] : []);
+
+  it("schedule: 5/5 with no existing review and a correct original creates no review row (doc §12.1)", async () => {
+    const fake = fakeSupabase({ tables: { ...baseTables(null), attempts: attemptsOnProblem(true) } });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", {
+      childId: CHILD, problemId: PROBLEM, sessionId: SESSION, similarCorrectCount: 5,
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.scheduled).toBe(false);
+    expect(body.data.mastery_level).toBe("mastered");
+    expect(callsFor(fake.calls, "review_schedule", "upsert")).toHaveLength(0);
+    const lookup = callsFor(fake.calls, "attempts", "select")[0];
+    expect(filterValue(lookup, "problem_id")).toBe(PROBLEM);
+    expect(filterValue(lookup, "session_id")).toBe(SESSION);
+    expect(lookup.order).toEqual({ column: "created_at", ascending: false });
+  });
+
+  it("schedule: no original attempt at all creates no review row", async () => {
+    const fake = fakeSupabase({ tables: { ...baseTables(null), attempts: () => [] } });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM, similarCorrectCount: 4 }));
+
+    expect((await response.json()).data.scheduled).toBe(false);
+    expect(callsFor(fake.calls, "review_schedule", "upsert")).toHaveLength(0);
+    expect(callsFor(fake.calls, "attempts", "select")[0].filters.map((filter) => filter.column))
+      .toEqual(["child_id", "problem_id"]);
+  });
+
+  it("schedule: a wrong original with no existing review creates the review (stage 1 → 3 days on 4/5)", async () => {
+    const fake = fakeSupabase({ tables: { ...baseTables(null), attempts: attemptsOnProblem(false) } });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", {
+      childId: CHILD, problemId: PROBLEM, sessionId: SESSION, similarCorrectCount: 4,
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.scheduled).toBe(true);
+    expect(callsFor(fake.calls, "review_schedule", "upsert")[0].payload).toMatchObject({
+      review_stage: 2, status: "pending", scheduled_for: addDaysJst(todayKeyJst(), 3),
+    });
+  });
+
+  it("schedule: a done review with a correct original stays untouched", async () => {
+    const done = { id: REVIEW, status: "done", review_stage: 2 };
+    const fake = fakeSupabase({ tables: { ...baseTables(done), attempts: attemptsOnProblem(true) } });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM, similarCorrectCount: 5 }));
+
+    expect((await response.json()).data.scheduled).toBe(false);
+    expect(callsFor(fake.calls, "review_schedule", "upsert")).toHaveLength(0);
+  });
+
+  it("schedule: 3/5 demotes mastered explicitly (the only demotion path)", async () => {
+    const pending = { id: REVIEW, status: "pending", review_stage: 1 };
+    const fake = fakeSupabase({
+      tables: {
+        ...baseTables(pending),
+        weakness_map: (call: QueryCall) => (call.operation === "select"
+          ? [{ mastery_level: "mastered" }]
+          : [call.payload as Row]),
+      },
+    });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", { childId: CHILD, problemId: PROBLEM, similarCorrectCount: 3 }));
+
+    expect((await response.json()).data.mastery_level).toBe("reviewing");
+    expect(callsFor(fake.calls, "weakness_map", "upsert")[0].payload).toMatchObject({ mastery_level: "reviewing" });
+  });
+
+  it("schedule: rejects a session the child does not own", async () => {
+    const fake = fakeSupabase({ tables: { ...baseTables(null), learning_sessions: () => [] } });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/reviews/schedule/route");
+
+    const response = await POST(post("/api/reviews/schedule", {
+      childId: CHILD, problemId: PROBLEM, sessionId: SESSION, similarCorrectCount: 5,
+    }));
+    expect(response.status).toBe(404);
+  });
+});
+
+describe("learning loop: sticky mastery through /api/attempts", () => {
+  it("a wrong attempt in a mastered unit reports mastered (the RPC row is the truth)", async () => {
+    const fake = fakeSupabase({
+      tables: baseTables(null),
+      rpc: () => ({
+        data: [{ attempt_count: 6, correct_count: 4, mistake_count: 2, accuracy_rate: 0.6667, mastery_level: "mastered" }],
+        error: null,
+      }),
+    });
+    state.supabase = fake.client;
+    const { POST } = await import("@/app/api/attempts/route");
+
+    const response = await POST(post("/api/attempts", {
+      childId: CHILD, sessionId: SESSION, problemId: PROBLEM, childAnswer: "100mL", answerType: "text",
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(callsFor(fake.calls, "attempts", "insert")[0].payload).toMatchObject({ is_correct: false });
+    expect(body.data.mastery_level).toBe("mastered");
+    expect(body.data.accuracy_rate).toBe(0.6667);
+  });
 });
 
 describe("learning loop: sessions", () => {
@@ -218,9 +341,10 @@ describe("learning loop: sessions", () => {
       tables: {
         app_settings: () => [{ daily_limit_minutes: 10 }],
         learning_sessions: () => [
-          { started_at: startedAt, ended_at: null, duration_seconds: 0 },
-          { started_at: startedAt, ended_at: startedAt, duration_seconds: 300 },
+          { id: "open", started_at: startedAt, ended_at: null, duration_seconds: 0 },
+          { id: "done", started_at: startedAt, ended_at: startedAt, duration_seconds: 300 },
         ],
+        attempts: () => [],
       },
     });
     state.supabase = fake.client;
@@ -232,6 +356,43 @@ describe("learning loop: sessions", () => {
     expect(body.data).toEqual({ limitMinutes: 10, usedMinutes: 9, remainingMinutes: 1, limitReached: false });
     const query = callsFor(fake.calls, "learning_sessions")[0];
     expect(query.filters.map((filter) => filter.op)).toEqual(["eq", "gte", "lt"]);
+    const lastAttempts = callsFor(fake.calls, "attempts")[0];
+    expect(lastAttempts.columns).toBe("session_id, created_at");
+    expect(filterValue(lastAttempts, "session_id")).toEqual(["open"]);
+  });
+
+  it("GET /api/sessions caps an abandoned open session at its last attempt + 10 min", async () => {
+    const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+    const fake = fakeSupabase({
+      tables: {
+        app_settings: () => [{ daily_limit_minutes: 15 }],
+        learning_sessions: () => [{ id: "open", started_at: minutesAgo(60), ended_at: null, duration_seconds: 0 }],
+        attempts: () => [
+          { session_id: "open", created_at: minutesAgo(55) },
+          { session_id: "open", created_at: minutesAgo(50) },
+        ],
+      },
+    });
+    state.supabase = fake.client;
+    const { GET } = await import("@/app/api/sessions/route");
+
+    const body = await (await GET(new Request(`http://localhost/api/sessions?childId=${CHILD}`))).json();
+    expect(body.data).toMatchObject({ usedMinutes: 20, limitReached: true });
+  });
+
+  it("GET /api/sessions skips the attempts lookup when no session is open", async () => {
+    const fake = fakeSupabase({
+      tables: {
+        app_settings: () => [{ daily_limit_minutes: 15 }],
+        learning_sessions: () => [{ id: "done", started_at: "x", ended_at: "y", duration_seconds: 60 }],
+      },
+    });
+    state.supabase = fake.client;
+    const { GET } = await import("@/app/api/sessions/route");
+
+    const body = await (await GET(new Request(`http://localhost/api/sessions?childId=${CHILD}`))).json();
+    expect(body.data.usedMinutes).toBe(1);
+    expect(callsFor(fake.calls, "attempts")).toHaveLength(0);
   });
 
   it("POST /api/sessions refuses to start once the limit is reached", async () => {

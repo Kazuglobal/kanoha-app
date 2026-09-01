@@ -1,14 +1,23 @@
 import type { createClient } from "@/lib/supabase/server";
 import { mistakeTypeSchema } from "@/lib/ai/schemas";
 import { recommendToday, type RecommendationCandidate } from "@/lib/review/recommend";
-import { dailyLimitFromSessions, type SessionUsage } from "@/lib/sessions/dailyLimit";
+import {
+  dailyLimitFromSessions,
+  lastAttemptBySession,
+  openSessionIds,
+  withLastAttempts,
+  type SessionRow,
+  type SessionUsage,
+} from "@/lib/sessions/dailyLimit";
 import { jstDayRange, todayKeyJst } from "@/lib/utils/date";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 const ESTIMATED_MINUTES = 3;
 const DEFAULT_LIMIT_MINUTES = 15;
-const LIMITS = { attempts: 300, problems: 100, reviews: 200, similar: 50, weakness: 100 } as const;
+const LIMITS = {
+  attempts: 300, problems: 100, reviews: 200, sessionAttempts: 500, similar: 50, weakness: 100,
+} as const;
 
 interface ProblemRow {
   id: string;
@@ -58,8 +67,39 @@ export const findRecentMistake = (
   return recent && unit ? { mistakeType: recent.mistake_type as string, unit } : null;
 };
 
-async function loadSources(supabase: Supabase, childId: string, now: Date) {
+interface SessionAttemptRow {
+  session_id: string;
+  created_at: string;
+}
+
+/**
+ * 当日(Asia/Tokyo)の learning_sessions に、未終了セッションの最終 attempt 時刻を付けて返す。
+ * 放置された未終了セッションを猶予つきで打ち切るための入力(lib/sessions/dailyLimit.ts)。
+ * /api/sessions と今日のおすすめの共通経路。
+ */
+export async function loadSessionUsage(
+  supabase: Supabase,
+  childId: string,
+  now: Date,
+): Promise<{ data: SessionUsage[]; error: boolean }> {
   const range = jstDayRange(now);
+  const sessions = await supabase.from("learning_sessions")
+    .select("id, started_at, ended_at, duration_seconds")
+    .eq("child_id", childId).gte("started_at", range.start).lt("started_at", range.end);
+  if (sessions.error) return { data: [], error: true };
+  const rows = (sessions.data ?? []) as SessionRow[];
+  const openIds = openSessionIds(rows);
+  if (openIds.length === 0) return { data: withLastAttempts(rows, new Map()), error: false };
+
+  const attempts = await supabase.from("attempts").select("session_id, created_at")
+    .eq("child_id", childId).in("session_id", openIds)
+    .order("created_at", { ascending: false }).limit(LIMITS.sessionAttempts);
+  if (attempts.error) return { data: [], error: true };
+  const lastAttempts = lastAttemptBySession((attempts.data ?? []) as SessionAttemptRow[]);
+  return { data: withLastAttempts(rows, lastAttempts), error: false };
+}
+
+async function loadSources(supabase: Supabase, childId: string, now: Date) {
   return Promise.all([
     supabase.from("problems").select("id, problem_text, unit, sub_unit, difficulty")
       .eq("child_id", childId).eq("status", "active")
@@ -72,8 +112,7 @@ async function loadSources(supabase: Supabase, childId: string, now: Date) {
     supabase.from("attempts").select("problem_id, similar_problem_id, mistake_type, is_correct")
       .eq("child_id", childId).order("created_at", { ascending: false }).limit(LIMITS.attempts),
     supabase.from("app_settings").select("daily_limit_minutes").eq("child_id", childId).maybeSingle(),
-    supabase.from("learning_sessions").select("started_at, ended_at, duration_seconds")
-      .eq("child_id", childId).gte("started_at", range.start).lt("started_at", range.end),
+    loadSessionUsage(supabase, childId, now),
     supabase.from("generated_similar_problems").select("id, source_problem_id, unit, sub_unit, difficulty")
       .eq("child_id", childId).order("created_at", { ascending: false }).limit(LIMITS.similar),
   ]);
@@ -129,7 +168,7 @@ export async function getTodayRecommendations(supabase: Supabase, childId: strin
 
   const limit = dailyLimitFromSessions(
     settingsResult.data?.daily_limit_minutes ?? DEFAULT_LIMIT_MINUTES,
-    (sessionsResult.data ?? []) as SessionUsage[],
+    sessionsResult.data,
     now,
   );
   const selected = recommendToday([...problemCandidates, ...similarCandidates], {

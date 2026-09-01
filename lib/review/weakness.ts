@@ -25,6 +25,7 @@ const masteryFor = (attemptCount: number, correctCount: number, accuracyRate: nu
 /**
  * 1回の attempt を積み上げた単元統計。
  * mastery の規則は supabase/migrations/0009_learning_loop.sql の recompute_weakness と同一。
+ * mastered は sticky: 1問の不正解では戻さない(降格は masteryAfterSimilarSet だけが行う)。
  */
 export const updateWeakness = (
   current: WeaknessStats | null,
@@ -39,7 +40,9 @@ export const updateWeakness = (
     accuracyRate,
     attemptCount,
     correctCount,
-    masteryLevel: masteryFor(attemptCount, correctCount, accuracyRate),
+    masteryLevel: current?.masteryLevel === "mastered"
+      ? "mastered"
+      : masteryFor(attemptCount, correctCount, accuracyRate),
     mistakeCount,
   };
 };

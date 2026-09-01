@@ -3,8 +3,12 @@
 --    weakness_map を 1 文の upsert でアトミックに更新する RPC を追加する。
 --  * mastery_level の規則は lib/review/weakness.ts (updateWeakness) と同一:
 --      attempt_count >= 5 かつ accuracy >= 0.8 → mastered / correct > 0 → reviewing / それ以外 → learning
---    Route Handler 側でも updateWeakness で同じ値を導出し、最終判断(類題 4/5 → mastered)は TS が上書きする。
+--    Route Handler は本関数が返した mastery_level を真として扱う(TS 側で再構成しない)。
+--  * mastered は sticky: 既存行か新しい値のどちらかが mastered なら mastered を維持する。
+--    降格は /api/reviews/schedule(類題 4/5 未満 → masteryAfterSimilarSet)だけが明示的に書く。
+--  * 0 除算は nullif(attempt_count, 0) で防ぐ(該当 attempts が無い場合は accuracy 0 / learning)。
 -- 冪等: create or replace のみ。既存マイグレーションは変更しない。
+-- (T011: 本マイグレーションは未適用のため、その場で修正した。実 DB 適用後は追記のみ。)
 
 create or replace function public.recompute_weakness(
   target_child_id uuid,
@@ -54,13 +58,12 @@ begin
       target_child_id,
       target_unit,
       target_sub_unit,
-      case when stats.attempt_count = 0 then 0
-           else round(stats.correct_count::numeric / stats.attempt_count, 4) end,
+      coalesce(round(stats.correct_count::numeric / nullif(stats.attempt_count, 0), 4), 0),
       (stats.attempt_count - stats.correct_count)::integer,
       stats.last_attempted_at,
       case
         when stats.attempt_count >= 5
-          and stats.correct_count::numeric / stats.attempt_count >= 0.8 then 'mastered'
+          and stats.correct_count::numeric / nullif(stats.attempt_count, 0) >= 0.8 then 'mastered'
         when stats.correct_count > 0 then 'reviewing'
         else 'learning'
       end
@@ -69,7 +72,11 @@ begin
       set accuracy_rate = excluded.accuracy_rate,
           mistake_count = excluded.mistake_count,
           last_attempted_at = excluded.last_attempted_at,
-          mastery_level = excluded.mastery_level,
+          mastery_level = case
+            when excluded.mastery_level = 'mastered'
+              or public.weakness_map.mastery_level = 'mastered' then 'mastered'
+            else excluded.mastery_level
+          end,
           updated_at = now()
     returning
       public.weakness_map.mistake_count,

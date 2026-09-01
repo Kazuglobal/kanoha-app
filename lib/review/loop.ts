@@ -1,7 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import { mistakeTypeSchema, type MistakeTypeId } from "@/lib/ai/schemas";
 import type { MistakeHistoryEntry } from "@/lib/review/recommend";
-import { updateWeakness, type WeaknessStats } from "@/lib/review/weakness";
+import type { MasteryLevel, WeaknessStats } from "@/lib/review/weakness";
 import { addDaysJst, todayKeyJst } from "@/lib/utils/date";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -19,32 +19,26 @@ export interface UnitAttemptInput {
   childId: string;
   unit: string;
   subUnit: string;
-  isCorrect: boolean;
 }
 
-/**
- * RPC が再計算した「この attempt を含む」件数から、直前の統計を復元して
- * lib/review/weakness.ts の updateWeakness に通す(mastery の規則を TS 側の正で判断する)。
- */
-export const weaknessStatsAfterAttempt = (
-  row: WeaknessRpcRow,
-  isCorrect: boolean,
-): WeaknessStats => {
-  const attemptCount = Number(row.attempt_count);
-  const correctCount = Number(row.correct_count);
-  const previousAttempts = attemptCount - 1;
-  const previousCorrect = correctCount - (isCorrect ? 1 : 0);
-  const previous: WeaknessStats | null = previousAttempts <= 0 ? null : {
-    accuracyRate: Math.round((previousCorrect / previousAttempts) * 10_000) / 10_000,
-    attemptCount: previousAttempts,
-    correctCount: previousCorrect,
-    masteryLevel: "learning",
-    mistakeCount: previousAttempts - previousCorrect,
-  };
-  return updateWeakness(previous, { isCorrect });
-};
+const MASTERY_LEVELS: readonly MasteryLevel[] = ["learning", "reviewing", "mastered"];
 
-/** 単元全体の正答率を SQL 側でアトミックに再計算・upsert し、TS 側で統計を導出する。 */
+const toMasteryLevel = (value: string): MasteryLevel =>
+  (MASTERY_LEVELS as readonly string[]).includes(value) ? (value as MasteryLevel) : "learning";
+
+/**
+ * RPC が upsert した weakness_map 行をそのまま統計に写す。
+ * mastery_level は DB 行(sticky mastered を含む)を真とし、TS 側で再構成しない。
+ */
+export const weaknessStatsFromRow = (row: WeaknessRpcRow): WeaknessStats => ({
+  accuracyRate: Number(row.accuracy_rate),
+  attemptCount: Number(row.attempt_count),
+  correctCount: Number(row.correct_count),
+  masteryLevel: toMasteryLevel(row.mastery_level),
+  mistakeCount: Number(row.mistake_count),
+});
+
+/** 単元全体の正答率を SQL 側でアトミックに再計算・upsert し、その行を統計として返す。 */
 export async function recomputeWeakness(
   supabase: Supabase,
   input: UnitAttemptInput,
@@ -56,7 +50,7 @@ export async function recomputeWeakness(
   });
   if (error) return null;
   const row = (Array.isArray(data) ? data[0] : data) as WeaknessRpcRow | null | undefined;
-  return row ? weaknessStatsAfterAttempt(row, input.isCorrect) : null;
+  return row ? weaknessStatsFromRow(row) : null;
 }
 
 /** problems.explanation_json に保存された AI 診断の mistakeType(検証済みのもののみ)。 */

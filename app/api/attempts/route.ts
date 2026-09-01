@@ -70,7 +70,6 @@ export async function POST(request: Request) {
     childId: input.childId,
     unit: target.unit,
     subUnit: target.subUnit,
-    isCorrect,
   });
   if (!weakness) return internalError();
 

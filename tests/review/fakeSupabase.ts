@@ -4,7 +4,7 @@ export type Supabase = Awaited<ReturnType<typeof createClient>>;
 export type Row = Record<string, unknown>;
 
 export interface Filter {
-  op: "eq" | "gte" | "lt" | "is" | "not";
+  op: "eq" | "gte" | "lt" | "is" | "in" | "not";
   column: string;
   value: unknown;
 }
@@ -50,6 +50,7 @@ const builder = (handler: TableHandler | undefined, call: QueryCall, log: QueryC
     gte: filter("gte"),
     lt: filter("lt"),
     is: filter("is"),
+    in: filter("in"),
     not: (column: string, _operator: string, value: unknown) =>
       next({ filters: [...call.filters, { op: "not", column, value }] }),
     order: (column: string, options?: { ascending?: boolean }) =>
