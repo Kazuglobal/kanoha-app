@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap;
-select plan(4);
+select plan(6);
 
 insert into auth.users (id, email)
 values
@@ -53,6 +53,19 @@ select is(
   ),
   0::bigint,
   'a parent cannot update another parent child'
+);
+
+select throws_ok(
+  $$select * from public.recompute_weakness(
+    '10000000-0000-0000-0000-000000000002', 'たし算', 'くり上がり')$$,
+  'child profile not found',
+  'recompute_weakness refuses another parent child'
+);
+
+select lives_ok(
+  $$select * from public.recompute_weakness(
+    '10000000-0000-0000-0000-000000000001', 'たし算', 'くり上がり')$$,
+  'recompute_weakness upserts an owned child unit row'
 );
 
 select * from finish();

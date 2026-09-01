@@ -1,7 +1,9 @@
-import type { Difficulty } from "@/lib/ai/schemas";
+import type { Difficulty, MistakeTypeId } from "@/lib/ai/schemas";
 
 export interface RecommendationCandidate {
   id: string;
+  /** 類題候補のとき、子どもが開く元問題の id。 */
+  sourceProblemId?: string;
   difficulty: Difficulty;
   estimatedMinutes: number;
   isMastered: boolean;
@@ -83,4 +85,38 @@ export const lowerDifficultyForRepeatedMistake = (
   if (consecutiveMistakes < 2) return difficulty;
   if (difficulty === "advanced") return "standard";
   return "basic";
+};
+
+export interface MistakeHistoryEntry {
+  isCorrect: boolean;
+  mistakeType: MistakeTypeId | null;
+}
+
+export interface MistakeStreak {
+  count: number;
+  mistakeType: MistakeTypeId | null;
+}
+
+/**
+ * 直近(先頭が最新)の attempts から「同じ間違え方が連続した回数」を数える(doc.md §12.2)。
+ * 正解、または間違え方が付いていない attempt で連続は途切れる。
+ */
+export const consecutiveMistakeStreak = (
+  history: readonly MistakeHistoryEntry[],
+): MistakeStreak => {
+  const first = history[0];
+  if (!first || first.isCorrect || !first.mistakeType) return { count: 0, mistakeType: null };
+  const count = history.findIndex(
+    (entry) => entry.isCorrect || entry.mistakeType !== first.mistakeType,
+  );
+  return { count: count === -1 ? history.length : count, mistakeType: first.mistakeType };
+};
+
+/** 類題生成に使う難易度: 同じ間違え方が2回以上続いていれば1段下げる。 */
+export const difficultyForNextSimilarSet = (
+  baseDifficulty: Difficulty,
+  history: readonly MistakeHistoryEntry[],
+): { difficulty: Difficulty; streak: MistakeStreak } => {
+  const streak = consecutiveMistakeStreak(history);
+  return { difficulty: lowerDifficultyForRepeatedMistake(baseDifficulty, streak.count), streak };
 };

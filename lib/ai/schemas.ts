@@ -98,13 +98,18 @@ export const handwritingAnswerSchema = z
   })
   .strict();
 
-export interface SimilarProblemRequest {
-  difficulty: Difficulty;
-  mistakeType?: MistakeTypeId;
-  problemText: string;
-  subUnit: string;
-  unit: Unit;
-}
+/** 類題生成リクエスト。mistakeType は mistakeTypes.ts の enum に限定する(A4)。 */
+export const similarProblemRequestSchema = z
+  .object({
+    difficulty: difficultySchema,
+    mistakeType: mistakeTypeSchema.optional(),
+    problemText,
+    subUnit: subUnitText,
+    unit: unitSchema,
+  })
+  .strict();
+
+export type SimilarProblemRequest = z.infer<typeof similarProblemRequestSchema>;
 
 export type Difficulty = z.infer<typeof difficultySchema>;
 export type MistakeTypeId = z.infer<typeof mistakeTypeSchema>;

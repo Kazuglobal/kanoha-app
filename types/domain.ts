@@ -5,8 +5,10 @@ export type Uuid = string;
 export type IsoDate = string;
 export type IsoDateTime = string;
 
-export type Difficulty = "very_easy" | "easy" | "standard" | "challenging";
-export type ExplanationLevel = Exclude<Difficulty, "challenging">;
+/** doc.md §8.2 / migration 0007: problems.difficulty と generated_similar_problems.difficulty の値。 */
+export type Difficulty = "basic" | "standard" | "advanced";
+/** app_settings.explanation_level(ヒントの説明レベル)。 */
+export type ExplanationLevel = "very_easy" | "easy" | "standard";
 export type MaterialSourceType =
   | "school_print"
   | "tablet_screenshot"
@@ -36,4 +38,3 @@ export interface AttemptResult {
   mistakeType: MistakeType | null;
   aiFeedback: string | null;
 }
-

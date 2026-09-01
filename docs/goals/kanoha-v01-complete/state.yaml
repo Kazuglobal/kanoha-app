@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T002
+active_task: T003
 
 tasks:
   - id: T001
@@ -99,7 +99,7 @@ tasks:
   - id: T002
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W1 基盤整合: (a) 新規マイグレーション 0008 で review_schedule UNIQUE(child_id, problem_id)、problems/generated_similar_problems.unit の CHECK(grade2Math の単元)、attempts.mistake_type の CHECK を mistakeTypes.ts と一致させる (b) lib/ai/schemas.ts の mistakeTypeSchema を MISTAKE_TYPE_IDS から、unit を GRADE_2_MATH_UNITS から導出 (c) lib/ai/index.ts の重複単元リスト廃止 (d) lib/utils/date.ts に Asia/Tokyo 基準の todayKey/addDays を作り、reports/slack・review/today・review/schedule・sessions/dailyLimit を置換 (e) AI_PROVIDER_TEXT の既定を本番では throw、dev/test のみ mock (f) doc.md §10/§11 を curriculum に合わせて更新 (g) 各項目にユニットテスト"
     allowed_files:
@@ -141,22 +141,95 @@ tasks:
       - "既存マイグレーションファイルを書き換えたくなった(禁止。新規ファイルにする)"
       - "DemoHome/LearningFlow/e2e の文言変更が必要(W6 の範囲)"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - supabase/migrations/0008_curriculum_constraints.sql
+        - lib/utils/date.ts
+        - lib/ai/schemas.ts
+        - lib/ai/index.ts
+        - lib/ai/mock.ts
+        - lib/ai/usage.ts
+        - lib/curriculum/grade2Math.ts
+        - lib/curriculum/mistakeTypes.ts
+        - lib/review/schedule.ts
+        - lib/review/today.ts
+        - lib/sessions/dailyLimit.ts
+        - lib/reports/dashboard.ts
+        - app/api/reports/slack/route.ts
+        - app/api/ai/analyze-problem/route.ts
+        - app/api/ai/generate-image/route.ts
+        - app/api/attempts/route.ts
+        - app/api/ai/generate-similar-problems/route.ts
+        - doc.md
+        - .env.example
+        - tests/ai/schemas.test.ts
+        - tests/ai/provider.test.ts
+        - tests/ai/buildProblemRecords.test.ts
+        - tests/ai/usage.test.ts
+        - tests/review/schedule.test.ts
+        - tests/utils/date.test.ts
+        - tests/security/curriculum-migration.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "39 files / 120 tests passed (PM 再実行でも同結果)"
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "grep -rn defaultUnits lib app/api"
+          status: pass
+          tail: "0 hits"
+      commit: "437d5a6"
+      summary: "単元/間違え方/JST/プロバイダ既定を単一の正に統一。0008 で review_schedule UNIQUE と unit CHECK、mistake_type CHECK を再定義。Zod enum を curriculum から導出し文字数上限追加。mock 経路を正規単元に修正。doc.md §8.2/§9/§10/§11 更新"
+      deviations:
+        - "next-env.d.ts は build が再生成(root-params.d.ts の import 追加)。コミットに含めた"
+        - "tests/ai/usage.test.ts に usage_date=todayKeyJst の検証を追加"
 
   - id: T003
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: medium
     objective: "W2 学習中核ループ結線: (a) attempts 保存時に単元全体の accuracy を SQL 関数(security definer, upsert をアトミックに)で再計算し lib/review/weakness.ts を経由 (b) 最初の不正解で review_schedule を作成、正解 attempt で該当 review を done にし stage を進める(currentStage 伝搬、5/5 は繰り上げ、≤3/5 据え置き) (c) lowerDifficultyForRepeatedMistake を類題生成経路に結線 (d) AI 診断の mistakeType を problems.explanation_json から attempts.mistake_type に伝搬 (e) learning_sessions の duration をサーバー計測(started_at 基準で clamp)、未終了セッションも当日累計に含め、類題の区切りで上限判定して「今日はここまで」に誘導 (f) correct_count をサーバー側で導出 (g) lib/review/today.ts を order by created_at desc・残り分数考慮・類題候補含む形に (h) 結合テスト(Supabase モック)で attempts→weakness→review の1周を固定"
-    allowed_files: []
+    allowed_files:
+      - supabase/migrations/0009_learning_loop.sql
+      - supabase/tests/rls_isolation.sql
+      - app/api/attempts/route.ts
+      - app/api/reviews/schedule/route.ts
+      - app/api/sessions/route.ts
+      - app/api/sessions/[id]/route.ts
+      - app/api/ai/generate-similar-problems/route.ts
+      - app/api/recommendations/today/route.ts
+      - lib/review/weakness.ts
+      - lib/review/schedule.ts
+      - lib/review/today.ts
+      - lib/review/recommend.ts
+      - lib/review/loop.ts
+      - lib/sessions/dailyLimit.ts
+      - lib/sessions/complete.ts
+      - lib/utils/resources.ts
+      - lib/ai/schemas.ts
+      - types/domain.ts
+      - types/database.ts
+      - components/child/LearningFlow.tsx
+      - tests/review/*
+      - tests/sessions/*
+      - tests/api/learning-loop.test.ts
+      - tests/security/learning-loop-migration.test.ts
     verify:
       - "npm run typecheck"
+      - "npm run lint"
       - "npx vitest run"
       - "npm run build"
+      - "grep -rn 'updateWeakness\|lowerDifficultyForRepeatedMistake' app lib → 本番経路からの参照あり"
     stop_if:
       - "allowed_files 外の変更が必要"
       - "SQL 関数の RLS/権限設計が不明確"
+      - "LearningFlow.tsx の変更が『類題区切りの上限判定』を超える(W3 の範囲)"
       - "検証が2回連続で失敗"
     receipt: null
 
@@ -303,8 +376,8 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: null
+    task: T002
     commands:
-      - "npm run typecheck (2026-09-01: エラー0)"
-      - "npx vitest run (2026-09-01: 37 files / 90 tests passed)"
-      - "npm run build (2026-09-01: 成功)"
+      - "npm run typecheck (2026-09-02: エラー0)"
+      - "npx vitest run (2026-09-02: 39 files / 120 tests passed)"
+      - "npm run build (2026-09-02: 成功)"

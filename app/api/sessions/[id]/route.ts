@@ -1,13 +1,13 @@
 import { z } from "zod";
+import { clampDurationSeconds, sessionAttemptCounts } from "@/lib/review/loop";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
 
+/** 正解数・問題数はクライアントから受け取らず、サーバーが attempts から導出する。 */
 const finishSchema = z.object({
   childId: uuid,
-  totalQuestions: z.number().int().min(0).max(100),
-  correctCount: z.number().int().min(0).max(100),
   durationSeconds: z.number().int().min(0).max(86_400),
-}).refine((value) => value.correctCount <= value.totalQuestions);
+});
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -19,12 +19,24 @@ export async function PATCH(request: Request, context: RouteContext) {
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
 
+  const session = await auth.supabase.from("learning_sessions")
+    .select("id, started_at, ended_at")
+    .eq("id", id)
+    .eq("child_id", parsed.data.childId)
+    .maybeSingle();
+  if (session.error) return internalError();
+  if (!session.data || session.data.ended_at) return apiError("Learning session not found", 404);
+
+  const counts = await sessionAttemptCounts(auth.supabase, parsed.data.childId, id);
+  if (!counts) return internalError();
+  const now = new Date();
+
   const { data, error } = await auth.supabase.from("learning_sessions")
     .update({
-      ended_at: new Date().toISOString(),
-      duration_seconds: parsed.data.durationSeconds,
-      total_questions: parsed.data.totalQuestions,
-      correct_count: parsed.data.correctCount,
+      ended_at: now.toISOString(),
+      duration_seconds: clampDurationSeconds(parsed.data.durationSeconds, session.data.started_at, now),
+      total_questions: counts.total,
+      correct_count: counts.correct,
     })
     .eq("id", id)
     .eq("child_id", parsed.data.childId)
@@ -35,4 +47,3 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (error) return internalError();
   return data ? apiSuccess(data) : apiError("Learning session not found", 404);
 }
-

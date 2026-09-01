@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  consecutiveMistakeStreak,
+  difficultyForNextSimilarSet,
   lowerDifficultyForRepeatedMistake,
   recommendToday,
   type RecommendationCandidate,
@@ -110,5 +112,30 @@ describe("lowerDifficultyForRepeatedMistake", () => {
     ["advanced", 1, "advanced"],
   ] as const)("maps %s with %i repeats to %s", (difficulty, count, expected) => {
     expect(lowerDifficultyForRepeatedMistake(difficulty, count)).toBe(expected);
+  });
+});
+
+describe("consecutiveMistakeStreak", () => {
+  const wrong = (mistakeType: "carry_error" | "time_error" | null) => ({ isCorrect: false, mistakeType });
+  const right = { isCorrect: true, mistakeType: null };
+
+  it("counts the newest run of the same mistake type", () => {
+    expect(consecutiveMistakeStreak([wrong("carry_error"), wrong("carry_error"), wrong("time_error")]))
+      .toEqual({ count: 2, mistakeType: "carry_error" });
+  });
+
+  it("stops at a correct answer or a missing mistake type", () => {
+    expect(consecutiveMistakeStreak([wrong("carry_error"), right, wrong("carry_error")]))
+      .toEqual({ count: 1, mistakeType: "carry_error" });
+    expect(consecutiveMistakeStreak([right, wrong("carry_error")])).toEqual({ count: 0, mistakeType: null });
+    expect(consecutiveMistakeStreak([wrong(null), wrong("carry_error")])).toEqual({ count: 0, mistakeType: null });
+    expect(consecutiveMistakeStreak([])).toEqual({ count: 0, mistakeType: null });
+  });
+
+  it("lowers the difficulty only when the same mistake repeats", () => {
+    expect(difficultyForNextSimilarSet("standard", [wrong("carry_error"), wrong("carry_error")]))
+      .toEqual({ difficulty: "basic", streak: { count: 2, mistakeType: "carry_error" } });
+    expect(difficultyForNextSimilarSet("standard", [wrong("carry_error"), wrong("time_error")]).difficulty)
+      .toBe("standard");
   });
 });

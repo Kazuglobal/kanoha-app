@@ -53,7 +53,7 @@ export async function ownedSimilarProblemRecord(
 ) {
   const { data, error } = await supabase
     .from("generated_similar_problems")
-    .select("id, unit, sub_unit, answer")
+    .select("id, source_problem_id, unit, sub_unit, answer")
     .eq("id", similarProblemId)
     .eq("child_id", childId)
     .maybeSingle();

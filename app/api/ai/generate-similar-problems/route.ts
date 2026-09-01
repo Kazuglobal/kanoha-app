@@ -5,6 +5,8 @@ import { similarProblemDraftsSchema, unitSchema } from "@/lib/ai/schemas";
 import type { SimilarProblemDraft, SimilarProblemRequest } from "@/lib/ai/schemas";
 import { getDailyAiUsage, recordAiUsage } from "@/lib/ai/usage";
 import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { recentUnitAttempts } from "@/lib/review/loop";
+import { difficultyForNextSimilarSet } from "@/lib/review/recommend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
@@ -19,6 +21,8 @@ const schema = z.object({
 });
 
 const SIMILAR_COST_USD = Number(process.env.AI_SIMILAR_COST_USD ?? 0.005);
+/** 「同じ間違いが連続」を判定する直近 attempts の数(doc.md §12.2)。 */
+const MISTAKE_HISTORY_SIZE = 5;
 
 type Auth = Awaited<ReturnType<typeof requireOwnedChild>>;
 type Problem = NonNullable<Awaited<ReturnType<typeof ownedProblem>>>;
@@ -34,9 +38,14 @@ export async function POST(request: Request) {
 
   const unit = unitSchema.safeParse(problem.unit);
   if (!unit.success) return internalError();
+  const history = await recentUnitAttempts(auth.supabase, parsed.data.childId, unit.data, MISTAKE_HISTORY_SIZE);
+  const { difficulty: adjusted, streak } = difficultyForNextSimilarSet(
+    parsed.data.difficulty ?? problem.difficulty,
+    history,
+  );
   const input: SimilarProblemRequest = {
-    difficulty: parsed.data.difficulty ?? problem.difficulty,
-    mistakeType: parsed.data.mistakeType,
+    difficulty: adjusted,
+    mistakeType: parsed.data.mistakeType ?? streak.mistakeType ?? undefined,
     problemText: problem.problem_text,
     subUnit: problem.sub_unit,
     unit: unit.data,

@@ -107,15 +107,13 @@ export function LearningFlow({
     finishedRef.current = true;
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
     void completeLearningSession({
-      answerCorrect: answerMatches(answer, correctAnswer),
       childId: persisted.childId,
       durationSeconds,
       problemId: persisted.problemId,
       score,
       sessionId,
-      similarProblemCount: similarProblems.length,
     });
-  }, [answer, correctAnswer, finished, persisted, score, sessionId, similarProblems.length, startedAt]);
+  }, [finished, persisted, score, sessionId, startedAt]);
 
   async function checkOriginalAnswer() {
     setChecked(true);
@@ -219,7 +217,17 @@ export function LearningFlow({
       });
     }
     setScore((currentScore) => currentScore + (correct ? 1 : 0));
-    setPracticeIndex((currentIndex) => (currentIndex ?? 0) + 1);
+    const nextIndex = (practiceIndex ?? 0) + 1;
+    // 利用時間の上限は類題の区切りでだけ確かめる(問題の途中では止めない)。
+    if (persisted && sessionId && nextIndex < similarProblems.length) {
+      const limit = await fetchDailyLimit(persisted.childId);
+      if (limit?.limitReached) {
+        await closeSession(sessionId, persisted.childId, startedAt);
+        setDailyLimit(limit);
+        return;
+      }
+    }
+    setPracticeIndex(nextIndex);
   }
 
   if (dailyLimit) {
@@ -321,6 +329,22 @@ function answerMatches(actual: string, expected: string) {
   const expectedDigits = expected.replace(/\D/g, "");
   return normalizedActual === normalizedExpected ||
     Boolean(actualDigits && expectedDigits && actualDigits === expectedDigits);
+}
+
+async function fetchDailyLimit(childId: string) {
+  const response = await fetch(`/api/sessions?childId=${encodeURIComponent(childId)}`).catch(() => null);
+  const body = await response?.json().catch(() => null);
+  if (!response?.ok || !body?.success) return null;
+  return body.data as { limitMinutes: number; usedMinutes: number; limitReached: boolean };
+}
+
+async function closeSession(sessionId: string, childId: string, startedAt: number) {
+  const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+  await fetch(`/api/sessions/${sessionId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ childId, durationSeconds }),
+  }).catch(() => null);
 }
 
 async function saveAttempt(input: Record<string, unknown>) {

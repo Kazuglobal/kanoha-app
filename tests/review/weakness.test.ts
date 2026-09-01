@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { updateWeakness } from "@/lib/review/weakness";
+import { masteryAfterSimilarSet, updateWeakness } from "@/lib/review/weakness";
 
 describe("updateWeakness", () => {
   it("creates weakness statistics from a first incorrect attempt", () => {
@@ -30,5 +30,21 @@ describe("updateWeakness", () => {
       mistakeCount: 1,
     });
     expect(current.attemptCount).toBe(4);
+  });
+});
+
+describe("masteryAfterSimilarSet", () => {
+  it.each([
+    ["learning", 4, "mastered"],
+    ["reviewing", 5, "mastered"],
+    ["mastered", 3, "reviewing"],
+    ["reviewing", 3, "reviewing"],
+    ["learning", 0, "learning"],
+  ] as const)("%s with %i/5 becomes %s", (current, count, expected) => {
+    expect(masteryAfterSimilarSet(current, count)).toBe(expected);
+  });
+
+  it("rejects counts outside the five-question set", () => {
+    expect(() => masteryAfterSimilarSet("learning", 6)).toThrow(RangeError);
   });
 });

@@ -78,5 +78,6 @@ npm run lint         # ESLint
 
 ## 現在の状態
 
-- **未実装。** `doc.md`(仕様)と `implement.md`(実装計画)のみ存在
-- 実装は `implement.md` の Phase 1 から順に進めること(Phase 1: 基盤 → 2: DB/RLS → 3: 子ども画面(モックAI) → 4: AI実連携 → 5: 個別最適化 → 6: 親機能/Slack → 7: 体験強化)
+- Phase 1〜7 の骨格は実装済み(2026-09-01 の設計レビューで中核ループの結線不備を多数検出)
+- 現在は `docs/goals/kanoha-v01-complete/`(GoalBuddy ボード)に沿って修復・完成作業中。設計判断 A1〜A5 と欠陥リスト B1〜B15 は同ディレクトリの `goal.md` が正
+- 単元・間違え方分類の正は `lib/curriculum/*`、日付は `lib/utils/date.ts`(Asia/Tokyo)のみを使う。`AI_PROVIDER_TEXT` は本番で必須
