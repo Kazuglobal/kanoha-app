@@ -2,6 +2,7 @@ import { z } from "zod";
 import { appSettingsInput } from "@/lib/settings/schemas";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
 const settingsColumns =
   "child_id, explanation_level, daily_limit_minutes, enable_audio, enable_voice_answer, enable_image_generation, enable_slack, slack_webhook_secret_id";
@@ -67,6 +68,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return apiError("Invalid app settings");
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "settings", 20))) return apiError("Too many requests", 429);
 
   const { data, error } = await auth.supabase
     .from("app_settings")

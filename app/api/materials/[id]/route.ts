@@ -1,4 +1,5 @@
 import { apiError, apiSuccess, internalError, requireOwnedChild, requireUser } from "@/lib/utils/api";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { uuid } from "@/lib/utils/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -12,12 +13,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   const auth = await requireOwnedChild(lookup.material.child_id);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "materials", 10))) return apiError("Too many requests", 429);
 
-  const { error: storageError } = await auth.supabase.storage
-    .from("materials")
-    .remove(lookup.material.file_urls);
-  if (storageError) return internalError();
-
+  // DB 行を先に消す(逆順だと Storage 成功後の DB 失敗で参照だけが残る)。
   const { data, error } = await auth.supabase
     .from("uploaded_materials")
     .delete()
@@ -27,7 +25,14 @@ export async function DELETE(_request: Request, context: RouteContext) {
     .maybeSingle();
 
   if (error) return internalError();
-  return data ? apiSuccess({ deleted: true }) : apiError("Material not found", 404);
+  if (!data) return apiError("Material not found", 404);
+
+  try {
+    await auth.supabase.storage.from("materials").remove([...lookup.material.file_urls]);
+  } catch {
+    // DB 上は削除済みが正。オブジェクトの残骸は日次クリーンアップに任せる。
+  }
+  return apiSuccess({ deleted: true });
 }
 
 async function findMaterial(id: string) {

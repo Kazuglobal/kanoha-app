@@ -28,6 +28,11 @@ const problemRow: Row = {
 
 const state = vi.hoisted(() => ({ supabase: null as unknown }));
 
+vi.mock("@/lib/utils/rateLimit", () => ({
+  checkRateLimit: () => true,
+  checkRateLimitDb: async () => true,
+}));
+
 vi.mock("@/lib/utils/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/utils/api")>();
   return {

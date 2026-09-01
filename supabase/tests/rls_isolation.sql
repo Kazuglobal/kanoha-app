@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap;
-select plan(11);
+select plan(13);
 
 insert into auth.users (id, email)
 values
@@ -117,6 +117,19 @@ select throws_ok(
     '00000000-0000-0000-0000-000000000002', 0.01, 100, 2.0)$$,
   'ai usage owner mismatch',
   'increment_ai_usage refuses another user id'
+);
+
+select throws_ok(
+  $select count(*) from public.api_rate_limits$,
+  '42501',
+  null::text,
+  'authenticated cannot read api_rate_limits directly'
+);
+
+select throws_ok(
+  $select public.check_rate_limit('00000000-0000-0000-0000-000000000002:attempts', 10, 60)$,
+  'rate limit key owner mismatch',
+  'check_rate_limit refuses a key claiming another user'
 );
 
 select * from finish();

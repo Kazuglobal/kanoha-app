@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { ownedProblem, ownedSession } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { calculateReviewSchedule, toReviewStage } from "@/lib/review/schedule";
 import { masteryAfterSimilarSet, type MasteryLevel } from "@/lib/review/weakness";
 
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const auth = await requireOwnedChild(input.childId);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "review-schedule", 30))) return apiError("Too many requests", 429);
   const [problem, sessionOk] = await Promise.all([
     ownedProblem(auth.supabase, input.childId, input.problemId),
     ownedSession(auth.supabase, input.childId, input.sessionId),

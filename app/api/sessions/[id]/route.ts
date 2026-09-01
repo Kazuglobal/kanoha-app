@@ -2,6 +2,7 @@ import { z } from "zod";
 import { clampDurationSeconds, sessionAttemptCounts } from "@/lib/review/loop";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
 /** 正解数・問題数はクライアントから受け取らず、サーバーが attempts から導出する。 */
 const finishSchema = z.object({
@@ -18,6 +19,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return apiError("Invalid learning session");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "sessions", 30))) return apiError("Too many requests", 429);
 
   const session = await auth.supabase.from("learning_sessions")
     .select("id, started_at, ended_at")

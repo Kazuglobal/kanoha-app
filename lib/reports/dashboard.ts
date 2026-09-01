@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { jstDayRange, toJstDateKey } from "@/lib/utils/date";
 
 export interface DashboardSession {
@@ -36,7 +37,7 @@ export interface DashboardReview {
   unit: string;
 }
 
-interface DashboardInput {
+export interface DashboardInput {
   attempts: readonly DashboardAttempt[];
   now?: Date;
   problems: readonly DashboardProblem[];
@@ -138,3 +139,56 @@ function calculateStreak(sessions: readonly DashboardSession[], now: Date) {
   return streak;
 }
 
+const uniqueIds = (
+  attempts: readonly DashboardAttempt[],
+  key: "problem_id" | "similar_problem_id",
+): readonly string[] =>
+  [...new Set(attempts.flatMap((attempt) => (attempt[key] ? [attempt[key] as string] : [])))];
+
+async function loadReferencedProblems(supabase: SupabaseClient, attempts: readonly DashboardAttempt[]) {
+  const problemIds = uniqueIds(attempts, "problem_id");
+  const similarIds = uniqueIds(attempts, "similar_problem_id");
+  const empty = { data: [] as DashboardProblem[], error: null };
+  const [problems, similar] = await Promise.all([
+    problemIds.length
+      ? supabase.from("problems").select("id, problem_text, unit").in("id", problemIds)
+      : Promise.resolve(empty),
+    similarIds.length
+      ? supabase.from("generated_similar_problems").select("id, problem_text, unit").in("id", similarIds)
+      : Promise.resolve(empty),
+  ]);
+  if (problems.error || similar.error) return null;
+  return { problems: problems.data ?? [], similarProblems: similar.data ?? [] };
+}
+
+/** 親ダッシュボードと日次レポート(reports/slack)で共有する読み込み。 */
+export async function loadDashboardInput(
+  supabase: SupabaseClient,
+  childId: string,
+): Promise<DashboardInput | null> {
+  const [sessions, attempts, weaknesses, reviews] = await Promise.all([
+    supabase.from("learning_sessions")
+      .select("started_at, duration_seconds")
+      .eq("child_id", childId).order("started_at", { ascending: false }).limit(90),
+    supabase.from("attempts")
+      .select("created_at, hint_level_used, is_correct, mistake_type, problem_id, similar_problem_id")
+      .eq("child_id", childId).order("created_at", { ascending: false }).limit(500),
+    supabase.from("weakness_map")
+      .select("unit, sub_unit, accuracy_rate, mistake_count, mastery_level")
+      .eq("child_id", childId),
+    supabase.from("review_schedule")
+      .select("problem_id, unit, sub_unit, scheduled_for, status")
+      .eq("child_id", childId),
+  ]);
+  if (sessions.error || attempts.error || weaknesses.error || reviews.error) return null;
+  const referenced = await loadReferencedProblems(supabase, attempts.data ?? []);
+  if (!referenced) return null;
+  return {
+    attempts: attempts.data ?? [],
+    problems: referenced.problems,
+    reviews: reviews.data ?? [],
+    sessions: sessions.data ?? [],
+    similarProblems: referenced.similarProblems,
+    weaknesses: weaknesses.data ?? [],
+  };
+}

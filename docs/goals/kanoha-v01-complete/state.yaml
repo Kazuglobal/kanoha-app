@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T007
+active_task: T008
 
 tasks:
   - id: T001
@@ -576,7 +576,7 @@ tasks:
   - id: T007
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W4 AI層堅牢化: (a) Gemini 呼び出しに responseSchema(zod→JSON Schema)を渡し、キーは x-goog-api-key ヘッダーへ (b) ページ内の問題を1件ずつ Zod 検証し有効分のみ保存、失敗数を親に返す (c) lib/ai/pii.ts で学校名・氏名・住所・クラスのパターンを後段除去しテスト (d) ai_usage_daily を increment_ai_usage(user_id, cost) RPC でアトミック増分・呼び出し前に予約、読み取り失敗は fail-closed (e) recognize-handwriting の data に max と magic-byte 検証 (f) generate-hints で explanationLevel が異なる時は buildHintsPrompt で再生成(コストガード経由) (g) 画像生成の4条件: app_settings.enable_image_generation 追加(マイグレーション)、recommendedVisualTemplate null 判定、costGuard、テンプレキーを grade2Math.visualTemplate に統一し public/visuals に全単元の SVG を用意 (h) テスト"
     inputs:
@@ -623,19 +623,98 @@ tasks:
       - "GPT Image の応答形式が不明 → lib/ai/image.ts は 503 スタブで止めて受領証に記録し続行"
       - "RPC の同時実行意味論が SQL 単文で書けない"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - lib/ai/gemini.ts
+        - lib/ai/responseSchemas.ts
+        - lib/ai/pii.ts
+        - lib/ai/image.ts
+        - lib/ai/index.ts
+        - lib/ai/provider.ts
+        - lib/ai/mock.ts
+        - lib/ai/prompts.ts
+        - lib/ai/usage.ts
+        - supabase/migrations/0011_ai_hardening.sql
+        - supabase/tests/rls_isolation.sql
+        - app/api/ai/analyze-problem/route.ts
+        - app/api/ai/generate-similar-problems/route.ts
+        - app/api/ai/generate-hints/route.ts
+        - app/api/ai/recognize-handwriting/route.ts
+        - app/api/ai/generate-image/route.ts
+        - app/api/settings/[childId]/route.ts
+        - components/parent/SettingsForm.tsx
+        - types/database.ts
+        - public/visuals/*.svg
+        - .env.example
+        - doc.md
+        - tests/ai/*
+        - tests/api/ai-hardening.test.ts
+        - tests/security/ai-hardening-migration.test.ts
+        - tests/curriculum/visuals.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "55 files / 384 tests passed (PM 再実行でも同結果)"
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "grep key= lib/ai/gemini.ts / ls public/visuals/*.svg"
+          status: pass
+          tail: "0件 / 11ファイル"
+      summary: "Gemini キーを x-goog-api-key ヘッダーへ、responseSchema を4呼び出しに接続(enum は curriculum から実行時生成、キー集合一致テスト)。解析は1件ずつ Zod 検証し {saved,failed} 返却。scrubPii を3経路の保存前に適用。0011 の increment_ai_usage RPC で予約→呼び出し、拒否429/失敗503 fail-closed。手書きは 2M 上限+magic bytes。もっとかんたんに は実再生成(max_level まで、非永続)。図解はテンプレ11単元優先+4条件ゲートで GPT Image(data URL、非保存)"
+      deviations:
+        - "tests/security/child-mode-migration.test.ts の plan(10)→plan(11) は rls_isolation.sql 拡張の機械的追随(allowed_files 外1行、T008 の Judge 相当確認は PM が実施済み)"
+        - "PATCH /api/settings も masked mapper 経由になった(B14 がここで解消)"
+        - "AI_HINTS_COST_USD / AI_IMAGE_COST_USD を新設"
+        - "LearningFlowVisual.test の旧 URL モックは W6 で掃除"
 
   - id: T008
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: medium
     objective: "W5 レポート/Slack/セキュリティ: (a) parent_reports を buildDashboard の集計から生成(§6.4 の8項目、§17 書式)、セッション終了時は PATCH と review 登録を待ってから送信、リトライ1回 (b) pg_cron に generate_daily_reports() を追加(未送信分を JST 21:00 に生成) (c) PATCH /api/settings/[childId] を GET と同じマッパーで返し secret_id を隠す (d) next.config.ts に全体のセキュリティヘッダー (e) rateLimit を api_rate_limits テーブル+アトミック RPC に置換(RLS付き)、全 mutating ルートに適用、children 作成数に上限 (f) package.json の supabase-js を固定し package-lock.json をコミット対象に (g) materials/[id] 削除順序を DB→Storage に (h) テスト"
-    allowed_files: []
+    allowed_files:
+      - supabase/migrations/0012_reports_rate_limit.sql
+      - supabase/tests/rls_isolation.sql
+      - lib/reports/dashboard.ts
+      - lib/reports/build.ts
+      - lib/slack/sendReport.ts
+      - lib/slack/schemas.ts
+      - lib/utils/rateLimit.ts
+      - lib/sessions/complete.ts
+      - app/api/reports/slack/route.ts
+      - app/api/settings/[childId]/route.ts
+      - app/api/settings/[childId]/slack/route.ts
+      - app/api/children/route.ts
+      - app/api/children/[id]/route.ts
+      - app/api/materials/[id]/route.ts
+      - app/api/materials/route.ts
+      - app/api/materials/upload/route.ts
+      - app/api/attempts/route.ts
+      - app/api/sessions/route.ts
+      - app/api/sessions/[id]/route.ts
+      - app/api/reviews/schedule/route.ts
+      - app/parent/dashboard/page.tsx
+      - next.config.ts
+      - package.json
+      - types/database.ts
+      - doc.md
+      - .env.example
+      - tests/reports/*
+      - tests/slack/*
+      - tests/api/*
+      - tests/security/reports-rate-limit-migration.test.ts
     verify:
       - "npm run typecheck"
+      - "npm run lint"
       - "npx vitest run"
       - "npm run build"
+      - "grep -n 'latest' package.json → 0件"
     stop_if:
       - "allowed_files 外の変更が必要"
       - "検証が2回連続で失敗"
@@ -701,9 +780,8 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T012
+    task: T007
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 49 files / 321 tests passed)"
-      - "npx playwright test e2e/child-mode.spec.ts (2026-09-02: 14 passed)"
+      - "npx vitest run (2026-09-02: 55 files / 384 tests passed)"
       - "npm run build (2026-09-02: 成功)"

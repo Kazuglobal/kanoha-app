@@ -178,3 +178,9 @@ export interface AppSettings {
   updatedAt: IsoDateTime;
 }
 
+/** DB バックドの API レート制限(0012)。key は `${auth.uid()}:${action}`。RPC 経由でのみ読み書きされる。 */
+export interface ApiRateLimit {
+  key: string;
+  windowStart: IsoDateTime;
+  count: number;
+}

@@ -1,5 +1,6 @@
 import { childProfileInput } from "@/lib/children/schemas";
 import { apiError, apiSuccess, internalError, parseJson, requireUser } from "@/lib/utils/api";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { uuid } from "@/lib/utils/schemas";
 
 const profileColumns = "id, nickname, grade, reading_mode, created_at, updated_at";
@@ -13,6 +14,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const auth = await requireUser();
   if (!auth.user) return apiError("Authentication required", 401);
+  if (!(await checkRateLimitDb(auth.supabase, auth.user.id, "children", 10))) return apiError("Too many requests", 429);
 
   const { data, error } = await auth.supabase
     .from("child_profiles")
@@ -36,6 +38,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   const auth = await requireUser();
   if (!auth.user) return apiError("Authentication required", 401);
+  if (!(await checkRateLimitDb(auth.supabase, auth.user.id, "children", 10))) return apiError("Too many requests", 429);
 
   const { data, error } = await auth.supabase
     .from("child_profiles")

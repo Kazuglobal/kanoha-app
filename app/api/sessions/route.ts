@@ -3,6 +3,7 @@ import { loadSessionUsage } from "@/lib/review/today";
 import { dailyLimitFromSessions } from "@/lib/sessions/dailyLimit";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
 const startSchema = z.object({ childId: uuid });
 const DEFAULT_LIMIT_MINUTES = 15;
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError("Invalid learning session");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "sessions", 30))) return apiError("Too many requests", 429);
 
   const limit = await loadDailyLimit(auth.supabase, parsed.data.childId);
   if (!limit) return internalError();

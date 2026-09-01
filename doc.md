@@ -367,6 +367,7 @@ type MistakeType =
 
 `user_id → users`。`nickname`(本名禁止)、`grade int default 2`、`preferred_style default 'praise_coach'`、`reading_mode default 'kanji_with_ruby'`、`audio_voice default 'friendly'`。
 ※ `daily_limit_minutes` は持たない(`app_settings` に一本化)。
+※ 子どもプロフィールは1ユーザーあたり最大8件(`POST /api/children` が超過を 400 で拒否)。
 
 ### 14.3 uploaded_materials
 
@@ -476,6 +477,7 @@ interface ApiResponse<T> {
 - **送信タイミング**: 1日の学習完了後(セッション終了時に自動)、または親ダッシュボードから手動
 - **冪等性**: `parent_reports.slack_sent_at` で同日重複送信を防ぐ
 - **失敗時**: リトライ1回。失敗してもレポート自体はダッシュボードで閲覧可能
+- **自動生成のフォールバック**: pg_cron の `generate-daily-reports`(UTC 12:00 = JST 21:00)が、当日 attempts があり Slack 有効なのに未生成の `parent_reports` 行を SQL 集計で作る。cron は Slack 送信をしない(送信はセッション終了時の API のみ。ダッシュボード表示を欠けさせないための行生成)
 
 ### 通知フォーマット例
 

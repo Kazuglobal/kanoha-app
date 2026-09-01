@@ -2,7 +2,7 @@ import { CheckCircle2, Clock3, Flame, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { ParentShell } from "@/components/parent/ParentShell";
 import styles from "@/components/kanoha.module.css";
-import { buildDashboard } from "@/lib/reports/dashboard";
+import { buildDashboard, loadDashboardInput } from "@/lib/reports/dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ParentDashboardPage({
@@ -31,34 +31,14 @@ export default async function ParentDashboardPage({
     );
   }
 
-  const [sessions, attempts, weaknesses, reviews] = await Promise.all([
-    supabase.from("learning_sessions")
-      .select("started_at, duration_seconds").eq("child_id", selected.id).order("started_at", { ascending: false }).limit(90),
-    supabase.from("attempts")
-      .select("created_at, hint_level_used, is_correct, mistake_type, problem_id, similar_problem_id")
-      .eq("child_id", selected.id).order("created_at", { ascending: false }).limit(500),
-    supabase.from("weakness_map")
-      .select("unit, sub_unit, accuracy_rate, mistake_count, mastery_level").eq("child_id", selected.id),
-    supabase.from("review_schedule")
-      .select("problem_id, unit, sub_unit, scheduled_for, status").eq("child_id", selected.id),
-  ]);
-  const problemIds = [...new Set((attempts.data ?? []).flatMap((attempt) => attempt.problem_id ? [attempt.problem_id] : []))];
-  const similarIds = [...new Set((attempts.data ?? []).flatMap((attempt) => attempt.similar_problem_id ? [attempt.similar_problem_id] : []))];
-  const [problems, similarProblems] = await Promise.all([
-    problemIds.length
-      ? supabase.from("problems").select("id, problem_text, unit").in("id", problemIds)
-      : Promise.resolve({ data: [] }),
-    similarIds.length
-      ? supabase.from("generated_similar_problems").select("id, problem_text, unit").in("id", similarIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-  const report = buildDashboard({
-    attempts: attempts.data ?? [],
-    problems: problems.data ?? [],
-    reviews: reviews.data ?? [],
-    sessions: sessions.data ?? [],
-    similarProblems: similarProblems.data ?? [],
-    weaknesses: weaknesses.data ?? [],
+  const input = await loadDashboardInput(supabase, selected.id);
+  const report = buildDashboard(input ?? {
+    attempts: [],
+    problems: [],
+    reviews: [],
+    sessions: [],
+    similarProblems: [],
+    weaknesses: [],
   });
 
   return (

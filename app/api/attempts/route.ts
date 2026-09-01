@@ -15,6 +15,7 @@ import {
 } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
 import { answersMatch } from "@/lib/utils/answers";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
 /**
  * hint_level_used はクライアントから受け取らず problem_hint_views(サーバー記録)から読む(A2)。
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const auth = await requireOwnedChild(input.childId);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "attempts", 60))) return apiError("Too many requests", 429);
 
   const [sessionOk, target, hintLevel] = await Promise.all([
     ownedSession(auth.supabase, input.childId, input.sessionId),

@@ -1,5 +1,6 @@
 import { sourceType } from "@/lib/utils/schemas";
 import { apiError, apiSuccess, internalError, requireOwnedChild } from "@/lib/utils/api";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PAGES, validateImage } from "@/lib/utils/upload";
 
 export async function POST(request: Request) {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
 
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
+  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "materials-upload", 10))) return apiError("Too many requests", 429);
   const validated = await Promise.all(files.map(validateImage));
   if (validated.some((extension) => !extension)) return apiError("Invalid image file");
 
