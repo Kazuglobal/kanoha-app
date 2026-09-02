@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T999
+active_task: T014
 
 tasks:
   - id: T001
@@ -869,10 +869,59 @@ tasks:
       summary: "実環境検証はユーザーの .env 提供待ち。必要キー: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY / GEMINI_API_KEY / GEMINI_TEXT_MODEL / GEMINI_VISION_MODEL / GEMINI_STRUCTURED_MODEL / AI_PROVIDER_TEXT=gemini(任意: OPENAI_API_KEY / IMAGE_GENERATION_MODEL、E2E 用 E2E_PARENT_EMAIL / E2E_PARENT_PASSWORD)。提供後の手順: supabase db push(0001〜0012)→ supabase/tests/rls_isolation.sql(pgTAP)→ npx playwright test e2e/real-loop.spec.ts → 実プリントで解析〜Slack 受信を notes/T010-real-run.md に記録"
       blocked_on: ".env(ユーザー提供)"
 
+  - id: T013
+    type: pm
+    assignee: PM
+    status: done
+    reasoning_hint: medium
+    objective: "T999 指摘の修正: AI 診断の mistakeType / mistakeReason を problems.explanation_json に保存し、/api/attempts が attempts.mistake_type に伝搬できるようにする(A4/B3)"
+    allowed_files:
+      - lib/ai/buildProblemRecords.ts
+      - lib/ai/mock.ts
+      - tests/ai/buildProblemRecords.test.ts
+    verify:
+      - "npm run typecheck"
+      - "npm run lint"
+      - "npx vitest run"
+    stop_if:
+      - "allowed_files 外の変更が必要"
+    receipt:
+      result: done
+      changed_files:
+        - lib/ai/buildProblemRecords.ts
+        - lib/ai/mock.ts
+        - tests/ai/buildProblemRecords.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "63 files / 419 tests passed"
+      summary: "buildProblemExplanation(problem) を新設し hints + mistakeType/mistakeReason を explanation_json に格納。demoProblemById も同経路。診断あり/なしの両ケースをテスト"
+      deviations:
+        - "オーナー判断として記録: B10 の AI/PIN 系8ルートはプロセス内 rateLimit のまま許容(DB コストガード・PIN ロックあり)。DB-first 削除の Storage 孤児と DEMO_UNIT『かさ』は v0.1 では影響なし"
+
+  - id: T014
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: low
+    objective: "オーナー入力待ち: .env(Supabase/Gemini キー)が置かれたら T010 を active に戻して実環境検証を実行し、完了後に T999 相当の再監査(T015 Judge)を行う。それまでローカルの安全な作業は残っていない"
+    inputs:
+      - "T010 receipt(必要キー一覧と手順)"
+    constraints:
+      - "実キーを推測で書かない"
+      - "課金・本番に影響する操作はユーザー確認"
+    expected_output:
+      - ".env 検出 → T010 再開"
+    receipt: null
+
   - id: T999
     type: judge
     assignee: Judge
-    status: active
+    status: done
     reasoning_hint: high
     objective: "最終監査: 全受領証・最終検証・実環境ログを元に、レビュー指摘 A1〜A5/B1〜B15 が解消され doc.md §24 の v0.1 ループが実環境で1周したかを判定する"
     inputs:
@@ -890,7 +939,13 @@ tasks:
       - "full_outcome_complete: true | false"
       - "missing evidence"
       - "next task if not complete"
-    receipt: null
+    receipt:
+      result: done
+      decision: not_complete
+      full_outcome_complete: false
+      note: notes/T999-final-audit.md
+      rationale: "A1〜A3/A5、B1/B2/B4〜B9/B11〜B15 は本番経路で解消を確認(typecheck 0 / vitest 417 緑を Judge も再実行)。CONFIRMED 1件: buildProblemRecords が AI の mistakeType を explanation_json に保存せず attempts.mistake_type が常に null(A4 partial → B3 が発火しない)→ T013 で修正済み。B10 は AI/PIN 系8ルートがプロセス内 rateLimit のまま(DB コストガード/PIN ロックで守られており v0.1 では許容 = オーナー判断)。完了には T010(実環境1周)が必須で .env 待ち"
+      blocked_tasks: [T010]
 
 checks:
   dirty_fingerprint: unknown
@@ -899,6 +954,6 @@ checks:
     task: T009
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 63 files / 417 tests passed)"
+      - "npx vitest run (2026-09-02: 63 files / 419 tests passed)"
       - "npx playwright test (2026-09-02: 24 passed, 2 skipped(環境ゲート))"
       - "npm run build (2026-09-02: 成功)"
