@@ -1,28 +1,30 @@
 import Link from "next/link";
+import { RubyAuto } from "@/components/child/RubyText";
+import { LANDING_TEXT } from "@/components/child/childStrings";
 
 export default function HomePage() {
   return (
     <main className="landing-shell">
       <section className="landing-card">
-        <span className="eyebrow">まいにち 15ふん</span>
+        <span className="eyebrow">{LANDING_TEXT.eyebrow}</span>
         <h1>
-          わかった！が
+          {LANDING_TEXT.titleLine1}
           <br />
-          ふえていく算数
+          <RubyAuto text={LANDING_TEXT.titleLine2} readingMode="kanji_with_ruby" />
         </h1>
-        <p>かのはが、あなたにぴったりのヒントとれんしゅうをとどけるよ。</p>
+        <p>{LANDING_TEXT.lead}</p>
         <div className="landing-actions">
           <Link className="primary-link" href="/child/home">
-            子どもモードではじめる
+            <RubyAuto text={LANDING_TEXT.childMode} readingMode="kanji_with_ruby" />
           </Link>
           <Link className="secondary-link" href="/login">
-            おうちの方はこちら
+            <RubyAuto text={LANDING_TEXT.parentLink} readingMode="kanji_with_ruby" />
           </Link>
         </div>
       </section>
       <aside className="landing-orb" aria-label="かのはコーチ">
         <span>か</span>
-        <small>いっしょにやろう</small>
+        <small>{LANDING_TEXT.orbLabel}</small>
       </aside>
     </main>
   );

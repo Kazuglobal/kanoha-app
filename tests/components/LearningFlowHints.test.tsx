@@ -1,10 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LearningFlow } from "@/components/child/LearningFlow";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify({ success: true, data }), { status });
+
+beforeEach(() => {
+  sessionStorage.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("LearningFlow simpler hints", () => {
   it("fetches hints one level at a time and replaces only the revealed levels", async () => {

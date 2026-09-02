@@ -86,6 +86,27 @@ export function MaterialManager() {
     setPending(false);
   }
 
+  /** 解析失敗(status=failed)の画像を、同じ内容でもう一度解析にかける。 */
+  async function reanalyzeMaterial(material: Material) {
+    setPending(true);
+    setMessage("");
+    const response = await fetch("/api/ai/analyze-problem", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ childId, materialId: material.id }),
+    }).catch(() => null);
+    const body = await response?.json().catch(() => null);
+    if (!response?.ok || !body?.success) {
+      showError("もう一度解析できませんでした。しばらくしてからお試しください。");
+      setPending(false);
+      return;
+    }
+    await loadMaterials(childId);
+    setIsError(false);
+    setMessage("もう一度解析しました。");
+    setPending(false);
+  }
+
   function showError(error: string) {
     setIsError(true);
     setMessage(error);
@@ -120,15 +141,27 @@ export function MaterialManager() {
                 {statusLabels[material.status]} / {new Date(material.expires_at).toLocaleDateString("ja-JP")}に自動削除
               </small>
             </span>
-            <button
-              aria-label="画像を削除"
-              className={styles.dangerButton}
-              disabled={pending}
-              type="button"
-              onClick={() => void deleteMaterial(material)}
-            >
-              削除
-            </button>
+            <span className={styles.profileActions}>
+              {material.status === "failed" ? (
+                <button
+                  className={styles.secondaryButton}
+                  disabled={pending}
+                  type="button"
+                  onClick={() => void reanalyzeMaterial(material)}
+                >
+                  もういちど かいせき
+                </button>
+              ) : null}
+              <button
+                aria-label="画像を削除"
+                className={styles.dangerButton}
+                disabled={pending}
+                type="button"
+                onClick={() => void deleteMaterial(material)}
+              >
+                削除
+              </button>
+            </span>
           </div>
         ))}
       </div>

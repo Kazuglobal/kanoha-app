@@ -63,3 +63,41 @@ test("the hint API refuses to skip levels", async ({ page }) => {
   expect(body.data.level).toBe(1);
   expect(JSON.stringify(body)).not.toContain(ANSWER);
 });
+
+test("ruby is rendered and えで おしえて appears only after two hints", async ({ page }) => {
+  await page.goto("/child/problem/volume-1");
+  await expect(page.getByRole("button", { name: "えで おしえて" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "ヒントを みる" }).click();
+  await expect(page.getByText(HINT_1)).toBeVisible();
+  // ヒント1「1Lの中には…」の 中 にルビが付く。
+  expect(await page.locator("ruby").count()).toBeGreaterThan(0);
+  await expect(page.getByRole("button", { name: "えで おしえて" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: /つぎの ヒント 2/ }).click();
+  await expect(page.getByText(HINT_2)).toBeVisible();
+  await page.getByRole("button", { name: "えで おしえて" }).click();
+  await expect(page.getByRole("img", { name: "もんだいの えヒント" })).toHaveAttribute(
+    "src",
+    "/visuals/volume.svg",
+  );
+});
+
+test("もういちど やる resets the practice flow (doc §6.1)", async ({ page }) => {
+  await page.goto("/child/problem/volume-1");
+  await page.getByRole("button", { name: "れんしゅう 5もんへ" }).click();
+  for (const answer of ["2000mL", "3L", "1500mL", "4000mL", "5L"]) {
+    await page.getByRole("button", { name: answer, exact: true }).click();
+    await page.getByRole("button", { name: /つぎの もんだい|けっかを みる/ }).click();
+  }
+  await expect(page.getByText("できた！", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "もういちど やる" }).click();
+  await expect(page.getByRole("button", { name: "ヒントを みる" })).toBeVisible();
+  await expectHidden(page, ANSWER, HINT_1, HINT_2, SOLUTION);
+
+  // けっか画面からも「もういちど やる」で同じ問題に戻れる。
+  await page.goto("/child/result?score=5&unit=かさ");
+  await page.getByRole("link", { name: "もういちど やる" }).click();
+  await expect(page).toHaveURL(/\/child\/problem\/volume-1/);
+});

@@ -39,4 +39,48 @@ describe("MaterialManager", () => {
     expect(screen.queryByText("学校のプリント / 2ページ")).not.toBeInTheDocument();
     expect(screen.getByText("画像を削除しました。")).toBeInTheDocument();
   });
+
+  it("re-analyzes a failed material with もういちど かいせき", async () => {
+    const failedMaterial = {
+      id: "material-2",
+      page_count: 1,
+      source_type: "school_print",
+      status: "failed",
+      expires_at: "2026-10-01T00:00:00.000Z",
+      created_at: "2026-09-01T00:00:00.000Z",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: [{ id: "child-1", nickname: "かのは" }],
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: [failedMaterial],
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: { id: "problem-1", problem_text: "1Lは何mLですか。" },
+      }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        data: [{ ...failedMaterial, status: "done" }],
+      })));
+    const user = userEvent.setup();
+
+    render(<MaterialManager />);
+
+    await user.click(await screen.findByRole("button", { name: "もういちど かいせき" }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/ai/analyze-problem",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("material-2"),
+      }),
+    );
+    expect(await screen.findByText("もう一度解析しました。")).toBeInTheDocument();
+    expect(screen.getByText(/解析済み/)).toBeInTheDocument();
+  });
 });

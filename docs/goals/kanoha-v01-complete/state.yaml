@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T008
+active_task: T009
 
 tasks:
   - id: T001
@@ -675,7 +675,7 @@ tasks:
   - id: T008
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W5 レポート/Slack/セキュリティ: (a) parent_reports を buildDashboard の集計から生成(§6.4 の8項目、§17 書式)、セッション終了時は PATCH と review 登録を待ってから送信、リトライ1回 (b) pg_cron に generate_daily_reports() を追加(未送信分を JST 21:00 に生成) (c) PATCH /api/settings/[childId] を GET と同じマッパーで返し secret_id を隠す (d) next.config.ts に全体のセキュリティヘッダー (e) rateLimit を api_rate_limits テーブル+アトミック RPC に置換(RLS付き)、全 mutating ルートに適用、children 作成数に上限 (f) package.json の supabase-js を固定し package-lock.json をコミット対象に (g) materials/[id] 削除順序を DB→Storage に (h) テスト"
     allowed_files:
@@ -718,21 +718,84 @@ tasks:
     stop_if:
       - "allowed_files 外の変更が必要"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - supabase/migrations/0012_reports_rate_limit.sql
+        - supabase/tests/rls_isolation.sql
+        - lib/reports/build.ts
+        - lib/reports/dashboard.ts
+        - lib/utils/rateLimit.ts
+        - app/api/reports/slack/route.ts
+        - app/api/children/route.ts
+        - app/api/materials/[id]/route.ts
+        - app/api/attempts/route.ts
+        - app/api/sessions/route.ts
+        - app/api/sessions/[id]/route.ts
+        - app/api/reviews/schedule/route.ts
+        - app/api/settings/[childId]/route.ts
+        - app/api/settings/[childId]/slack/route.ts
+        - app/api/materials/upload/route.ts
+        - app/api/children/[id]/route.ts
+        - app/parent/dashboard/page.tsx
+        - next.config.ts
+        - package.json
+        - types/database.ts
+        - doc.md
+        - tests/reports/*
+        - tests/api/*
+        - tests/security/reports-rate-limit-migration.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "60 files / 404 tests passed (PM 再実行でも同結果)"
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "grep latest package.json"
+          status: pass
+          tail: "0件"
+      commit: "4f9c8f1"
+      summary: "B5: buildDashboard 集計から §17 書式の実レポート生成、(child_id,report_date) 冪等 upsert、slack_sent_at の claim/release、cron は行の materialize のみ(21:00 JST)。B10: check_rate_limit RPC(アトミック・fail-closed)を全 mutating ルートへ。子プロフィール上限8。全体セキュリティヘッダー。materials は DB→Storage の順で削除。supabase-js 2.112.4 固定+lockfile"
+      deviations:
+        - "child-mode-migration.test の plan 数追随1行(前例踏襲)"
+        - "eslint-config-next は 16 系がローカルに無くネットワーク導入が必要なため ^15 のまま(lint は緑)"
+        - "DB-first 削除で孤児化した Storage オブジェクトは 0004 の purge では拾えない(インライン削除失敗は許容)→ W7 で専用スイープ要否を判断"
 
   - id: T009
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: medium
     objective: "W6 子どもUI仕上げ+E2E: (a) 子ども向け全文言と SimilarProblemCard を RubyAuto 経由にし、rubyDictionary の未収録漢字を dev 時に検出するテスト (b) 「もう一回やる」実装 (c) 類題の進捗を sessionStorage+サーバーで復元、失敗時の再試行ボタン (d) VoiceButton に onerror、SpeechRecognition の機能検出フォールバック確認 (e) HintStepper のかさ固定文削除、「絵で教えて」はヒント2以降に (f) 親画面: ニックネーム案内文、解析失敗の再実行ボタン (g) E2E をシード済み認証ユーザーで通す(ホーム→問題→ヒント→類題5問→結果→Slack モック) (h) ファイルサイズ/関数長/console.log の規約チェック"
-    allowed_files: []
+    allowed_files:
+      - components/child/*
+      - components/parent/ChildProfiles.tsx
+      - components/parent/MaterialManager.tsx
+      - components/parent/UploadMaterials.tsx
+      - app/child/**
+      - app/page.tsx
+      - lib/curriculum/rubyDictionary.ts
+      - lib/curriculum/toRubyParts.ts
+      - lib/sessions/complete.ts
+      - lib/sessions/progress.ts
+      - e2e/*
+      - playwright.config.ts
+      - tests/components/*
+      - tests/curriculum/*
+      - tests/sessions/*
+      - tests/e2e-helpers/*
+      - doc.md
     verify:
       - "npm run typecheck"
       - "npm run lint"
       - "npx vitest run"
       - "npm run build"
       - "npx playwright test"
+      - "grep -rn 'console.log' components app lib → 0件"
     stop_if:
       - "allowed_files 外の変更が必要"
       - "検証が2回連続で失敗"
@@ -780,8 +843,8 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T007
+    task: T008
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 55 files / 384 tests passed)"
+      - "npx vitest run (2026-09-02: 60 files / 404 tests passed)"
       - "npm run build (2026-09-02: 成功)"

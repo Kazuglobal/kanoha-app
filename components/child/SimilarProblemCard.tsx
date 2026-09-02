@@ -3,6 +3,7 @@
 import { useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { answersMatch } from "@/lib/utils/answers";
+import { RubyAuto } from "./RubyText";
 
 export type SimilarProblem = {
   question: string;
@@ -18,7 +19,8 @@ export interface SimilarAnswerResult {
   explanation?: string | null;
 }
 
-const RETRY_MESSAGE = "こたえを おくれなかったよ。もういちど おしてね。";
+const RETRY_MESSAGE = "こたえを おくれなかったよ。";
+const RETRY_BUTTON = "もういちど ためす";
 const ENCOURAGE = "つぎは いっしょに かんがえよう。";
 
 export function SimilarProblemCard({
@@ -26,6 +28,7 @@ export function SimilarProblemCard({
   index,
   total,
   score,
+  readingMode = "kanji_with_ruby",
   onAnswer,
   onComplete,
 }: {
@@ -33,6 +36,7 @@ export function SimilarProblemCard({
   index: number;
   total: number;
   score: number;
+  readingMode?: "kanji_with_ruby" | "hiragana";
   onAnswer?: (answer: string) => Promise<SimilarAnswerResult | null>;
   onComplete: (correct: boolean, selectedAnswer: string) => void;
 }) {
@@ -41,11 +45,13 @@ export function SimilarProblemCard({
   const [result, setResult] = useState<SimilarAnswerResult | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [lastAttempt, setLastAttempt] = useState<string | null>(null);
 
   async function submit(answer: string) {
     if (pending || selected !== null) return;
     setMessage("");
     setSelected(answer);
+    setLastAttempt(answer);
     if (problem.answer !== undefined) {
       setResult({ correct: answersMatch(answer, problem.answer), explanation: problem.explanation });
       return;
@@ -74,7 +80,7 @@ export function SimilarProblemCard({
           ))}
         </div>
       </div>
-      <p className={styles.problemText}>{problem.question}</p>
+      <p className={styles.problemText}><RubyAuto text={problem.question} readingMode={readingMode} /></p>
       {problem.choices ? (
         <div className={styles.choiceGrid}>
           {problem.choices.map((choice) => (
@@ -109,11 +115,22 @@ export function SimilarProblemCard({
           </button>
         </div>
       )}
-      {message ? <p className={styles.feedbackWrong}>{message}</p> : null}
+      {message ? (
+        <>
+          <p className={styles.feedbackWrong}>{message}</p>
+          {lastAttempt !== null ? (
+            <button className={styles.secondaryButton} type="button" onClick={() => void submit(lastAttempt)}>
+              {RETRY_BUTTON}
+            </button>
+          ) : null}
+        </>
+      ) : null}
       {result && selected !== null ? (
         <>
           <p className={result.correct ? styles.feedback : styles.feedbackWrong}>
-            {result.correct ? "せいかい！ いいちょうし！" : `だいじょうぶ。${result.explanation ?? ENCOURAGE}`}
+            {result.correct
+              ? "せいかい！ いいちょうし！"
+              : <>だいじょうぶ。<RubyAuto text={result.explanation ?? ENCOURAGE} readingMode={readingMode} /></>}
           </p>
           <button className={styles.primaryButton} type="button" onClick={() => onComplete(result.correct, selected)}>
             {index + 1 === total ? "けっかを みる" : "つぎの もんだい"}

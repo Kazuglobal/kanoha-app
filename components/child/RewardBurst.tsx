@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
+import { RubyAuto } from "./RubyText";
 
 const particles = Array.from({ length: 12 }, (_, index) => ({
   angle: index * 30,
@@ -21,7 +22,7 @@ export function RewardBurst({ unit }: { unit: string }) {
         transition={{ type: "spring", stiffness: 260, damping: 18 }}
       >
         <Sparkles aria-hidden="true" size={24} />
-        <strong>{unit} マスター！</strong>
+        <strong><RubyAuto text={unit} readingMode="kanji_with_ruby" /> マスター！</strong>
       </motion.div>
       <div aria-hidden="true" className={styles.rewardParticles}>
         {particles.map((particle, index) => (

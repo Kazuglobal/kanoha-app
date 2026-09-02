@@ -120,6 +120,10 @@ export function ChildProfiles() {
         ))}
       </div>
       <form onSubmit={handleSubmit}>
+        <p className={styles.feedbackWrong} role="note">
+          <strong>本名・学校名・クラス名は入れないでください。</strong>
+          ニックネームだけで登録します(プライバシー保護のため)。
+        </p>
         <label className={styles.field}>
           ニックネーム
           <input
@@ -148,7 +152,6 @@ export function ChildProfiles() {
             <option value="hiragana">ひらがな中心</option>
           </select>
         </label>
-        <p className={styles.tiny}>本名・学校名・クラス名は登録しないでください。</p>
         <div className={styles.hintActions}>
           <button className={styles.primaryButton} disabled={pending} type="submit">
             {editingId ? "変更を保存" : "プロフィールを追加"}

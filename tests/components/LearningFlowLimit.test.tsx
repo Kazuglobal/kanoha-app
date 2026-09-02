@@ -1,6 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LearningFlow } from "@/components/child/LearningFlow";
+
+beforeEach(() => {
+  sessionStorage.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("LearningFlow daily limit", () => {
   it("shows a gentle stop screen when today's limit is already reached", async () => {

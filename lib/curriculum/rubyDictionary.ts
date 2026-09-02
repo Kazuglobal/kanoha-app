@@ -1,11 +1,13 @@
 /**
  * 小2算数に出る漢字・熟語 → 読み(ひらがな)の静的辞書。
  *
- * - 子ども画面の問題文・ヒントに含まれる漢字へルビ(ふりがな)を付けるために使う。
+ * - 子ども画面の問題文・ヒント・固定文言に含まれる漢字へルビ(ふりがな)を付けるために使う。
  * - AIには自由記述させず、ここにある語のみルビ化する(辞書に無い漢字は素通し)。
  * - 走査側で「最長一致」を行うため、熟語と単漢字の両方を登録しておく。
+ * - カバレッジは tests/curriculum/rubyCoverage.test.ts が検証する
+ *   (固定文言・モック文言・単元名の漢字が全てここにあること)。
  *
- * 出典の文言: lib/ai/mock.ts / app/api/ai の各 route /
+ * 出典の文言: lib/ai/mock.ts / components/child/childStrings.ts /
  *            lib/curriculum/grade2Math.ts / 子ども向けUIの定型文。
  */
 export const RUBY_DICTIONARY: Readonly<Record<string, string>> = Object.freeze({
@@ -30,6 +32,16 @@ export const RUBY_DICTIONARY: Readonly<Record<string, string>> = Object.freeze({
   直角: "ちょっかく",
   分数: "ぶんすう",
   頂点: "ちょうてん",
+  追加: "ついか",
+  大小: "だいしょう",
+  意味: "いみ",
+  九九: "くく",
+  文章題: "ぶんしょうだい",
+  読み方: "よみかた",
+  上がり: "あがり",
+  下がり: "さがり",
+  組み立て: "くみたて",
+  分け: "わけ",
   // 単漢字
   何: "なん",
   答: "こた",
@@ -49,4 +61,12 @@ export const RUBY_DICTIONARY: Readonly<Record<string, string>> = Object.freeze({
   形: "かたち",
   水: "みず",
   表: "ひょう",
+  中: "なか",
+  使: "つか",
+  倍: "ばい",
+  子: "こ",
+  作: "つく",
+  方: "かた",
+  算: "ざん",
+  時: "じ",
 });

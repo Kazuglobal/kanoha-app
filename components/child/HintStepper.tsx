@@ -7,6 +7,9 @@ import { RubyAuto } from "./RubyText";
 
 const labels = ["ヒント 1", "ヒント 2", "ときかた", "こたえ"] as const;
 
+/** 「えで おしえて」はヒント2以降でだけ出す(doc §7 手順6)。 */
+const VISUAL_MIN_REVEALED = 2;
+
 /**
  * 段階式ヒント(A2)。表示できるのは親から渡された `revealed`(サーバーが 1 段ずつ返した文)だけ。
  * 次の段階は `onRequestNext` でサーバーに取りに行く。`hints` は静的フォールバック(テスト用)。
@@ -36,7 +39,6 @@ export function HintStepper({
 }) {
   const [localRevealed, setLocalRevealed] = useState<readonly string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showVisual, setShowVisual] = useState(false);
   const shown = revealed ?? localRevealed;
   const nextIndex = Math.min(shown.length, labels.length - 1);
 
@@ -69,29 +71,21 @@ export function HintStepper({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img alt="もんだいの えヒント" className={styles.visualHintImage} src={visualUrl} />
           </article>
-        ) : showVisual ? (
-          <article className={styles.hintItem}>
-            <strong>えで かんがえよう</strong>
-            <p>100mL の コップが 10こ あつまると、1L になるよ。</p>
-          </article>
         ) : null}
       </div>
       <div className={styles.hintActions}>
         {shown.length < labels.length ? (
           <button className={styles.primaryButton} disabled={loading} type="button" onClick={() => void revealNext()}>
             <Eye size={20} aria-hidden="true" />
-            {loading ? "じゅんび中..." : shown.length === 0 ? "ヒントを みる" : `つぎの ${labels[nextIndex]}を みる`}
+            {loading ? "じゅんびちゅう..." : shown.length === 0 ? "ヒントを みる" : `つぎの ${labels[nextIndex]}を みる`}
           </button>
         ) : null}
-        <button
-          className={styles.secondaryButton}
-          disabled={visualPending}
-          type="button"
-          onClick={() => onVisual ? onVisual() : setShowVisual(true)}
-        >
-          <ImageIcon size={20} aria-hidden="true" />
-          {visualPending ? "えを じゅんび中..." : "えで おしえて"}
-        </button>
+        {onVisual && shown.length >= VISUAL_MIN_REVEALED ? (
+          <button className={styles.secondaryButton} disabled={visualPending} type="button" onClick={onVisual}>
+            <ImageIcon size={20} aria-hidden="true" />
+            {visualPending ? "えを じゅんびちゅう..." : "えで おしえて"}
+          </button>
+        ) : null}
         {onSimplify ? (
           <button className={styles.secondaryButton} disabled={simplifying} type="button" onClick={onSimplify}>
             <WandSparkles size={20} aria-hidden="true" />
