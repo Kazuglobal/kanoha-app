@@ -65,7 +65,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T009
+active_task: T999
 
 tasks:
   - id: T001
@@ -768,7 +768,7 @@ tasks:
   - id: T009
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: "W6 子どもUI仕上げ+E2E: (a) 子ども向け全文言と SimilarProblemCard を RubyAuto 経由にし、rubyDictionary の未収録漢字を dev 時に検出するテスト (b) 「もう一回やる」実装 (c) 類題の進捗を sessionStorage+サーバーで復元、失敗時の再試行ボタン (d) VoiceButton に onerror、SpeechRecognition の機能検出フォールバック確認 (e) HintStepper のかさ固定文削除、「絵で教えて」はヒント2以降に (f) 親画面: ニックネーム案内文、解析失敗の再実行ボタン (g) E2E をシード済み認証ユーザーで通す(ホーム→問題→ヒント→類題5問→結果→Slack モック) (h) ファイルサイズ/関数長/console.log の規約チェック"
     allowed_files:
@@ -799,12 +799,57 @@ tasks:
     stop_if:
       - "allowed_files 外の変更が必要"
       - "検証が2回連続で失敗"
-    receipt: null
+    receipt:
+      result: done
+      changed_files:
+        - components/child/LearningFlow.tsx
+        - components/child/PracticeFlow.tsx
+        - components/child/useLearningFlow.ts
+        - components/child/learningApi.ts
+        - components/child/childStrings.ts
+        - components/child/HintStepper.tsx
+        - components/child/SimilarProblemCard.tsx
+        - components/child/RewardBurst.tsx
+        - components/child/VoiceButton.tsx
+        - components/parent/ChildProfiles.tsx
+        - components/parent/MaterialManager.tsx
+        - app/child/home/page.tsx
+        - app/child/result/page.tsx
+        - app/page.tsx
+        - lib/curriculum/rubyDictionary.ts
+        - lib/sessions/progress.ts
+        - e2e/child-learning.spec.ts
+        - e2e/real-loop.spec.ts
+        - tests/components/*
+        - tests/curriculum/rubyCoverage.test.ts
+        - tests/sessions/progress.test.ts
+      commands:
+        - cmd: "npm run typecheck"
+          status: pass
+        - cmd: "npm run lint"
+          status: pass
+        - cmd: "npx vitest run"
+          status: pass
+          tail: "63 files / 417 tests passed"
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "npx playwright test"
+          status: pass
+          tail: "24 passed, 2 skipped (real-loop: 実 Supabase 環境変数が無いためスキップ = 環境ゲート)"
+        - cmd: "grep -rn console.log components app lib"
+          status: pass
+          tail: "0件"
+      summary: "Worker が最終バッチ直前に利用上限で停止したため PM が引き継ぎ完了。ルビ網羅テスト(固定文言・単元名・モック全文)、もういちど やる、進捗の sessionStorage 保存+再試行ボタン、pagehide/visibilitychange の keepalive PATCH、StrictMode 二重開始ガード、上限停止時も completeLearningSession、VoiceButton onerror、HintStepper のかさ固定文削除+『えで おしえて』はヒント2以降、ニックネーム注意書き、解析失敗の再解析ボタン、LearningFlow を hook/PracticeFlow/api/strings に分割(最大 382 行)、E2E 追加(ルビ表示・もういちど・real-loop はスキップガード付き)"
+      deviations:
+        - "PM 修正: typedRoutes 有効のため result/PracticeFlow の動的 href に `as Route` を付与(型エラー2件)"
+        - "PM 修正: MaterialManager.reanalyzeMaterial が失敗時に pending を戻していなかった"
+        - "PM 修正: RewardBurst テストは RubyAuto で要素が分かれるため textContent 照合に変更(アサーションは同等)"
+        - "デモ単元名 DEMO_UNIT は表示専用の『かさ』のまま(curriculum 名は『水のかさ』。デモ文言のため許容)"
 
   - id: T010
     type: worker
     assignee: Worker
-    status: queued
+    status: blocked
     reasoning_hint: medium
     objective: "W7 実環境検証: (a) .env が無ければ必要キー一覧を受領証に書いてこの task をブロックし、ユーザーに提供を依頼(推測で書かない) (b) キーがあれば supabase db push でマイグレーション適用、RLS テスト(supabase/tests/rls_isolation.sql)実行 (c) 実プリント画像で アップロード→解析→問題保存 を確認 (d) 子どもモードで 今日のおすすめ→ヒント→類題5問→結果 を1周 (e) review_schedule / weakness_map / parent_reports の行と Slack 受信を実ログとして notes/T010-real-run.md に記録"
     allowed_files: []
@@ -814,12 +859,20 @@ tasks:
     stop_if:
       - ".env の実キーが無い(ブロックして T011 以外のローカル作業に戻る)"
       - "本番/課金に影響する操作が必要(ユーザー確認)"
-    receipt: null
+    receipt:
+      result: blocked
+      changed_files: []
+      commands:
+        - cmd: "ls .env"
+          status: fail
+          tail: "NO_ENV(2026-09-02)"
+      summary: "実環境検証はユーザーの .env 提供待ち。必要キー: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY / GEMINI_API_KEY / GEMINI_TEXT_MODEL / GEMINI_VISION_MODEL / GEMINI_STRUCTURED_MODEL / AI_PROVIDER_TEXT=gemini(任意: OPENAI_API_KEY / IMAGE_GENERATION_MODEL、E2E 用 E2E_PARENT_EMAIL / E2E_PARENT_PASSWORD)。提供後の手順: supabase db push(0001〜0012)→ supabase/tests/rls_isolation.sql(pgTAP)→ npx playwright test e2e/real-loop.spec.ts → 実プリントで解析〜Slack 受信を notes/T010-real-run.md に記録"
+      blocked_on: ".env(ユーザー提供)"
 
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: active
     reasoning_hint: high
     objective: "最終監査: 全受領証・最終検証・実環境ログを元に、レビュー指摘 A1〜A5/B1〜B15 が解消され doc.md §24 の v0.1 ループが実環境で1周したかを判定する"
     inputs:
@@ -843,8 +896,9 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T008
+    task: T009
     commands:
       - "npm run typecheck (2026-09-02: エラー0)"
-      - "npx vitest run (2026-09-02: 60 files / 404 tests passed)"
+      - "npx vitest run (2026-09-02: 63 files / 417 tests passed)"
+      - "npx playwright test (2026-09-02: 24 passed, 2 skipped(環境ゲート))"
       - "npm run build (2026-09-02: 成功)"

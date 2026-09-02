@@ -1,3 +1,4 @@
+import { buildProblemExplanation } from "./buildProblemRecords";
 import type { AiProvider } from "./provider";
 import type {
   Hints,
@@ -75,7 +76,7 @@ export const demoProblemById = (id: string) => {
   const problem = mockProblems[0];
   return {
     correct_answer: problem.correctAnswer,
-    explanation_json: { ...problem.hints },
+    explanation_json: buildProblemExplanation(problem),
     problem_text: problem.problemText,
     unit: problem.unit,
   };
