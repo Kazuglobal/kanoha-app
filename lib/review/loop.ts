@@ -1,12 +1,12 @@
-import type { createClient } from "@/lib/supabase/server";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { mistakeTypeSchema, type MistakeTypeId } from "@/lib/ai/schemas";
+import { getDb } from "@/lib/db";
+import { recomputeWeakness as dbRecomputeWeakness } from "@/lib/db/operations";
+import * as schema from "@/lib/db/schema";
 import type { MistakeHistoryEntry } from "@/lib/review/recommend";
 import type { MasteryLevel, WeaknessStats } from "@/lib/review/weakness";
-import { addDaysJst, todayKeyJst } from "@/lib/utils/date";
+import { addDaysJst, nowJstIso, todayKeyJst } from "@/lib/utils/date";
 
-type Supabase = Awaited<ReturnType<typeof createClient>>;
-
-/** recompute_weakness RPC(supabase/migrations/0009_learning_loop.sql)の戻り行。 */
 export interface WeaknessRpcRow {
   attempt_count: number | string;
   correct_count: number | string;
@@ -15,21 +15,11 @@ export interface WeaknessRpcRow {
   mastery_level: string;
 }
 
-export interface UnitAttemptInput {
-  childId: string;
-  unit: string;
-  subUnit: string;
-}
-
 const MASTERY_LEVELS: readonly MasteryLevel[] = ["learning", "reviewing", "mastered"];
 
 const toMasteryLevel = (value: string): MasteryLevel =>
   (MASTERY_LEVELS as readonly string[]).includes(value) ? (value as MasteryLevel) : "learning";
 
-/**
- * RPC が upsert した weakness_map 行をそのまま統計に写す。
- * mastery_level は DB 行(sticky mastered を含む)を真とし、TS 側で再構成しない。
- */
 export const weaknessStatsFromRow = (row: WeaknessRpcRow): WeaknessStats => ({
   accuracyRate: Number(row.accuracy_rate),
   attemptCount: Number(row.attempt_count),
@@ -38,25 +28,43 @@ export const weaknessStatsFromRow = (row: WeaknessRpcRow): WeaknessStats => ({
   mistakeCount: Number(row.mistake_count),
 });
 
+export interface UnitAttemptInput {
+  childId: string;
+  unit: string;
+  subUnit: string;
+}
+
 /** 単元全体の正答率を SQL 側でアトミックに再計算・upsert し、その行を統計として返す。 */
 export async function recomputeWeakness(
-  supabase: Supabase,
   input: UnitAttemptInput,
+  db = getDb(),
 ): Promise<WeaknessStats | null> {
-  const { data, error } = await supabase.rpc("recompute_weakness", {
-    target_child_id: input.childId,
-    target_unit: input.unit,
-    target_sub_unit: input.subUnit,
-  });
-  if (error) return null;
-  const row = (Array.isArray(data) ? data[0] : data) as WeaknessRpcRow | null | undefined;
-  return row ? weaknessStatsFromRow(row) : null;
+  try {
+    const res = await dbRecomputeWeakness(input.childId, input.unit, input.subUnit, db);
+    return {
+      accuracyRate: res.accuracyRate,
+      attemptCount: res.attemptCount,
+      correctCount: res.correctCount,
+      masteryLevel: res.masteryLevel,
+      mistakeCount: res.mistakeCount,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** problems.explanation_json に保存された AI 診断の mistakeType(検証済みのもののみ)。 */
 export const mistakeTypeFromExplanation = (explanation: unknown): MistakeTypeId | null => {
-  if (!explanation || typeof explanation !== "object") return null;
-  const parsed = mistakeTypeSchema.safeParse((explanation as { mistakeType?: unknown }).mistakeType);
+  let obj = explanation;
+  if (typeof obj === "string") {
+    try {
+      obj = JSON.parse(obj);
+    } catch {
+      return null;
+    }
+  }
+  if (!obj || typeof obj !== "object") return null;
+  const parsed = mistakeTypeSchema.safeParse((obj as { mistakeType?: unknown }).mistakeType);
   return parsed.success ? parsed.data : null;
 };
 
@@ -80,79 +88,153 @@ export type ReviewTransition =
  * 期日を迎えた復習の問題に正解したら done にする(次の予定は /api/reviews/schedule が類題結果で決める)。
  */
 export async function transitionReview(
-  supabase: Supabase,
   input: ReviewTransitionInput,
+  db = getDb(),
 ): Promise<ReviewTransition> {
   const today = todayKeyJst(input.now ?? new Date());
-  const { data: existing, error } = await supabase.from("review_schedule")
-    .select("id, status, scheduled_for, review_stage")
-    .eq("child_id", input.childId)
-    .eq("problem_id", input.problemId)
-    .maybeSingle();
-  if (error) return { action: "error" };
+  try {
+    const existing = await db
+      .select({
+        id: schema.reviewSchedule.id,
+        status: schema.reviewSchedule.status,
+        scheduled_for: schema.reviewSchedule.scheduledFor,
+        review_stage: schema.reviewSchedule.reviewStage,
+      })
+      .from(schema.reviewSchedule)
+      .where(
+        and(
+          eq(schema.reviewSchedule.childId, input.childId),
+          eq(schema.reviewSchedule.problemId, input.problemId),
+        ),
+      )
+      .get();
 
-  if (!input.isCorrect) {
-    if (existing?.status === "pending") return { action: "none" };
-    const scheduledFor = addDaysJst(today, 1);
-    const { error: upsertError } = await supabase.from("review_schedule").upsert({
-      child_id: input.childId,
-      problem_id: input.problemId,
-      unit: input.unit,
-      sub_unit: input.subUnit,
-      scheduled_for: scheduledFor,
-      review_stage: 1,
-      status: "pending",
-    }, { onConflict: "child_id,problem_id" });
-    return upsertError ? { action: "error" } : { action: "created", scheduledFor, reviewStage: 1 };
-  }
+    if (!input.isCorrect) {
+      if (existing?.status === "pending") return { action: "none" };
+      const scheduledFor = addDaysJst(today, 1);
+      const now = nowJstIso();
 
-  if (existing?.status === "pending" && String(existing.scheduled_for) <= today) {
-    const { error: updateError } = await supabase.from("review_schedule")
-      .update({ status: "done" })
-      .eq("id", existing.id)
-      .eq("child_id", input.childId);
-    return updateError ? { action: "error" } : { action: "completed", reviewId: existing.id };
+      await db
+        .insert(schema.reviewSchedule)
+        .values({
+          id: crypto.randomUUID(),
+          childId: input.childId,
+          problemId: input.problemId,
+          unit: input.unit,
+          subUnit: input.subUnit,
+          scheduledFor,
+          reviewStage: 1,
+          status: "pending",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [schema.reviewSchedule.childId, schema.reviewSchedule.problemId],
+          set: {
+            unit: input.unit,
+            subUnit: input.subUnit,
+            scheduledFor,
+            reviewStage: 1,
+            status: "pending",
+            updatedAt: now,
+          },
+        })
+        .run();
+
+      return { action: "created", scheduledFor, reviewStage: 1 };
+    }
+
+    if (existing?.status === "pending" && String(existing.scheduled_for) <= today) {
+      await db
+        .update(schema.reviewSchedule)
+        .set({ status: "done", updatedAt: nowJstIso() })
+        .where(
+          and(
+            eq(schema.reviewSchedule.id, existing.id),
+            eq(schema.reviewSchedule.childId, input.childId),
+          ),
+        )
+        .run();
+
+      return { action: "completed", reviewId: existing.id };
+    }
+    return { action: "none" };
+  } catch {
+    return { action: "error" };
   }
-  return { action: "none" };
 }
 
 const RECENT_ATTEMPT_WINDOW = 50;
-const ids = (rows: readonly { id: string }[] | null | undefined) => new Set((rows ?? []).map((row) => row.id));
 
 /**
  * 同じ単元に対する直近の attempts(新しい順)を、元問題・類題の両方から集める。
- * lowerDifficultyForRepeatedMistake の入力(doc.md §12.2「同じ間違いが連続」)。
  */
 export async function recentUnitAttempts(
-  supabase: Supabase,
   childId: string,
   unit: string,
   limit = 5,
+  db = getDb(),
 ): Promise<MistakeHistoryEntry[]> {
-  const [problems, similar, attempts] = await Promise.all([
-    supabase.from("problems").select("id").eq("child_id", childId).eq("unit", unit).limit(200),
-    supabase.from("generated_similar_problems").select("id")
-      .eq("child_id", childId).eq("unit", unit).limit(500),
-    supabase.from("attempts").select("problem_id, similar_problem_id, mistake_type, is_correct")
-      .eq("child_id", childId).order("created_at", { ascending: false }).limit(RECENT_ATTEMPT_WINDOW),
-  ]);
-  if (problems.error || similar.error || attempts.error) return [];
-  const problemIds = ids(problems.data);
-  const similarIds = ids(similar.data);
+  try {
+    const [problemsRows, similarRows, attemptsRows] = await Promise.all([
+      db
+        .select({ id: schema.problems.id })
+        .from(schema.problems)
+        .where(and(eq(schema.problems.childId, childId), eq(schema.problems.unit, unit)))
+        .limit(200)
+        .all(),
+      db
+        .select({ id: schema.generatedSimilarProblems.id })
+        .from(schema.generatedSimilarProblems)
+        .where(
+          and(
+            eq(schema.generatedSimilarProblems.childId, childId),
+            eq(schema.generatedSimilarProblems.unit, unit),
+          ),
+        )
+        .limit(500)
+        .all(),
+      db
+        .select({
+          problem_id: schema.attempts.problemId,
+          similar_problem_id: schema.attempts.similarProblemId,
+          mistake_type: schema.attempts.mistakeType,
+          is_correct: schema.attempts.isCorrect,
+        })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.childId, childId))
+        .orderBy(desc(schema.attempts.createdAt))
+        .limit(RECENT_ATTEMPT_WINDOW)
+        .all(),
+    ]);
 
-  return (attempts.data ?? [])
-    .filter((attempt) => problemIds.has(attempt.problem_id) || similarIds.has(attempt.similar_problem_id))
-    .slice(0, limit)
-    .map((attempt) => ({
-      isCorrect: Boolean(attempt.is_correct),
-      mistakeType: mistakeTypeSchema.safeParse(attempt.mistake_type).success
-        ? (attempt.mistake_type as MistakeTypeId)
-        : null,
-    }));
+    const problemIds = new Set(problemsRows.map((r) => r.id));
+    const similarIds = new Set(similarRows.map((r) => r.id));
+
+    return (attemptsRows ?? [])
+      .filter(
+        (a) =>
+          (a.problem_id && problemIds.has(a.problem_id)) ||
+          (a.similar_problem_id && similarIds.has(a.similar_problem_id)),
+      )
+      .slice(0, limit)
+      .map((a) => ({
+        isCorrect: Boolean(a.is_correct),
+        mistakeType: mistakeTypeSchema.safeParse(a.mistake_type).success
+          ? (a.mistake_type as MistakeTypeId)
+          : null,
+      }));
+  } catch {
+    return [];
+  }
 }
 
 /** クライアント申告の秒数を、サーバー計測(now - started_at)以下に丸める(B7)。 */
-export const clampDurationSeconds = (clientSeconds: number, startedAt: string, now: Date): number => {
+export const clampDurationSeconds = (
+  clientSeconds: number,
+  startedAt: string,
+  now: Date,
+): number => {
   const elapsed = Math.floor((now.getTime() - new Date(startedAt).getTime()) / 1000);
   if (Number.isNaN(elapsed)) return 0;
   return Math.max(0, Math.min(clientSeconds, elapsed));
@@ -160,19 +242,23 @@ export const clampDurationSeconds = (clientSeconds: number, startedAt: string, n
 
 /** learning_sessions の結果はクライアント値を信用せず、そのセッションの attempts から導出する。 */
 export async function sessionAttemptCounts(
-  supabase: Supabase,
   childId: string,
   sessionId: string,
+  db = getDb(),
 ): Promise<{ total: number; correct: number } | null> {
-  const { data, error } = await supabase.from("attempts")
-    .select("is_correct")
-    .eq("child_id", childId)
-    .eq("session_id", sessionId)
-    .limit(200);
-  if (error) return null;
-  const rows = data ?? [];
-  return {
-    total: rows.length,
-    correct: rows.filter((attempt) => Boolean(attempt.is_correct)).length,
-  };
+  try {
+    const rows = await db
+      .select({ is_correct: schema.attempts.isCorrect })
+      .from(schema.attempts)
+      .where(and(eq(schema.attempts.childId, childId), eq(schema.attempts.sessionId, sessionId)))
+      .limit(200)
+      .all();
+
+    return {
+      total: rows.length,
+      correct: rows.filter((attempt) => Boolean(attempt.is_correct)).length,
+    };
+  } catch {
+    return null;
+  }
 }

@@ -3,14 +3,14 @@
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "@/components/kanoha.module.css";
-import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/lib/auth/auth-client";
 
 export function LogoutButton() {
   const router = useRouter();
 
   async function handleLogout() {
     try {
-      await createClient().auth.signOut({ scope: "local" });
+      await signOut();
     } finally {
       router.replace("/login");
       router.refresh();

@@ -69,8 +69,17 @@ export const buildChoices = (answer: string, seed: string): readonly string[] | 
   return new Set(choices).size === CHOICE_COUNT ? choices : null;
 };
 
-/** 保存済みの choices(jsonb)を安全に読む。 */
-export const readStoredChoices = (value: unknown): readonly string[] | null =>
-  Array.isArray(value) && value.length === CHOICE_COUNT && value.every((item) => typeof item === "string")
-    ? (value as string[])
+/** 保存済みの choices(JSON 文字列または配列)を安全に読む。 */
+export const readStoredChoices = (value: unknown): readonly string[] | null => {
+  let arr = value;
+  if (typeof arr === "string") {
+    try {
+      arr = JSON.parse(arr);
+    } catch {
+      return null;
+    }
+  }
+  return Array.isArray(arr) && arr.length === CHOICE_COUNT && arr.every((item) => typeof item === "string")
+    ? (arr as string[])
     : null;
+};

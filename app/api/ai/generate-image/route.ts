@@ -1,15 +1,17 @@
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { costLimitsFromEnv } from "@/lib/ai/costGuard";
 import { generateVisualImage, ImageGenerationUnavailableError } from "@/lib/ai/image";
 import { buildVisualImagePrompt } from "@/lib/ai/prompts";
 import { reserveAiUsage } from "@/lib/ai/usage";
 import { getGrade2MathUnit, isGrade2MathUnit } from "@/lib/curriculum/grade2Math";
+import * as schema from "@/lib/db/schema";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
 
-const schema = z.object({
+const schemaValidation = z.object({
   childId: uuid,
   problemId: uuid,
   requestedByChild: z.literal(true),
@@ -20,19 +22,13 @@ const IMAGE_COST_USD = Number(process.env.AI_IMAGE_COST_USD ?? 0.04);
 type Auth = Awaited<ReturnType<typeof requireOwnedChild>>;
 type Problem = NonNullable<Awaited<ReturnType<typeof ownedProblem>>>;
 
-/**
- * 図解(doc.md §19)。テンプレ優先: 単元マスタの visualTemplate → public/visuals/<t>.svg。
- * テンプレが無い場合のみ、子どもの要求(requestedByChild)+ 親の許可
- * (app_settings.enable_image_generation)+ コスト予約(increment_ai_usage)がそろえば
- * GPT Image で生成し、データURLで返す。生成画像は保存しない。
- */
 export async function POST(request: Request) {
-  const parsed = await parseJson(request, schema);
+  const parsed = await parseJson(request, schemaValidation);
   if (!parsed.success) return apiError("Invalid image request");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
   if (!checkRateLimit(`image:${auth.user!.id}`, 5)) return apiError("Too many requests", 429);
-  const problem = await ownedProblem(auth.supabase, parsed.data.childId, parsed.data.problemId);
+  const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
   if (!problem) return apiError("Problem not found", 404);
 
   const template = isGrade2MathUnit(problem.unit)
@@ -43,16 +39,22 @@ export async function POST(request: Request) {
 }
 
 async function generateWithAi(auth: Auth, problem: Problem) {
-  const { data: settings } = await auth.supabase
-    .from("app_settings")
-    .select("enable_image_generation")
-    .eq("child_id", problem.child_id)
-    .maybeSingle();
-  if (!settings?.enable_image_generation) {
+  const settings = await auth.db
+    .select({ enableImageGeneration: schema.appSettings.enableImageGeneration })
+    .from(schema.appSettings)
+    .where(eq(schema.appSettings.childId, problem.childId))
+    .get();
+
+  if (!settings?.enableImageGeneration) {
     return apiError("えの せいせいは いま つかえないよ。おうちの ひとに そうだんしてね。", 403);
   }
 
-  const reservation = await reserveAiUsage(auth.supabase, auth.user!.id, IMAGE_COST_USD, costLimitsFromEnv());
+  const reservation = await reserveAiUsage(
+    auth.user!.id,
+    IMAGE_COST_USD,
+    costLimitsFromEnv(),
+    auth.db,
+  );
   if (reservation.outcome === "unavailable") {
     return apiError("えを いま じゅんびできないよ。あとで ためしてね。", 503);
   }
@@ -61,12 +63,12 @@ async function generateWithAi(auth: Auth, problem: Problem) {
   }
 
   try {
-    const url = await generateVisualImage(buildVisualImagePrompt(problem.problem_text, problem.unit));
-    return apiSuccess({ kind: "generated", url });
+    const dataUrl = await generateVisualImage(buildVisualImagePrompt(problem.problemText, problem.unit));
+    return apiSuccess({ kind: "generated", dataUrl });
   } catch (error) {
     if (error instanceof ImageGenerationUnavailableError) {
-      return apiError("えの きのうは いま じゅんびちゅうだよ。", 503);
+      return apiError("えを いま じゅんびできないよ。あとで ためしてね。", 503);
     }
-    return apiError("えを つくれなかったよ。もういちど ためしてね。", 502);
+    return apiError("えの じゅんびに しっぱいしたよ。もういちど ためしてね。", 502);
   }
 }

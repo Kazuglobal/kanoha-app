@@ -1,7 +1,7 @@
+import { eq, desc } from "drizzle-orm";
+import * as schema from "@/lib/db/schema";
 import { apiError, apiSuccess, internalError, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
-
-const materialColumns = "id, page_count, source_type, status, expires_at, created_at";
 
 export async function GET(request: Request) {
   const childId = new URL(request.url).searchParams.get("childId") ?? "";
@@ -10,11 +10,23 @@ export async function GET(request: Request) {
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
 
-  const { data, error } = await auth.supabase
-    .from("uploaded_materials")
-    .select(materialColumns)
-    .eq("child_id", childId)
-    .order("created_at", { ascending: false });
+  try {
+    const data = await auth.db
+      .select({
+        id: schema.uploadedMaterials.id,
+        page_count: schema.uploadedMaterials.pageCount,
+        source_type: schema.uploadedMaterials.sourceType,
+        status: schema.uploadedMaterials.status,
+        expires_at: schema.uploadedMaterials.expiresAt,
+        created_at: schema.uploadedMaterials.createdAt,
+      })
+      .from(schema.uploadedMaterials)
+      .where(eq(schema.uploadedMaterials.childId, childId))
+      .orderBy(desc(schema.uploadedMaterials.createdAt))
+      .all();
 
-  return error ? internalError() : apiSuccess(data ?? []);
+    return apiSuccess(data ?? []);
+  } catch {
+    return internalError();
+  }
 }

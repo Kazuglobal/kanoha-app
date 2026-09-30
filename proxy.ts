@@ -1,13 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CHILD_HOME_PATH, isChildMode, isParentOnlyApi, isParentPage } from "@/lib/auth/childMode";
-import { updateSession } from "@/lib/supabase/middleware";
 
 const isMutation = (method: string) => !["GET", "HEAD", "OPTIONS"].includes(method);
 
 /**
  * CSRF 対策: Origin ヘッダーの host を Host ヘッダーと比べる。
- * `next start` 配下では request.nextUrl.origin が localhost に正規化されるため
- * 127.0.0.1 でアクセスすると不一致になる。Host ヘッダーが実際の到達先の正。
  */
 const sameOrigin = (request: NextRequest): boolean => {
   const origin = request.headers.get("origin");
@@ -21,7 +18,7 @@ const sameOrigin = (request: NextRequest): boolean => {
 };
 
 /**
- * 子どもモード(A1)の遮断はセッション更新より前に行う:
+ * 子どもモード(A1)の遮断:
  * cookie が立っている間は /parent/* を /child/home へ、親専用 API を 403 にする。
  */
 export function proxy(request: NextRequest) {
@@ -41,7 +38,8 @@ export function proxy(request: NextRequest) {
   if (pathname.startsWith("/api/") && isMutation(request.method) && !sameOrigin(request)) {
     return NextResponse.json({ success: false, error: "Invalid request origin" }, { status: 403 });
   }
-  return updateSession(request);
+
+  return NextResponse.next();
 }
 
 export const config = {

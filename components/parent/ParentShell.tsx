@@ -4,22 +4,24 @@ import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import styles from "@/components/kanoha.module.css";
 import { parentHasPin } from "@/lib/auth/pin";
-import { getUser } from "@/lib/supabase/auth";
+import { getServerSession } from "@/lib/auth/session";
 
 type PinState = "set" | "unset" | "unknown";
 
-const isSupabaseConfigured = () =>
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-
-/** PIN の有無(A1)。Supabase 未設定や未ログインでは判定しない。 */
+/** PIN の有無(A1)。未ログインでは判定しない。 */
 async function loadPinState(): Promise<PinState> {
-  if (!isSupabaseConfigured()) return "unknown";
-  const user = await getUser();
-  if (!user) return "unknown";
-  return (await parentHasPin(user.id)) ? "set" : "unset";
+  const session = await getServerSession();
+  if (!session?.user) return "unknown";
+  return (await parentHasPin(session.user.id)) ? "set" : "unset";
 }
 
-export async function ParentShell({ children, active }: { children: ReactNode; active: "dashboard" | "upload" | "settings" }) {
+export async function ParentShell({
+  children,
+  active,
+}: {
+  children: ReactNode;
+  active: "dashboard" | "upload" | "settings";
+}) {
   const pinState = await loadPinState();
   const links = [
     { id: "dashboard", href: "/parent/dashboard", label: "ダッシュボード", icon: BarChart3 },
@@ -40,7 +42,9 @@ export async function ParentShell({ children, active }: { children: ReactNode; a
               <Icon size={19} /> {label}
             </Link>
           ))}
-          <Link className={styles.navLink} href="/child/home"><BookImage size={19} /> 子どもモード</Link>
+          <Link className={styles.navLink} href="/child/home">
+            <BookImage size={19} /> 子どもモード
+          </Link>
           <LogoutButton />
         </nav>
         {pinState === "unset" ? (

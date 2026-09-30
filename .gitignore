@@ -8,3 +8,7 @@ test-results/
 !.env.example
 .parallel-flow/
 *.tsbuildinfo
+.open-next/
+.wrangler/
+supabase/.temp/
+review-findings.md

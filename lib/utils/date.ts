@@ -35,6 +35,9 @@ export const toJstDateKey = (date: Date): string => {
 /** Today's Asia/Tokyo calendar date. */
 export const todayKeyJst = (now: Date = new Date()): string => toJstDateKey(now);
 
+/** Current ISO timestamp string. */
+export const nowJstIso = (now: Date = new Date()): string => now.toISOString();
+
 /** Adds whole days to a `YYYY-MM-DD` key in Asia/Tokyo (no DST, so day arithmetic is exact). */
 export const addDaysJst = (dateKey: string, days: number): string => {
   assertDateKey(dateKey);

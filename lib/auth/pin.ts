@@ -1,13 +1,13 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getDb } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
 
 /**
  * 親 PIN(4桁)のハッシュとロックアウト規則(A1)。
  * 依存を増やさないため Node の scrypt を使う。保存形式: `scrypt$<salt hex>$<hash hex>`。
- * ハッシュとロック列は service_role だけが読める(supabase/migrations/0010_child_mode_hints.sql)。
  */
 const scrypt = promisify<string, Buffer, number, { N: number }, Buffer>(scryptCallback);
 
@@ -44,7 +44,10 @@ export interface PinLockRow {
 }
 
 /** ロック中なら残り秒数を返す(0 = ロックなし)。 */
-export const pinLockRemainingSeconds = (row: Pick<PinLockRow, "parent_pin_locked_until">, now: Date): number => {
+export const pinLockRemainingSeconds = (
+  row: Pick<PinLockRow, "parent_pin_locked_until">,
+  now: Date,
+): number => {
   if (!row.parent_pin_locked_until) return 0;
   const until = new Date(row.parent_pin_locked_until).getTime();
   if (Number.isNaN(until)) return 0;
@@ -66,19 +69,30 @@ export const pinAfterFailure = (
   };
 };
 
-export const PIN_COLUMNS = "parent_pin_hash, parent_pin_failed_attempts, parent_pin_locked_until";
+/** ユーザーの PIN 列を読む。 */
+export async function loadPinRow(userId: string, db = getDb()): Promise<PinLockRow | null> {
+  const row = await db
+    .select({
+      parentPinHash: schema.users.parentPinHash,
+      parentPinFailedAttempts: schema.users.parentPinFailedAttempts,
+      parentPinLockedUntil: schema.users.parentPinLockedUntil,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .get();
 
-/** service_role クライアントで PIN 列を読む(anon/authenticated には権限が無い)。 */
-export async function loadPinRow(admin: SupabaseClient, userId: string): Promise<PinLockRow | null> {
-  const { data, error } = await admin.from("users").select(PIN_COLUMNS).eq("id", userId).maybeSingle();
-  if (error || !data) return null;
-  return data as PinLockRow;
+  if (!row) return null;
+  return {
+    parent_pin_hash: row.parentPinHash ?? null,
+    parent_pin_failed_attempts: row.parentPinFailedAttempts ?? 0,
+    parent_pin_locked_until: row.parentPinLockedUntil ?? null,
+  };
 }
 
-/** 親が PIN を登録済みか(service_role で読む)。設定不備や失敗は「未登録」として扱う。 */
-export async function parentHasPin(userId: string): Promise<boolean> {
+/** 親が PIN を登録済みか。設定不備や失敗は「未登録」として扱う。 */
+export async function parentHasPin(userId: string, db = getDb()): Promise<boolean> {
   try {
-    const row = await loadPinRow(createAdminClient(), userId);
+    const row = await loadPinRow(userId, db);
     return Boolean(row?.parent_pin_hash);
   } catch {
     return false;

@@ -11,11 +11,20 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:worker": "opennextjs-cloudflare build",
+    "deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "drizzle:generate": "drizzle-kit generate",
+    "drizzle:migrate": "wrangler d1 migrations apply kanoha-db --local",
+    "drizzle:migrate:prod": "wrangler d1 migrations apply kanoha-db --remote"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1143.0",
+    "@opennextjs/cloudflare": "^1.20.7",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "2.112.4",
+    "better-auth": "^1.7.6",
+    "drizzle-orm": "^0.45.3",
     "framer-motion": "^12.9.2",
     "lucide-react": "^0.454.0",
     "next": "^16.1.6",
@@ -24,6 +33,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260930.2",
     "@playwright/test": "^1.52.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.3.0",
@@ -32,12 +42,14 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitest/coverage-v8": "^4.0.18",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.4",
     "jsdom": "^27.4.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "wrangler": "^4.145.0"
   }
 }

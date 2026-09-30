@@ -1,97 +1,147 @@
+import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
+import * as schema from "@/lib/db/schema";
 import { buildParentReport, formatReportMessage, type ParentReportContent } from "@/lib/reports/build";
 import { buildDashboard, loadDashboardInput } from "@/lib/reports/dashboard";
 import { sendSlackReport } from "@/lib/slack/sendReport";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
-import { todayKeyJst } from "@/lib/utils/date";
+import { nowJstIso, todayKeyJst } from "@/lib/utils/date";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { uuid } from "@/lib/utils/schemas";
+import type { Database } from "@/lib/db";
 
-const schema = z.object({ childId: uuid, reportDate: z.string().date().optional() });
-
-type Supabase = Awaited<ReturnType<typeof requireOwnedChild>>["supabase"];
+const schemaValidation = z.object({ childId: uuid, reportDate: z.string().date().optional() });
 
 export async function POST(request: Request) {
-  const parsed = await parseJson(request, schema);
+  const parsed = await parseJson(request, schemaValidation);
   if (!parsed.success) return apiError("Invalid report request");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
-  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "slack-report", 5))) {
+  if (!(await checkRateLimitDb(auth.user!.id, "slack-report", 5))) {
     return apiError("Too many requests", 429);
   }
   const childId = parsed.data.childId;
   const reportDate = parsed.data.reportDate ?? todayKeyJst();
 
-  const existing = await auth.supabase.from("parent_reports")
-    .select("id, slack_sent_at")
-    .eq("child_id", childId)
-    .eq("report_date", reportDate)
-    .maybeSingle();
-  if (existing.error) return internalError();
-  if (existing.data?.slack_sent_at) return apiSuccess({ sent: false, alreadySent: true });
+  try {
+    const existing = await auth.db
+      .select({
+        id: schema.parentReports.id,
+        slack_sent_at: schema.parentReports.slackSentAt,
+      })
+      .from(schema.parentReports)
+      .where(
+        and(eq(schema.parentReports.childId, childId), eq(schema.parentReports.reportDate, reportDate)),
+      )
+      .get();
 
-  const input = await loadDashboardInput(auth.supabase, childId);
-  if (!input) return internalError();
-  const dashboard = buildDashboard(input);
-  const report = buildParentReport(dashboard);
-  const saved = await upsertReport(auth.supabase, childId, reportDate, report);
-  if (!saved) return internalError();
+    if (existing?.slack_sent_at) return apiSuccess({ sent: false, alreadySent: true });
 
-  const delivery = await loadDelivery(childId);
-  if (!delivery) return apiError("Slack delivery is not configured", 422);
+    const input = await loadDashboardInput(childId, auth.db);
+    if (!input) return internalError();
+    const dashboard = buildDashboard(input);
+    const report = buildParentReport(dashboard);
+    const saved = await upsertReport(auth.db, childId, reportDate, report);
+    if (!saved) return internalError();
 
-  return deliverOnce(auth.supabase, saved.id, delivery.webhook_url, formatReportMessage(dashboard, report));
+    const delivery = await loadDelivery(auth.db, childId);
+    if (!delivery) return apiError("Slack delivery is not configured", 422);
+
+    return deliverOnce(auth.db, saved.id, delivery.webhook_url, formatReportMessage(dashboard, report));
+  } catch {
+    return internalError();
+  }
 }
 
-/** (child_id, report_date) で冪等に upsert。slack_sent_at はここでは触らない。 */
 async function upsertReport(
-  supabase: Supabase,
+  db: Database,
   childId: string,
   reportDate: string,
   report: ParentReportContent,
 ) {
-  const { data, error } = await supabase.from("parent_reports").upsert({
-    child_id: childId,
-    report_date: reportDate,
-    summary: report.summary,
-    accuracy_rate: report.accuracy_rate,
-    weak_units: report.weak_units,
-    growth_points: report.growth_points,
-    next_recommendations: report.next_recommendations,
-  }, { onConflict: "child_id,report_date" }).select("id, slack_sent_at").single();
-  return error || !data ? null : (data as { id: string; slack_sent_at: string | null });
-}
-
-/** Webhook は Vault RPC 経由(service_role のみ)。クライアントへは返さない。 */
-async function loadDelivery(childId: string) {
-  const { data, error } = await createAdminClient().rpc("get_slack_delivery_settings", {
-    target_child_id: childId,
-  });
-  const delivery = Array.isArray(data) ? data[0] : data;
-  if (error || !delivery?.enable_slack || !delivery?.webhook_url) return null;
-  return delivery as { enable_slack: boolean; webhook_url: string };
-}
-
-/** slack_sent_at を先にクレームして二重送信を防ぐ。送信失敗(内部で1回リトライ)なら解放して 502。 */
-async function deliverOnce(supabase: Supabase, reportId: string, webhookUrl: string, message: string) {
-  const claimedAt = new Date().toISOString();
-  const claimed = await supabase.from("parent_reports")
-    .update({ slack_sent_at: claimedAt })
-    .eq("id", reportId)
-    .is("slack_sent_at", null)
-    .select("id")
-    .maybeSingle();
-  if (claimed.error) return internalError();
-  if (!claimed.data) return apiSuccess({ sent: false, alreadySent: true });
-
+  const now = nowJstIso();
   try {
-    await sendSlackReport(webhookUrl, message);
+    const row = await db
+      .insert(schema.parentReports)
+      .values({
+        id: crypto.randomUUID(),
+        childId,
+        reportDate,
+        summary: report.summary,
+        accuracyRate: report.accuracy_rate,
+        weakUnits: JSON.stringify(report.weak_units),
+        growthPoints: JSON.stringify(report.growth_points),
+        nextRecommendations: JSON.stringify(report.next_recommendations),
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [schema.parentReports.childId, schema.parentReports.reportDate],
+        set: {
+          summary: report.summary,
+          accuracyRate: report.accuracy_rate,
+          weakUnits: JSON.stringify(report.weak_units),
+          growthPoints: JSON.stringify(report.growth_points),
+          nextRecommendations: JSON.stringify(report.next_recommendations),
+          updatedAt: now,
+        },
+      })
+      .returning({
+        id: schema.parentReports.id,
+        slack_sent_at: schema.parentReports.slackSentAt,
+      })
+      .get();
+
+    return row ?? null;
   } catch {
-    await supabase.from("parent_reports").update({ slack_sent_at: null })
-      .eq("id", reportId)
-      .eq("slack_sent_at", claimedAt);
-    return apiError("Slack delivery failed", 502);
+    return null;
   }
-  return apiSuccess({ sent: true, alreadySent: false });
+}
+
+async function loadDelivery(db: Database, childId: string) {
+  try {
+    const row = await db
+      .select({
+        enableSlack: schema.appSettings.enableSlack,
+        slackWebhookUrl: schema.appSettings.slackWebhookUrl,
+      })
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.childId, childId))
+      .get();
+
+    if (!row?.enableSlack || !row?.slackWebhookUrl) return null;
+    return { enable_slack: Boolean(row.enableSlack), webhook_url: row.slackWebhookUrl };
+  } catch {
+    return null;
+  }
+}
+
+async function deliverOnce(db: Database, reportId: string, webhookUrl: string, message: string) {
+  const claimedAt = nowJstIso();
+  try {
+    const claimed = await db
+      .update(schema.parentReports)
+      .set({ slackSentAt: claimedAt, updatedAt: claimedAt })
+      .where(and(eq(schema.parentReports.id, reportId), isNull(schema.parentReports.slackSentAt)))
+      .returning({ id: schema.parentReports.id })
+      .get();
+
+    if (!claimed) return apiSuccess({ sent: false, alreadySent: true });
+
+    try {
+      await sendSlackReport(webhookUrl, message);
+    } catch {
+      await db
+        .update(schema.parentReports)
+        .set({ slackSentAt: null, updatedAt: nowJstIso() })
+        .where(
+          and(eq(schema.parentReports.id, reportId), eq(schema.parentReports.slackSentAt, claimedAt)),
+        )
+        .run();
+      return apiError("Slack delivery failed", 502);
+    }
+    return apiSuccess({ sent: true, alreadySent: false });
+  } catch {
+    return internalError();
+  }
 }

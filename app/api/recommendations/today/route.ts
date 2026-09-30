@@ -8,13 +8,13 @@ export async function GET(request: Request) {
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
 
-  const result = await getTodayRecommendations(auth.supabase, childId);
+  const result = await getTodayRecommendations(childId, new Date(), auth.db);
   return result.error
     ? internalError()
     : apiSuccess({
-      source: "rules",
-      problems: result.problems,
-      limitReached: result.limitReached,
-      remainingMinutes: result.remainingMinutes,
-    });
+        source: "rules",
+        problems: result.problems,
+        limitReached: result.limitReached,
+        remainingMinutes: result.remainingMinutes,
+      });
 }
