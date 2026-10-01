@@ -206,9 +206,14 @@
 .hintArea { margin-top: 24px; }
 .hintSteps { display: grid; gap: 12px; }
 .hintItem { padding: 20px; border-left: 6px solid var(--sun); border-radius: 8px 20px 20px 8px; background: #fff9e8; }
-.hintItem strong { display: block; margin-bottom: 8px; color: #8c6410; }
+.hintItem strong { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; color: #8c6410; font-size: 17px; }
 .hintItem p { margin: 0; font-size: 18px; line-height: 1.8; }
-.visualHintImage { display: block; width: min(100%, 560px); height: auto; margin: 12px auto 0; border-radius: 16px; }
+.visualHintCard { margin-top: 14px; padding: 18px 20px; border: 3px solid #8be3d7; border-radius: 20px; background: #f0faf8; box-shadow: 0 4px 16px rgba(13, 159, 140, 0.08); }
+.visualHintHeader { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 900; color: #0b7a6c; margin-bottom: 10px; }
+.visualHintImage { display: block; width: min(100%, 540px); height: auto; margin: 10px auto; border-radius: 16px; border: 2px solid #d4ece7; background: white; box-shadow: 0 6px 14px rgba(23, 50, 77, 0.06); }
+.visualHintCaption { text-align: center; font-size: 15px; font-weight: 700; color: #17324d; margin-top: 10px; padding: 8px 12px; border-radius: 12px; background: #ffffff; border: 1px solid #d4ece7; }
+.visualActionButton { composes: secondaryButton; background: #fff8eb; border-color: #ffd080; color: #a06300; font-weight: 900; }
+.visualActionButton:hover { background: #fff0d2; }
 .hintActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .feedback { margin-top: 18px; padding: 16px 18px; border-radius: 16px; background: #e8f7f4; font-weight: 900; }
 .feedbackWrong { composes: feedback; background: #fff2e8; }
