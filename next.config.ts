@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import path from "node:path";
 
 /**
  * 全ルート共通のセキュリティヘッダー(B15)。
@@ -23,6 +22,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   typedRoutes: true,
   async headers() {
@@ -38,9 +38,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  turbopack: {
-    root: path.resolve(process.cwd(), ".."),
-  },
+
 };
 
 export default nextConfig;
