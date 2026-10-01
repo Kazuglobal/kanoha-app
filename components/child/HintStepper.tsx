@@ -82,6 +82,11 @@ export function HintStepper({
           </article>
         ) : null}
       </div>
+      {shown.length === 0 ? (
+        <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
+          💡 「ヒントを みる」をおすと、わかりやすい え（図解）が でるよ！
+        </p>
+      ) : null}
       <div className={styles.hintActions}>
         {shown.length < labels.length ? (
           <button className={styles.primaryButton} disabled={loading} type="button" onClick={() => void revealNext()}>

@@ -213,6 +213,9 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
     setRetryAction(null);
     setRevealedHints((current) => [...current, text]);
+    if (!persisted && !visualUrl) {
+      setVisualUrl(DEMO_VISUAL_URL);
+    }
     return true;
   }
 
