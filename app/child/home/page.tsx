@@ -115,7 +115,7 @@ function RealHome({
   const first = problems[0];
   const startHref = first
     ? (`/child/problem/${first.id}?childId=${selected.id}` as const)
-    : (`/child/home?childId=${selected.id}` as const);
+    : (`/child/problem/volume-1?childId=${selected.id}` as const);
   const againHref = recentProblemId
     ? (`/child/problem/${recentProblemId}?childId=${selected.id}` as const)
     : startHref;
@@ -155,7 +155,7 @@ function RealHome({
               <RubyAuto text="きょうの おすすめを はじめる" readingMode={readingMode} />
             </h2>
             <p className={styles.tiny}>
-              {first ? `いまのおすすめ: ${first.unit}` : "おすすめのもんだいを よういしているよ"}
+              {first ? `いまのおすすめ: ${first.unit}` : "まずは デモもんだい（水のかさ）から はじめよう！"}
             </p>
           </Link>
 
