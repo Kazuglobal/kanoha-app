@@ -156,7 +156,7 @@ function RealHome({
     : "きょうも たのしく さんすうを やろう！";
 
   const defaultDemoNote = isJapanese
-    ? "まずは デモもんだい（漢字の読み）から はじめよう！"
+    ? "まずは デモもんだい（漢字の書き取り）から はじめよう！"
     : "まずは デモもんだい（水のかさ）から はじめよう！";
 
   return (
@@ -218,7 +218,7 @@ function RealHome({
 function DemoHome({ currentSubject }: { currentSubject: Subject }) {
   const isJapanese = currentSubject === "japanese";
   const demoProblemHref = isJapanese ? "/child/problem/kanji-1" : "/child/problem/volume-1";
-  const demoSubtitle = isJapanese ? "デモもんだい: 漢字の読み" : "デモもんだい: 水のかさ(LとmL)";
+  const demoSubtitle = isJapanese ? "デモもんだい: 漢字の書き取り" : "デモもんだい: 水のかさ(LとmL)";
   const heroSubtitle = isJapanese
     ? "まいにち 15ふん、たのしく こくご！"
     : "まいにち 15ふん、たのしく さんすう！";

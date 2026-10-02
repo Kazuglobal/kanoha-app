@@ -2561,4 +2561,367 @@
   gap: 8px;
 }
 
+/* ==========================================================================
+   Modern Game-like Learning Stage (Scroll-free 1-screen UX)
+   ========================================================================== */
+
+.learningStage {
+  width: min(1200px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 8px 0 20px;
+  min-height: calc(100dvh - 84px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.learningGrid {
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .learningGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.learningCoachCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+@media (max-width: 900px) {
+  .learningCoachCol {
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+  }
+  .learningCoachCol .coach {
+    min-height: auto;
+    max-width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0;
+  }
+  .learningCoachCol .coachAvatarWrapper {
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+  }
+  .learningCoachCol .speechBubble {
+    position: static;
+    transform: none;
+    max-width: 280px;
+    margin: 0;
+  }
+  .learningCoachCol .speechArrow {
+    display: none;
+  }
+}
+
+.learningCardCol {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* Problem Card Compact & Modern Polish */
+.learningProblemCard {
+  composes: card;
+  padding: clamp(20px, 3.5vw, 36px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 16px 36px -8px rgba(19, 34, 56, 0.08),
+    0 8px 0 #e2eee8,
+    inset 0 2px 4px rgba(255, 255, 255, 0.95);
+}
+
+.learningHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.subjectBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 900;
+  padding: 6px 14px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.subjectBadgeMath {
+  background: linear-gradient(135deg, #e6f7f4 0%, #d1f3ec 100%);
+  color: #076d5f;
+  border: 1.5px solid #a7e7db;
+}
+
+.subjectBadgeJapanese {
+  background: linear-gradient(135deg, #fff0ee 0%, #ffe3df 100%);
+  color: #cf3a2e;
+  border: 1.5px solid #ffbeb8;
+}
+
+.compactProblemText {
+  margin: 10px 0 20px;
+  font-size: clamp(24px, 4.2vw, 36px);
+  font-weight: 900;
+  line-height: 1.55;
+  letter-spacing: -0.025em;
+  color: var(--navy);
+}
+
+/* Integrated Input & Action Bar */
+.learningAnswerSection {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.learningInputRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.learningDisplayInput {
+  flex: 1;
+  min-width: 180px;
+  min-height: 64px;
+  border: 3.5px solid #bcebe3;
+  border-radius: 20px;
+  padding: 0 20px;
+  color: var(--navy);
+  background: #ffffff;
+  font-size: 32px;
+  font-weight: 900;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.04);
+}
+
+.learningDisplayInput:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 5px rgba(13, 148, 136, 0.18), inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.learningActionBtns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 3D Toy Answer Button */
+.toyAnswerButton {
+  min-height: 64px;
+  padding: 0 32px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  background: linear-gradient(180deg, #ff7b6e 0%, #f43f2f 100%);
+  border: 2px solid #ffa399;
+  border-radius: 20px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow:
+    0 6px 0 #b92416,
+    0 12px 20px -4px rgba(244, 63, 47, 0.35);
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.toyAnswerButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 0 #b92416,
+    0 16px 24px -4px rgba(244, 63, 47, 0.4);
+}
+
+.toyAnswerButton:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #b92416;
+}
+
+.toyAnswerButton:disabled {
+  background: #cbd5e1;
+  border-color: #e2e8f0;
+  box-shadow: 0 5px 0 #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Secondary Toy Button (Handwriting / Mic) */
+.toySecondaryBtn {
+  min-height: 60px;
+  padding: 0 20px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f766e;
+  background: linear-gradient(180deg, #f0fdf9 0%, #e0f6f0 100%);
+  border: 2px solid #a7f3d0;
+  border-radius: 20px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow:
+    0 5px 0 #5eead4,
+    0 8px 16px -3px rgba(13, 148, 136, 0.15);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.toySecondaryBtn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 7px 0 #5eead4,
+    0 12px 20px -3px rgba(13, 148, 136, 0.2);
+}
+
+.toySecondaryBtn:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #5eead4;
+}
+
+/* On-screen Toy Keypad for Math */
+.toyKeypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  max-width: 420px;
+  margin-top: 12px;
+  background: rgba(226, 244, 239, 0.6);
+  padding: 12px;
+  border-radius: 24px;
+  border: 2px solid #bcebe3;
+}
+
+.keypadKey {
+  min-height: 52px;
+  font-size: 24px;
+  font-weight: 900;
+  color: #134e4a;
+  background: #ffffff;
+  border: 2px solid #a7e7db;
+  border-radius: 16px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 0 #5eead4;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.keypadKey:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #5eead4;
+}
+
+.keypadKeyAction {
+  background: #fff8eb;
+  color: #b45309;
+  border-color: #fde68a;
+  box-shadow: 0 4px 0 #fcd34d;
+  font-size: 16px;
+}
+
+.keypadKeyAction:active {
+  box-shadow: 0 1px 0 #fcd34d;
+}
+
+/* ==========================================================================
+   Full-screen Focus Handwriting Modal (No page scroll)
+   ========================================================================== */
+
+.handwritingModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.handwritingModalCard {
+  background: #ffffff;
+  width: min(640px, 100%);
+  max-height: 90vh;
+  border-radius: 32px;
+  border: 4px solid #5eead4;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.25),
+    0 10px 0 #14b8a6;
+  padding: clamp(16px, 3vw, 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleUp {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Topbar Progress Bar (Duolingo Style) */
+.gameProgressBarTrack {
+  width: min(220px, 32vw);
+  height: 18px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gameProgressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  border-radius: 99px;
+  box-shadow: 0 2px 0 #059669;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+
 

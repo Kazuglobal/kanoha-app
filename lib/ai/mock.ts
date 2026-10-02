@@ -71,15 +71,15 @@ export const mockProblems: readonly ParsedProblem[] = [
 export const mockJapaneseProblems: readonly ParsedProblem[] = [
   makeProblem({
     subject: "japanese",
-    correctAnswer: "あおぞら",
+    correctAnswer: "青空",
     hints: {
-      hint1: "「青」と「空」をそれぞれ読んでみよう。",
-      hint2: "「空」は「そら」だけど、ここではにごるよ。",
-      praise: "漢字をよく見られたね！",
-      solution: "「青（あお）」と「空（ぞら）」をあわせて「あおぞら」と読みます。",
+      hint1: "「あお」と「ぞら」をそれぞれ漢字で思い出してみよう。",
+      hint2: "「青」と「空」の２文字を組み合わせるよ。",
+      praise: "漢字をよく思い出せたね！",
+      solution: "「あお」は「青」、「ぞら」は「空」で「青空」と書きます。",
     },
-    problemText: "次の漢字の読み方をひらがなで書きましょう。「青空」",
-    subUnit: "漢字の読み",
+    problemText: "つぎの ことばを かん字で かきましょう。「あおぞら」",
+    subUnit: "漢字の書き",
     unit: "漢字",
   }),
   makeProblem({
@@ -199,7 +199,7 @@ export const mockAiProvider: AiProvider = {
       problemText.includes("ことば") ||
       problemText.includes("こくご")
     ) {
-      return { answer: "あおぞら" };
+      return { answer: "青空" };
     }
     return { answer: "1000mL" };
   },

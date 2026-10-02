@@ -36,7 +36,7 @@ export default async function ProblemPage({
   return (
     <div className={styles.childShell}>
       <ChildHeader progress="1 / 1" />
-      <main className={styles.narrow}>
+      <main className={styles.learningStage}>
         <LearningFlow persisted={persisted} preferences={loaded?.preferences} />
       </main>
     </div>
