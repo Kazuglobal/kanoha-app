@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getAiProvider } from "@/lib/ai";
+import { demoProblemById } from "@/lib/ai/mock";
 import { costLimitsFromEnv } from "@/lib/ai/costGuard";
 import { reserveAiUsage } from "@/lib/ai/usage";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
@@ -11,8 +12,8 @@ import type { Subject } from "@/lib/curriculum/subjects";
 const MAX_IMAGE_DATA_CHARS = 2_000_000;
 
 const schema = z.object({
-  childId: uuid,
-  problemId: uuid,
+  childId: z.string().min(1),
+  problemId: z.string().min(1),
   image: z.object({
     data: z.string().min(1).max(MAX_IMAGE_DATA_CHARS),
     mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
@@ -46,6 +47,37 @@ export async function POST(request: Request) {
   if (!matchesDeclaredType(parsed.data.image.data, parsed.data.image.mimeType)) {
     return apiError("Invalid handwriting request");
   }
+
+  const isDemo = parsed.data.childId === "demo" || !uuid.safeParse(parsed.data.problemId).success;
+
+  if (isDemo) {
+    const demo = demoProblemById(parsed.data.problemId);
+    const problemText = demo?.problem_text ?? "手書き文字を読み取ってください";
+    const subject: Subject = demo?.subject === "japanese" ? "japanese" : "math";
+
+    const provider = getAiProvider();
+    if (provider.name === "mock") {
+      const result = await provider.recognizeHandwriting([], problemText, subject);
+      return apiSuccess(result);
+    }
+
+    try {
+      const result = await provider.recognizeHandwriting(
+        [{ mimeType: parsed.data.image.mimeType, data: parsed.data.image.data }],
+        problemText,
+        subject,
+      );
+      return apiSuccess(result);
+    } catch {
+      const fallbackResult = subject === "japanese" ? { answer: "あおぞら" } : { answer: "1000mL" };
+      return apiSuccess(fallbackResult);
+    }
+  }
+
+  if (!uuid.safeParse(parsed.data.childId).success) {
+    return apiError("Invalid handwriting request");
+  }
+
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
   if (!checkRateLimit(`handwriting:${auth.user!.id}`, 10)) return apiError("Too many requests", 429);

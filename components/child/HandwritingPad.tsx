@@ -166,7 +166,7 @@ export function HandwritingPad({
     if (!response.ok || !body?.success) {
       setStatus(
         subject === "japanese"
-          ? "うまく よみとれなかったよ。すうじで にゅうりょくしてね。"
+          ? "うまく よみとれなかったよ。もういちど かくか、キーボードで にゅうりょくしてね。"
           : "うまく よみとれなかったよ。すうじで にゅうりょくしてね。",
       );
       setPending(false);

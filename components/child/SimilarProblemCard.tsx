@@ -87,7 +87,7 @@ export function SimilarProblemCard({
           ))}
         </div>
       </div>
-      <p className={styles.problemText}><RubyAuto text={problem.question} readingMode={readingMode} /></p>
+      <p className={styles.problemText}><RubyAuto text={problem.question} readingMode={readingMode} excludeBrackets /></p>
       {problem.choices ? (
         <div className={styles.choiceGrid}>
           {problem.choices.map((choice) => (

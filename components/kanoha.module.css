@@ -299,19 +299,12 @@
 
 .coachAvatarWrapper {
   position: relative;
-  width: 200px;
-  height: 250px;
-  display: grid;
-  place-items: center;
-  animation: coachFloat 4.5s ease-in-out infinite alternate;
-}
-
-.coachAvatarWrapper[data-mood="celebrate"] {
-  animation: coachCelebrateBounce 1s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite alternate;
-}
-
-.coachAvatarWrapper[data-mood="think"] {
-  animation: coachThinkTilt 3.5s ease-in-out infinite alternate;
+  width: 240px;
+  height: 230px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 
 .coachSvg {
