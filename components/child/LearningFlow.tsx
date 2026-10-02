@@ -68,111 +68,170 @@ export function LearningFlow({
   }
   if (flow.practiceIndex !== null) {
     return (
-      <PracticeFlow
-        practiceIndex={flow.practiceIndex}
-        problems={flow.similarProblems}
-        readingMode={preferences.readingMode}
-        score={flow.score}
-        onAnswer={persisted ? flow.answerSimilar : undefined}
-        onComplete={(correct) => void flow.completeSimilar(correct)}
-      />
+      <div className={styles.learningGrid}>
+        <div className={styles.learningCoachCol}>
+          <CharacterCoach
+            message="れんしゅうも いっしょに がんばろうっ♪"
+            mood="happy"
+          />
+        </div>
+        <div className={styles.learningCardCol}>
+          <PracticeFlow
+            practiceIndex={flow.practiceIndex}
+            problems={flow.similarProblems}
+            readingMode={preferences.readingMode}
+            score={flow.score}
+            onAnswer={persisted ? flow.answerSimilar : undefined}
+            onComplete={(correct) => void flow.completeSimilar(correct)}
+          />
+        </div>
+      </div>
     );
   }
 
   return (
-    <>
-      <section className={styles.problemCard}>
-        <div className={styles.quizTop}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span
-              style={{
-                fontSize: "13px",
-                fontWeight: 800,
-                padding: "3px 10px",
-                borderRadius: "99px",
-                background: isJapanese ? "#fff0ee" : "#e6f7f4",
-                color: isJapanese ? "#cf3a2e" : "#076d5f",
-                border: `1px solid ${isJapanese ? "#ffc9c4" : "#bcebe3"}`,
-              }}
-            >
-              {isJapanese ? "📖 こくご" : "🧮 さんすう"}
-            </span>
-            <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
-          </div>
-          {preferences.enableAudio ? <VoiceButton text={flow.question} /> : null}
-        </div>
-        <h1 className={styles.problemText}>
-          <RubyAuto text={flow.question} readingMode={preferences.readingMode} excludeBrackets />
-        </h1>
-        <div className={styles.answerRow}>
-          <input
-            aria-label="こたえ"
-            className={styles.answerInput}
-            inputMode={isJapanese ? "text" : "numeric"}
-            placeholder={isJapanese ? "こたえ" : "すうじ"}
-            value={flow.answer}
-            onChange={(event) => flow.setAnswer(event.target.value)}
-          />
-          <button
-            className={styles.primaryButton}
-            disabled={!flow.answer || flow.pending}
-            type="button"
-            onClick={() => void flow.checkOriginalAnswer()}
-          >
-            {FLOW_TEXT.answerButton}
-          </button>
-          {preferences.enableVoiceAnswer ? <VoiceAnswer onAnswer={flow.setAnswer} /> : null}
-          {persisted ? (
-            <HandwritingPad
-              childId={persisted.childId}
-              onAnswer={flow.setAnswer}
-              problemId={persisted.problemId}
-              subject={isJapanese ? "japanese" : "math"}
-            />
-          ) : null}
-        </div>
-        {flow.checked ? (
-          <div className={flow.checked.correct ? styles.feedback : styles.feedbackWrong}>
-            {flow.checked.correct ? FLOW_TEXT.correctFeedback : FLOW_TEXT.wrongFeedback}
-          </div>
-        ) : null}
-        <HintStepper
-          revealed={flow.revealedHints}
-          onRequestNext={flow.requestNextHint}
-          readingMode={preferences.readingMode}
-          onSimplify={persisted ? () => void flow.simplifyHints() : undefined}
-          simplifying={flow.simplifying}
-          onVisual={() => void flow.showVisualHint()}
-          visualPending={flow.visualPending}
-          visualUrl={flow.visualUrl}
+    <div className={styles.learningGrid}>
+      <div className={styles.learningCoachCol}>
+        <CharacterCoach
+          message={
+            flow.checked?.correct
+              ? "やったぁ！だいせいかい！すごいねっ✨"
+              : flow.checked
+              ? "おしい！もういっかい かんがえてみよう！"
+              : FLOW_TEXT.coachThink
+          }
+          mood={flow.checked?.correct ? "celebrate" : "think"}
         />
-        <div className={styles.hintActions}>
-          <button
-            className={styles.secondaryButton}
-            disabled={flow.pending}
-            type="button"
-            onClick={() => void flow.startPractice()}
-          >
-            {flow.pending ? FLOW_TEXT.preparing : FLOW_TEXT.practiceButton}
-          </button>
-        </div>
-        {flow.saveMessage ? <p className={styles.feedbackWrong}>{flow.saveMessage}</p> : null}
-        {flow.retryAction ? (
-          <button className={styles.secondaryButton} type="button" onClick={flow.retryAction}>
-            {FLOW_TEXT.retry}
-          </button>
-        ) : null}
-      </section>
-      <CharacterCoach
-        message={
-          flow.checked?.correct
-            ? "やったぁ！だいせいかい！すごいねっ✨"
-            : flow.checked
-            ? "おしい！もういっかい かんがえてみよう！"
-            : FLOW_TEXT.coachThink
-        }
-        mood={flow.checked?.correct ? "celebrate" : "think"}
-      />
-    </>
+      </div>
+
+      <div className={styles.learningCardCol}>
+        <section className={styles.learningProblemCard}>
+          <div>
+            <div className={styles.learningHeaderRow}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span
+                  className={
+                    isJapanese ? styles.subjectBadgeJapanese : styles.subjectBadgeMath
+                  }
+                >
+                  {isJapanese ? "📖 こくご" : "🧮 さんすう"}
+                </span>
+                <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
+              </div>
+              {preferences.enableAudio ? <VoiceButton text={flow.question} /> : null}
+            </div>
+
+            <h1 className={styles.compactProblemText}>
+              <RubyAuto text={flow.question} readingMode={preferences.readingMode} excludeBrackets />
+            </h1>
+          </div>
+
+          <div className={styles.learningAnswerSection}>
+            <div className={styles.learningInputRow}>
+              <input
+                aria-label="こたえ"
+                className={styles.learningDisplayInput}
+                inputMode={isJapanese ? "text" : "numeric"}
+                placeholder={isJapanese ? "こたえを 入力 または 手書き" : "こたえ"}
+                value={flow.answer}
+                onChange={(event) => flow.setAnswer(event.target.value)}
+              />
+
+              <div className={styles.learningActionBtns}>
+                <button
+                  className={styles.toyAnswerButton}
+                  disabled={!flow.answer || flow.pending}
+                  type="button"
+                  onClick={() => void flow.checkOriginalAnswer()}
+                >
+                  {FLOW_TEXT.answerButton}
+                </button>
+                {preferences.enableVoiceAnswer ? <VoiceAnswer onAnswer={flow.setAnswer} /> : null}
+                {persisted ? (
+                  <HandwritingPad
+                    childId={persisted.childId}
+                    onAnswer={flow.setAnswer}
+                    problemId={persisted.problemId}
+                    subject={isJapanese ? "japanese" : "math"}
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {/* 算数用 オンスクリーン・トイテンキー (タップでカンタン入力) */}
+            {!isJapanese && !flow.checked?.correct && (
+              <div className={styles.toyKeypad} aria-label="数字キーパッド">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    className={styles.keypadKey}
+                    onClick={() => flow.setAnswer((prev) => prev + num.toString())}
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.keypadKey} ${styles.keypadKeyAction}`}
+                  onClick={() => flow.setAnswer((prev) => prev.slice(0, -1))}
+                  title="1文字消す"
+                >
+                  ⌫
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.keypadKey} ${styles.keypadKeyAction}`}
+                  onClick={() => flow.setAnswer("")}
+                  title="ぜんぶ消す"
+                >
+                  クリア
+                </button>
+              </div>
+            )}
+
+            {flow.checked ? (
+              <div className={flow.checked.correct ? styles.feedback : styles.feedbackWrong}>
+                {flow.checked.correct ? (
+                  <span style={{ fontSize: "20px", fontWeight: 900 }}>
+                    🎉 {FLOW_TEXT.correctFeedback}
+                  </span>
+                ) : (
+                  FLOW_TEXT.wrongFeedback
+                )}
+              </div>
+            ) : null}
+
+            <HintStepper
+              revealed={flow.revealedHints}
+              onRequestNext={flow.requestNextHint}
+              readingMode={preferences.readingMode}
+              onSimplify={persisted ? () => void flow.simplifyHints() : undefined}
+              simplifying={flow.simplifying}
+              onVisual={() => void flow.showVisualHint()}
+              visualPending={flow.visualPending}
+              visualUrl={flow.visualUrl}
+            />
+
+            <div className={styles.hintActions}>
+              <button
+                className={styles.secondaryButton}
+                disabled={flow.pending}
+                type="button"
+                onClick={() => void flow.startPractice()}
+              >
+                {flow.pending ? FLOW_TEXT.preparing : FLOW_TEXT.practiceButton}
+              </button>
+            </div>
+            {flow.saveMessage ? <p className={styles.feedbackWrong}>{flow.saveMessage}</p> : null}
+            {flow.retryAction ? (
+              <button className={styles.secondaryButton} type="button" onClick={flow.retryAction}>
+                {FLOW_TEXT.retry}
+              </button>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

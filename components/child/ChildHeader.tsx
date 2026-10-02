@@ -46,9 +46,30 @@ export function ChildHeader({ progress }: { progress?: string }) {
         かのは
       </Link>
       <div className={styles.topActions}>
+        {progress ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div className={styles.gameProgressBarTrack} title={`進捗: ${progress}`}>
+              {(() => {
+                const parts = progress.split("/").map((s) => parseFloat(s.trim()));
+                const percent =
+                  parts.length === 2 && parts[1] > 0
+                    ? Math.min(100, Math.round((parts[0] / parts[1]) * 100))
+                    : 100;
+                return (
+                  <div
+                    className={styles.gameProgressBarFill}
+                    style={{ width: `${percent}%` }}
+                  />
+                );
+              })()}
+            </div>
+            <span style={{ fontSize: "14px", fontWeight: 900, color: "var(--teal-dark)" }}>
+              {progress}
+            </span>
+          </div>
+        ) : null}
         <RewardMeter />
         <SoundToggleButton />
-        {progress ? <strong>{progress}</strong> : null}
         <Link className={styles.ghostButton} href="/child/home" aria-label="ホーム">
           <Home size={20} />
         </Link>

@@ -175,11 +175,15 @@ export function HandwritingPad({
     onAnswer(body.data.answer);
     setStatus(`「${body.data.answer}」と よみとったよ。`);
     setPending(false);
+    // 認識成功時はモーダルをスムーズに閉じて問題画面へ戻す
+    setTimeout(() => {
+      setOpen(false);
+    }, 600);
   }
 
   if (!open) {
     return (
-      <button className={styles.secondaryButton} type="button" onClick={() => setOpen(true)}>
+      <button className={styles.toySecondaryBtn} type="button" onClick={() => setOpen(true)}>
         <PenLine aria-hidden="true" size={20} />
         てがきで こたえる
       </button>
@@ -194,108 +198,127 @@ export function HandwritingPad({
         : styles.handwritingCanvasNoGrid;
 
   return (
-    <div className={styles.handwritingPad}>
-      <div className={styles.handwritingHeader}>
-        <h4 className={styles.handwritingTitle}>
-          <BookOpen aria-hidden="true" size={18} />
-          {subject === "japanese" ? "漢字・ことば てがきノート" : "てがきノート（ひろびろ）"}
-        </h4>
-        <div className={styles.handwritingModeSwitch}>
+    <div
+      className={styles.handwritingModalOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label="てがきノート"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setOpen(false);
+      }}
+    >
+      <div className={styles.handwritingModalCard}>
+        <div className={styles.handwritingHeader}>
+          <h4 className={styles.handwritingTitle}>
+            <BookOpen aria-hidden="true" size={20} />
+            {subject === "japanese" ? "漢字・ことば てがきノート" : "てがきノート（ひろびろ）"}
+          </h4>
+          <div className={styles.handwritingModeSwitch}>
+            <button
+              className={`${styles.handwritingModeBtn} ${gridMode === "single" ? styles.handwritingModeBtnActive : ""}`}
+              type="button"
+              onClick={() => setGridMode("single")}
+            >
+              1文字マス
+            </button>
+            <button
+              className={`${styles.handwritingModeBtn} ${gridMode === "double" ? styles.handwritingModeBtnActive : ""}`}
+              type="button"
+              onClick={() => setGridMode("double")}
+            >
+              2文字マス
+            </button>
+            <button
+              className={`${styles.handwritingModeBtn} ${gridMode === "none" ? styles.handwritingModeBtnActive : ""}`}
+              type="button"
+              onClick={() => setGridMode("none")}
+            >
+              なし
+            </button>
+          </div>
           <button
-            className={`${styles.handwritingModeBtn} ${gridMode === "single" ? styles.handwritingModeBtnActive : ""}`}
+            className={styles.ghostButton}
+            onClick={() => setOpen(false)}
             type="button"
-            onClick={() => setGridMode("single")}
+            aria-label="閉じる"
+            style={{ padding: "6px", minHeight: "auto", borderRadius: "99px" }}
           >
-            1文字マス
-          </button>
-          <button
-            className={`${styles.handwritingModeBtn} ${gridMode === "double" ? styles.handwritingModeBtnActive : ""}`}
-            type="button"
-            onClick={() => setGridMode("double")}
-          >
-            2文字マス
-          </button>
-          <button
-            className={`${styles.handwritingModeBtn} ${gridMode === "none" ? styles.handwritingModeBtnActive : ""}`}
-            type="button"
-            onClick={() => setGridMode("none")}
-          >
-            なし
-          </button>
-        </div>
-      </div>
-
-      <div className={`${styles.handwritingCanvasWrapper} ${gridClass}`}>
-        <canvas
-          aria-label="てがき入力"
-          className={styles.handwritingCanvas}
-          height={380}
-          onPointerDown={startDrawing}
-          onPointerLeave={stopDrawing}
-          onPointerMove={draw}
-          onPointerUp={stopDrawing}
-          ref={canvasRef}
-          width={540}
-        />
-      </div>
-
-      <div className={styles.handwritingToolbar}>
-        <div className={styles.handwritingPenGroup}>
-          <span>ペンのふとさ:</span>
-          <button
-            className={`${styles.handwritingPenBtn} ${penWidth === 6 ? styles.handwritingPenBtnActive : ""}`}
-            type="button"
-            onClick={() => setPenWidth(6)}
-          >
-            ふつう
-          </button>
-          <button
-            className={`${styles.handwritingPenBtn} ${penWidth === 9 ? styles.handwritingPenBtnActive : ""}`}
-            type="button"
-            onClick={() => setPenWidth(9)}
-          >
-            ふとい
+            <X size={20} />
           </button>
         </div>
 
-        <div className={styles.handwritingToolButtons}>
+        <div className={`${styles.handwritingCanvasWrapper} ${gridClass}`}>
+          <canvas
+            aria-label="てがき入力"
+            className={styles.handwritingCanvas}
+            height={380}
+            onPointerDown={startDrawing}
+            onPointerLeave={stopDrawing}
+            onPointerMove={draw}
+            onPointerUp={stopDrawing}
+            ref={canvasRef}
+            width={540}
+          />
+        </div>
+
+        <div className={styles.handwritingToolbar}>
+          <div className={styles.handwritingPenGroup}>
+            <span style={{ fontSize: "14px", fontWeight: 800 }}>ペンのふとさ:</span>
+            <button
+              className={`${styles.handwritingPenBtn} ${penWidth === 6 ? styles.handwritingPenBtnActive : ""}`}
+              type="button"
+              onClick={() => setPenWidth(6)}
+            >
+              ふつう
+            </button>
+            <button
+              className={`${styles.handwritingPenBtn} ${penWidth === 9 ? styles.handwritingPenBtnActive : ""}`}
+              type="button"
+              onClick={() => setPenWidth(9)}
+            >
+              ふとい
+            </button>
+          </div>
+
+          <div className={styles.handwritingToolButtons}>
+            <button
+              className={styles.handwritingSmallBtn}
+              disabled={strokeCount === 0}
+              onClick={undo}
+              type="button"
+              title="直前の1画を取り消します"
+            >
+              <RotateCcw aria-hidden="true" size={16} />
+              1つもどす
+            </button>
+            <button className={styles.handwritingSmallBtn} onClick={clear} type="button">
+              <Eraser aria-hidden="true" size={16} />
+              けす
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.handwritingActions} style={{ marginTop: "12px" }}>
           <button
-            className={styles.handwritingSmallBtn}
-            disabled={strokeCount === 0}
-            onClick={undo}
+            className={styles.secondaryButton}
+            onClick={() => setOpen(false)}
             type="button"
-            title="直前の1画を取り消します"
           >
-            <RotateCcw aria-hidden="true" size={16} />
-            1つもどす
+            <X aria-hidden="true" size={18} />
+            とじる
           </button>
-          <button className={styles.handwritingSmallBtn} onClick={clear} type="button">
-            <Eraser aria-hidden="true" size={16} />
-            けす
+          <button
+            className={styles.toyAnswerButton}
+            disabled={pending}
+            onClick={() => void submit()}
+            type="button"
+          >
+            {pending ? "よみとり中..." : "これで こたえる"}
           </button>
         </div>
-      </div>
 
-      <div className={styles.handwritingActions}>
-        <button
-          className={styles.secondaryButton}
-          onClick={() => setOpen(false)}
-          type="button"
-        >
-          <X aria-hidden="true" size={18} />
-          とじる
-        </button>
-        <button
-          className={styles.primaryButton}
-          disabled={pending}
-          onClick={() => void submit()}
-          type="button"
-        >
-          これで こたえる
-        </button>
+        {status ? <p className={styles.feedback}>{status}</p> : null}
       </div>
-
-      {status ? <p className={styles.feedback}>{status}</p> : null}
     </div>
   );
 }
