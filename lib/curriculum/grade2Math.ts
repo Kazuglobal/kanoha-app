@@ -87,3 +87,52 @@ export const isGrade2MathUnit = (value: string): value is Grade2MathUnit =>
 export const getGrade2MathUnit = (unit: Grade2MathUnit) =>
   GRADE_2_MATH_CURRICULUM.find((entry) => entry.unit === unit);
 
+/**
+ * 単元名から対応する図解テンプレートSVG名(visualTemplate)を柔軟に解決する。
+ * 「かさ」「水のかさ」「たし算」「たしざん」などの表記ゆれに対応。
+ */
+export function resolveVisualTemplate(unit: string): string | null {
+  if (!unit) return null;
+  const trimmed = unit.trim();
+
+  // 1. 完全一致
+  const exact = GRADE_2_MATH_CURRICULUM.find((e) => e.unit === trimmed);
+  if (exact) return exact.visualTemplate;
+
+  // 2. 部分一致・単元キーワードによるエイリアス解決
+  if (trimmed.includes("かさ") || trimmed.includes("水") || trimmed.includes("mL") || trimmed.includes("dL") || trimmed.includes("L")) {
+    return "volume";
+  }
+  if (trimmed.includes("たし") || trimmed.includes("足し") || trimmed.includes("くり上がり") || trimmed.includes("加算")) {
+    return "addition";
+  }
+  if (trimmed.includes("ひき") || trimmed.includes("引き") || trimmed.includes("くり下がり") || trimmed.includes("減算")) {
+    return "subtraction";
+  }
+  if (trimmed.includes("かけ") || trimmed.includes("掛け") || trimmed.includes("九九") || trimmed.includes("乗算")) {
+    return "multiplication";
+  }
+  if (trimmed.includes("長") || trimmed.includes("ながさ") || trimmed.includes("cm") || trimmed.includes("mm") || trimmed.includes("メートル")) {
+    return "length";
+  }
+  if (trimmed.includes("時") || trimmed.includes("とけい") || trimmed.includes("時計") || trimmed.includes("午前") || trimmed.includes("午後")) {
+    return "time";
+  }
+  if (trimmed.includes("はこの形") || trimmed.includes("はこのかたち") || trimmed.includes("箱") || trimmed.includes("はこの組み立て") || trimmed.includes("頂点") || trimmed.includes("辺")) {
+    return "boxes";
+  }
+  if (trimmed.includes("形") || trimmed.includes("しかく") || trimmed.includes("さんかく") || trimmed.includes("直角") || trimmed.includes("長方形") || trimmed.includes("正方形")) {
+    return "shapes";
+  }
+  if (trimmed.includes("分") || trimmed.includes("ぶんすう") || trimmed.includes("分数")) {
+    return "fractions";
+  }
+  if (trimmed.includes("グラフ") || trimmed.includes("表") || trimmed.includes("ひょう")) {
+    return "tables-and-graphs";
+  }
+  if (trimmed.includes("数") || trimmed.includes("1000") || trimmed.includes("10000") || trimmed.includes("位")) {
+    return "place-value";
+  }
+  return null;
+}
+

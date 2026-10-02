@@ -4,7 +4,7 @@ import { costLimitsFromEnv } from "@/lib/ai/costGuard";
 import { generateVisualImage, ImageGenerationUnavailableError } from "@/lib/ai/image";
 import { buildVisualImagePrompt } from "@/lib/ai/prompts";
 import { reserveAiUsage } from "@/lib/ai/usage";
-import { getGrade2MathUnit, isGrade2MathUnit } from "@/lib/curriculum/grade2Math";
+import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
 import * as schema from "@/lib/db/schema";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
@@ -31,9 +31,7 @@ export async function POST(request: Request) {
   const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
   if (!problem) return apiError("Problem not found", 404);
 
-  const template = isGrade2MathUnit(problem.unit)
-    ? getGrade2MathUnit(problem.unit)?.visualTemplate
-    : undefined;
+  const template = resolveVisualTemplate(problem.unit);
   if (template) return apiSuccess({ kind: "template", url: `/visuals/${template}.svg` });
   return generateWithAi(auth, problem);
 }
@@ -64,7 +62,7 @@ async function generateWithAi(auth: Auth, problem: Problem) {
 
   try {
     const dataUrl = await generateVisualImage(buildVisualImagePrompt(problem.problemText, problem.unit));
-    return apiSuccess({ kind: "generated", dataUrl });
+    return apiSuccess({ kind: "generated", url: dataUrl, dataUrl });
   } catch (error) {
     if (error instanceof ImageGenerationUnavailableError) {
       return apiError("えを いま じゅんびできないよ。あとで ためしてね。", 503);
@@ -72,3 +70,4 @@ async function generateWithAi(auth: Auth, problem: Problem) {
     return apiError("えの じゅんびに しっぱいしたよ。もういちど ためしてね。", 502);
   }
 }
+

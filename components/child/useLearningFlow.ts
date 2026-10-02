@@ -10,6 +10,7 @@ import {
   type StoredSimilarProblem,
 } from "@/lib/sessions/progress";
 import { answersMatch } from "@/lib/utils/answers";
+import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
 import {
   DEMO_PROBLEM_ID,
   DEMO_QUESTION,
@@ -213,9 +214,6 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
     setRetryAction(null);
     setRevealedHints((current) => [...current, text]);
-    if (!persisted && !visualUrl) {
-      setVisualUrl(DEMO_VISUAL_URL);
-    }
     return true;
   }
 
@@ -293,6 +291,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   async function showVisualHint() {
     if (!persisted) {
       setVisualUrl(DEMO_VISUAL_URL);
+      setSaveMessage("");
       return;
     }
     if (visualPending) return;
@@ -304,12 +303,22 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       requestedByChild: true,
     }).catch(() => null);
     const body = await response?.json().catch(() => null);
-    if (!response?.ok || !body?.success) {
-      setSaveMessage(FLOW_TEXT.visualUnavailable);
+    const receivedUrl = body?.data?.url ?? body?.data?.dataUrl;
+
+    if (response?.ok && body?.success && typeof receivedUrl === "string") {
+      setVisualUrl(receivedUrl);
       setVisualPending(false);
       return;
     }
-    setVisualUrl(body.data.url);
+
+    // サーバーが失敗した場合(403設定OFFやネットワーク等)でも、小2単元の静的SVGテンプレートをフォールバック表示
+    const fallback = resolveVisualTemplate(persisted.unit);
+    if (fallback) {
+      setVisualUrl(`/visuals/${fallback}.svg`);
+      setSaveMessage("");
+    } else {
+      setSaveMessage(FLOW_TEXT.visualUnavailable);
+    }
     setVisualPending(false);
   }
 

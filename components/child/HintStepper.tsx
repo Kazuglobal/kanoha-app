@@ -82,9 +82,14 @@ export function HintStepper({
           </article>
         ) : null}
       </div>
-      {shown.length === 0 ? (
+      {shown.length === 0 && !visualUrl ? (
         <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
-          💡 「ヒントを みる」をおすと、わかりやすい え（図解）が でるよ！
+          💡 「ヒントを みる」を すすめると、「えで おしえて」ボタンが つかえるよ！
+        </p>
+      ) : null}
+      {shown.length === 1 && !visualUrl ? (
+        <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
+          💡 もうひとつ ヒントを みると、「えで おしえて」が つかえるよ！
         </p>
       ) : null}
       <div className={styles.hintActions}>
@@ -103,7 +108,7 @@ export function HintStepper({
             aria-label="えで おしえて"
           >
             <ImageIcon size={20} aria-hidden="true" />
-            {visualPending ? "えを じゅんびちゅう..." : "えで おしえて"}
+            {visualPending ? "えを じゅんびちゅう..." : visualUrl ? "✨ えを ひょうじ中" : "えで おしえて"}
           </button>
         ) : null}
         {onSimplify ? (
