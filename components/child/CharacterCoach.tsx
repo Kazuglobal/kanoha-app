@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
-import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
 import { AnimeCharacterGirl } from "./AnimeCharacterGirl";
 import {
   getCharacterProgress,
@@ -27,7 +26,6 @@ export function CharacterCoach({
   mood?: "happy" | "think" | "celebrate";
 }) {
   const [mounted, setMounted] = useState(false);
-  const [use3D, setUse3D] = useState(false);
   const [level, setLevel] = useState(1);
   const [tapMessage, setTapMessage] = useState<string | null>(null);
   const [tapMood, setTapMood] = useState<"happy" | "think" | "celebrate" | null>(null);
@@ -41,14 +39,6 @@ export function CharacterCoach({
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const canvas = document.createElement("canvas");
-      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-      setUse3D(Boolean(gl));
-    } catch {
-      setUse3D(false);
-    }
-
     setLevel(getCharacterProgress().currentLevel.level);
     setAccessories(getEquippedAccessories());
 
@@ -122,18 +112,8 @@ export function CharacterCoach({
           </div>
         )}
 
-        {/* 立体的な WebGL 3D アニメ女の子キャラクター「かのはちゃん」 */}
-        {mounted && use3D ? (
-          <div style={{ width: "100%", height: "100%", position: "relative" }}>
-            <ThreeCharacterCoach
-              mood={activeMood}
-              level={level}
-              accessories={accessories}
-            />
-          </div>
-        ) : (
-          <AnimeCharacterGirl mood={activeMood} level={level} accessories={accessories} />
-        )}
+        {/* 生き生きと動くアニメ女の子キャラクター「かのはちゃん」 */}
+        <AnimeCharacterGirl mood={activeMood} level={level} accessories={accessories} />
       </div>
     </aside>
   );
