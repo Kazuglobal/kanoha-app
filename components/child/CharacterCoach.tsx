@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
+import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
 import { AnimeCharacterGirl } from "./AnimeCharacterGirl";
 import {
+  getCharacterProgress,
   getEquippedAccessories,
+  DEFAULT_EQUIPPED,
   type EquippedAccessories,
 } from "@/lib/rewards/characterGrowthStore";
 
@@ -15,28 +18,48 @@ export function CharacterCoach({
   message: string;
   mood?: "happy" | "think" | "celebrate";
 }) {
+  const [mounted, setMounted] = useState(false);
+  const [use3D, setUse3D] = useState(false);
+  const [level, setLevel] = useState(1);
   const [accessories, setAccessories] = useState<EquippedAccessories>(() => {
     if (typeof window !== "undefined") {
       return getEquippedAccessories();
     }
-    return {
-      hat: "hat_none",
-      glasses: "glasses_round",
-      gloves: "gloves_none",
-      clothes: "clothes_school",
-    };
+    return DEFAULT_EQUIPPED;
   });
 
   useEffect(() => {
+    setMounted(true);
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      setUse3D(Boolean(gl));
+    } catch {
+      setUse3D(false);
+    }
+
+    setLevel(getCharacterProgress().currentLevel.level);
+    setAccessories(getEquippedAccessories());
+
     const handleAccessoryChange = (e: Event) => {
       const customEvent = e as CustomEvent<EquippedAccessories>;
       if (customEvent.detail) {
         setAccessories(customEvent.detail);
       }
     };
+
+    const handleGrowthChange = () => {
+      setLevel(getCharacterProgress().currentLevel.level);
+    };
+
     window.addEventListener("kanoha-accessory-update", handleAccessoryChange);
+    window.addEventListener("kanoha-reward-update", handleGrowthChange);
+    window.addEventListener("kanoha-level-up", handleGrowthChange);
+
     return () => {
       window.removeEventListener("kanoha-accessory-update", handleAccessoryChange);
+      window.removeEventListener("kanoha-reward-update", handleGrowthChange);
+      window.removeEventListener("kanoha-level-up", handleGrowthChange);
     };
   }, []);
 
@@ -62,8 +85,15 @@ export function CharacterCoach({
           </div>
         )}
 
-        {/* 添付画像（コナン風ちびキャラ）の女の子バージョン（かのはちゃん） */}
-        <AnimeCharacterGirl mood={mood} accessories={accessories} />
+        {/* WebGL 3D Three.js Character when supported */}
+        {mounted && use3D ? (
+          <div style={{ width: "100%", height: "100%", position: "relative" }}>
+            <ThreeCharacterCoach mood={mood} level={level} accessories={accessories} />
+          </div>
+        ) : (
+          /* High-quality SVG Mascot Fallback (For SSR / Test / Non-WebGL environments) */
+          <AnimeCharacterGirl mood={mood} level={level} accessories={accessories} />
+        )}
       </div>
     </aside>
   );
