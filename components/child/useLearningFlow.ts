@@ -251,9 +251,14 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }
 
   /** 元問題の正誤はサーバー(/api/attempts)が判定する。デモだけはクライアントで照合する。 */
-  async function checkOriginalAnswer() {
+  async function checkOriginalAnswer(overrideAnswer?: string) {
+    const candidateAnswer = (overrideAnswer ?? answer).trim();
+    if (!candidateAnswer) return;
+    if (overrideAnswer && overrideAnswer !== answer) {
+      setAnswer(overrideAnswer);
+    }
     if (!persisted || isDemo) {
-      const isCorrect = answersMatch(answer, defaultAnswer);
+      const isCorrect = answersMatch(candidateAnswer, defaultAnswer);
       setChecked({ correct: isCorrect });
       if (isCorrect) {
         soundManager.playCorrect();
@@ -269,13 +274,13 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       childId: persisted.childId,
       sessionId,
       problemId: persisted.problemId,
-      childAnswer: answer,
-      answerType: "text",
+      childAnswer: candidateAnswer,
+      answerType: overrideAnswer ? "handwriting" : "text",
     });
     if (!result) {
       originalSavedRef.current = false;
       setSaveMessage(FLOW_TEXT.answerSendFailed);
-      setRetryAction(() => () => void checkOriginalAnswer());
+      setRetryAction(() => () => void checkOriginalAnswer(candidateAnswer));
       return;
     }
     setSaveMessage("");

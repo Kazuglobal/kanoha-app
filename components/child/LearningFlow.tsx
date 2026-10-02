@@ -151,6 +151,7 @@ export function LearningFlow({
                   <HandwritingPad
                     childId={persisted.childId}
                     onAnswer={flow.setAnswer}
+                    onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
                     problemId={persisted.problemId}
                     subject={isJapanese ? "japanese" : "math"}
                   />

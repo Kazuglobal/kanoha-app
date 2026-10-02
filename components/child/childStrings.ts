@@ -22,9 +22,9 @@ export const DEMO_SIMILAR_PROBLEMS: readonly SimilarProblem[] = [
 ];
 
 export const DEMO_JAPANESE_PROBLEM_ID = "kanji-1";
-export const DEMO_JAPANESE_QUESTION = "つぎの 漢字の 読み方を かきましょう。「青空」";
+export const DEMO_JAPANESE_QUESTION = "つぎの ことばを かん字で かきましょう。「あおぞら」";
 export const DEMO_JAPANESE_UNIT = "漢字";
-export const DEMO_JAPANESE_ANSWER = "あおぞら";
+export const DEMO_JAPANESE_ANSWER = "青空";
 
 export const DEMO_JAPANESE_SIMILAR_PROBLEMS: readonly SimilarProblem[] = [
   { question: "「春風」の 読み方は？", choices: ["はるかぜ", "しゅんぷう", "あきかぜ", "はるあめ"], answer: "はるかぜ", explanation: "「春」と「風」で「はるかぜ」だよ。" },

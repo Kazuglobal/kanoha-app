@@ -7,6 +7,7 @@ import styles from "@/components/kanoha.module.css";
 interface HandwritingPadProps {
   childId: string;
   onAnswer: (answer: string) => void;
+  onSubmitAnswer?: (answer: string) => void;
   problemId: string;
   subject?: "math" | "japanese";
 }
@@ -25,6 +26,7 @@ interface Stroke {
 export function HandwritingPad({
   childId,
   onAnswer,
+  onSubmitAnswer,
   problemId,
   subject = "math",
 }: HandwritingPadProps) {
@@ -173,12 +175,15 @@ export function HandwritingPad({
       return;
     }
     onAnswer(body.data.answer);
-    setStatus(`「${body.data.answer}」と よみとったよ。`);
+    if (onSubmitAnswer) {
+      onSubmitAnswer(body.data.answer);
+    }
+    setStatus(`「${body.data.answer}」と よみとって こたえあわせをしたよ！`);
     setPending(false);
     // 認識成功時はモーダルをスムーズに閉じて問題画面へ戻す
     setTimeout(() => {
       setOpen(false);
-    }, 600);
+    }, 700);
   }
 
   if (!open) {

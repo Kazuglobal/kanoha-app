@@ -23,12 +23,14 @@ describe("HandwritingPad", () => {
       new Response(JSON.stringify({ success: true, data: { answer: "1000mL" } }), { status: 200 }),
     );
     const onAnswer = vi.fn();
+    const onSubmitAnswer = vi.fn();
     const user = userEvent.setup();
 
     render(
       <HandwritingPad
         childId="11111111-1111-4111-8111-111111111111"
         onAnswer={onAnswer}
+        onSubmitAnswer={onSubmitAnswer}
         problemId="22222222-2222-4222-8222-222222222222"
       />,
     );
@@ -43,7 +45,8 @@ describe("HandwritingPad", () => {
     await user.click(screen.getByRole("button", { name: "これで こたえる" }));
 
     await waitFor(() => expect(onAnswer).toHaveBeenCalledWith("1000mL"));
-    expect(await screen.findByText("「1000mL」と よみとったよ。")).toBeInTheDocument();
+    await waitFor(() => expect(onSubmitAnswer).toHaveBeenCalledWith("1000mL"));
+    expect(await screen.findByText(/「1000mL」と よみとっ/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/ai/recognize-handwriting", expect.objectContaining({
       method: "POST",
     }));
