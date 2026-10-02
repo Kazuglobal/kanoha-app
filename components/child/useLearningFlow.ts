@@ -333,17 +333,40 @@ export function useLearningFlow(persisted?: PersistedProblem) {
 
   /** 「もっとかんたんに」: サーバーは開いた段階までしか返さないので、開いた分だけ置き換える。 */
   async function simplifyHints() {
-    if (!persisted || !sessionId || simplifying) return;
+    if (!sessionId || simplifying) return;
     setSimplifying(true);
     setSaveMessage("");
+
+    const targetChildId = persisted?.childId ?? "demo";
+    const targetProblemId =
+      persisted?.problemId ?? (isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID);
+
     const response = await postJson("/api/ai/generate-hints", {
-      childId: persisted.childId,
-      problemId: persisted.problemId,
-      sessionId,
+      childId: targetChildId,
+      problemId: targetProblemId,
+      sessionId: sessionId ?? "demo-session",
       explanationLevel: "very_easy",
     }).catch(() => null);
+
     const body = await response?.json().catch(() => null);
     if (!response?.ok || !body?.success) {
+      if (isDemo) {
+        setRevealedHints((current) =>
+          current.map((hint, index) => {
+            if (index === 0) {
+              return isJapanese ? "かん字の かたちを よく みてみよう。" : "え や すうじ を みてみよう。";
+            }
+            if (index === 1) {
+              return isJapanese ? "１もじずつ おもいだして みよう。" : "すこしずつ かんがえてみよう。";
+            }
+            return hint;
+          }),
+        );
+        setSaveMessage(FLOW_TEXT.simplified);
+        setSimplifying(false);
+        return;
+      }
+
       setSaveMessage(FLOW_TEXT.simplifyFailed);
       setSimplifying(false);
       return;

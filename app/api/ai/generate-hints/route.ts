@@ -15,7 +15,15 @@ import {
 } from "@/lib/utils/resources";
 import { explanationLevel, uuid } from "@/lib/utils/schemas";
 
-const schema = z.object({ childId: uuid, problemId: uuid, sessionId: uuid, explanationLevel });
+import { demoProblemById } from "@/lib/ai/mock";
+import { getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
+
+const schema = z.object({
+  childId: z.string().min(1),
+  problemId: z.string().min(1),
+  sessionId: z.string().min(1).optional(),
+  explanationLevel,
+});
 
 const KEY_BY_LEVEL = { 1: "hint1", 2: "hint2", 3: "solution", 4: "answer" } as const;
 const HINTS_COST_USD = Number(process.env.AI_HINTS_COST_USD ?? 0.002);
@@ -26,16 +34,28 @@ export async function POST(request: Request) {
   const parsed = await parseJson(request, schema);
   if (!parsed.success) return apiError("Invalid hint request");
   const { childId, problemId, sessionId } = parsed.data;
+
+  const isReal =
+    childId !== "demo" &&
+    uuid.safeParse(childId).success &&
+    uuid.safeParse(problemId).success &&
+    sessionId &&
+    uuid.safeParse(sessionId).success;
+
+  if (!isReal) {
+    return handleDemoGenerateHints(problemId, parsed.data.explanationLevel);
+  }
+
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
   if (!checkRateLimit(`hints:${auth.user!.id}`)) return apiError("Too many requests", 429);
 
   const [problem, sessionOk] = await Promise.all([
     ownedProblem(childId, problemId, auth.db),
-    ownedSession(childId, sessionId, auth.db),
+    ownedSession(childId, sessionId!, auth.db),
   ]);
   if (!problem || !sessionOk) return apiError("Learning resource not found", 404);
-  const maxLevel = await hintMaxLevel(childId, problemId, sessionId, auth.db);
+  const maxLevel = await hintMaxLevel(childId, problemId, sessionId!, auth.db);
   if (maxLevel === null) return internalError();
 
   const subject = (problem.subject as "math" | "japanese") || "math";
@@ -58,6 +78,40 @@ export async function POST(request: Request) {
     praise: regenerated.hints.praise,
     explanationLevel: parsed.data.explanationLevel,
     maxLevel,
+  });
+}
+
+async function handleDemoGenerateHints(
+  problemId: string,
+  level: z.infer<typeof explanationLevel>,
+) {
+  const problem = demoProblemById(problemId) ?? getCurriculumProblemById(problemId);
+  if (!problem) return apiError("Problem not found", 404);
+
+  const problemText = "problem_text" in problem ? problem.problem_text : problem.problemText;
+  const subject = problem.subject === "japanese" ? "japanese" : "math";
+  const provider = getAiProvider();
+  const raw = await provider.generateHints(buildHintsPrompt(problemText, level, subject));
+  const validated = hintsSchema.safeParse(raw);
+
+  const hints: Hints = validated.success
+    ? scrubPiiFromHints(validated.data)
+    : {
+        hint1: subject === "japanese" ? "かん字の かたちを よく みてみよう。" : "え や すうじ を みてみよう。",
+        hint2: subject === "japanese" ? "１もじずつ おもいだして みよう。" : "すこしずつ かんがえてみよう。",
+        solution: "かんがえかたを つかうと、こたえが わかるよ。",
+        answer: "correct_answer" in problem ? problem.correct_answer : problem.correctAnswer,
+        praise: "がんばっているね！",
+      };
+
+  return apiSuccess({
+    hint1: hints.hint1,
+    hint2: hints.hint2,
+    solution: hints.solution,
+    answer: hints.answer,
+    praise: hints.praise,
+    explanationLevel: level,
+    maxLevel: 4,
   });
 }
 

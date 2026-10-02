@@ -208,6 +208,9 @@ const JAPANESE_MOCK_HINTS: Hints = {
 export const mockAiProvider: AiProvider = {
   analyzeProblems: async () => [...mockProblems],
   generateHints: async (prompt) => {
+    if (prompt.includes("very_easy")) {
+      return VERY_EASY_MOCK_HINTS;
+    }
     const bankMatch = CURRICULUM_PROBLEMS.find(
       (p) => p.problemText && prompt.includes(p.problemText.slice(0, 8)),
     );
@@ -217,7 +220,7 @@ export const mockAiProvider: AiProvider = {
     if (prompt.includes("こくご") || prompt.includes("漢字") || prompt.includes("青空")) {
       return JAPANESE_MOCK_HINTS;
     }
-    return prompt.includes("very_easy") ? VERY_EASY_MOCK_HINTS : STANDARD_MOCK_HINTS;
+    return STANDARD_MOCK_HINTS;
   },
   generateSimilarProblems: async (input) =>
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),

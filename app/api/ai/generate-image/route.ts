@@ -11,9 +11,12 @@ import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
 
+import { demoProblemById } from "@/lib/ai/mock";
+import { getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
+
 const schemaValidation = z.object({
-  childId: uuid,
-  problemId: uuid,
+  childId: z.string().min(1),
+  problemId: z.string().min(1),
   requestedByChild: z.literal(true),
 });
 
@@ -25,6 +28,24 @@ type Problem = NonNullable<Awaited<ReturnType<typeof ownedProblem>>>;
 export async function POST(request: Request) {
   const parsed = await parseJson(request, schemaValidation);
   if (!parsed.success) return apiError("Invalid image request");
+
+  const isReal =
+    parsed.data.childId !== "demo" &&
+    uuid.safeParse(parsed.data.childId).success &&
+    uuid.safeParse(parsed.data.problemId).success;
+
+  if (!isReal) {
+    const problem =
+      demoProblemById(parsed.data.problemId) ??
+      getCurriculumProblemById(parsed.data.problemId);
+    if (!problem) return apiError("Problem not found", 404);
+    const template = resolveVisualTemplate(problem.unit);
+    if (template) {
+      return apiSuccess({ kind: "template", url: `/visuals/${template}.svg` });
+    }
+    return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
+  }
+
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
   if (!checkRateLimit(`image:${auth.user!.id}`, 5)) return apiError("Too many requests", 429);
