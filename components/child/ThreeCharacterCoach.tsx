@@ -516,14 +516,14 @@ export function ThreeCharacterCoach({
 
     // 11. Animation Loop
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const startTime = performance.now();
     let blinkTimer = 0;
     let isBlinking = false;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
-      const elapsed = clock.getElapsedTime();
+      const elapsed = (performance.now() - startTime) * 0.001;
 
       // Idle Hover & Breathing
       const hoverY = Math.sin(elapsed * 2.2) * 0.08;
