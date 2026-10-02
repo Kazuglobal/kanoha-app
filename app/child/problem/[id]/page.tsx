@@ -5,6 +5,8 @@ import styles from "@/components/kanoha.module.css";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
+import { demoProblemById } from "@/lib/ai/mock";
+
 const UUID = /^[0-9a-f-]{36}$/i;
 
 /**
@@ -19,14 +21,23 @@ export default async function ProblemPage({
   searchParams: Promise<{ childId?: string }>;
 }) {
   const [{ id }, { childId }] = await Promise.all([params, searchParams]);
-  const loaded =
-    childId && UUID.test(id) && UUID.test(childId) ? await loadProblem(id, childId) : null;
+  const isReal = childId && UUID.test(id) && UUID.test(childId);
+  const loaded = isReal ? await loadProblem(id, childId) : null;
+
+  const demo = !isReal ? demoProblemById(id) : null;
+  const persisted = loaded?.persisted ?? (demo ? {
+    childId: childId ?? "demo",
+    problemId: id,
+    question: demo.problem_text,
+    unit: demo.unit,
+    subject: demo.subject,
+  } : undefined);
 
   return (
     <div className={styles.childShell}>
       <ChildHeader progress="1 / 1" />
       <main className={styles.narrow}>
-        <LearningFlow persisted={loaded?.persisted} preferences={loaded?.preferences} />
+        <LearningFlow persisted={persisted} preferences={loaded?.preferences} />
       </main>
     </div>
   );
@@ -40,6 +51,7 @@ async function loadProblem(id: string, childId: string) {
       childId: schema.problems.childId,
       problemText: schema.problems.problemText,
       unit: schema.problems.unit,
+      subject: schema.problems.subject,
     })
     .from(schema.problems)
     .where(and(eq(schema.problems.id, id), eq(schema.problems.childId, childId)))
@@ -74,6 +86,7 @@ async function loadProblem(id: string, childId: string) {
       problemId: problem.id,
       question: problem.problemText,
       unit: problem.unit,
+      subject: problem.subject,
     },
     preferences: {
       enableAudio: settings ? Boolean(settings.enableAudio) : true,

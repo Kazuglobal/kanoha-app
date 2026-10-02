@@ -21,6 +21,19 @@ export const DEMO_SIMILAR_PROBLEMS: readonly SimilarProblem[] = [
   { question: "5000mL は なんL？", choices: ["50L", "5L", "500L", "2L"], answer: "5L", explanation: "1000mLずつに分けよう。" },
 ];
 
+export const DEMO_JAPANESE_PROBLEM_ID = "kanji-1";
+export const DEMO_JAPANESE_QUESTION = "つぎの 漢字の 読み方を かきましょう。「青空」";
+export const DEMO_JAPANESE_UNIT = "漢字";
+export const DEMO_JAPANESE_ANSWER = "あおぞら";
+
+export const DEMO_JAPANESE_SIMILAR_PROBLEMS: readonly SimilarProblem[] = [
+  { question: "「春風」の 読み方は？", choices: ["はるかぜ", "しゅんぷう", "あきかぜ", "はるあめ"], answer: "はるかぜ", explanation: "「春」と「風」で「はるかぜ」だよ。" },
+  { question: "「青い」の 読み方は？", choices: ["あおい", "しろい", "くろい", "あかい"], answer: "あおい", explanation: "青い空の「あおい」だね。" },
+  { question: "「青葉」の 読み方は？", choices: ["あおば", "あおは", "せいわ", "わかば"], answer: "あおば", explanation: "「青」と「葉」で「あおば」だよ。" },
+  { question: "「大空」の 読み方は？", choices: ["おおぞら", "だいくう", "たいくう", "おおそら"], answer: "おおぞら", explanation: "大きな空のことで「おおぞら」と読むよ。" },
+  { question: "「青空」の 読み方は？", choices: ["あおぞら", "あおそら", "せいくう", "あおぞう"], answer: "あおぞら", explanation: "「青空」は「あおぞら」と読むよ。" },
+];
+
 /** 学習フロー(LearningFlow / PracticeFlow)の固定文言。 */
 export const FLOW_TEXT = Object.freeze({
   sessionStartFailed: "がくしゅうの きろくを はじめられなかったよ。",
@@ -108,6 +121,13 @@ export const CHILD_FIXED_STRINGS: readonly string[] = Object.freeze([
   DEMO_QUESTION,
   DEMO_UNIT,
   ...DEMO_SIMILAR_PROBLEMS.flatMap((problem) => [
+    problem.question,
+    ...(problem.choices ?? []),
+    problem.explanation ?? "",
+  ]),
+  DEMO_JAPANESE_QUESTION,
+  DEMO_JAPANESE_UNIT,
+  ...DEMO_JAPANESE_SIMILAR_PROBLEMS.flatMap((problem) => [
     problem.question,
     ...(problem.choices ?? []),
     problem.explanation ?? "",

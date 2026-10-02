@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { GRADE_2_MATH_UNITS } from "@/lib/curriculum/grade2Math";
+import { GRADE_2_ALL_UNITS } from "@/lib/curriculum/subjects";
 
 import { createGeminiClient } from "./gemini";
 import { mockAiProvider } from "./mock";
@@ -34,7 +34,7 @@ const createGeminiProvider = (env: Record<string, string | undefined>): AiProvid
     analyzeProblems: (images) =>
       client.generateStructured(
         "vision",
-        buildAnalyzeProblemsPrompt(GRADE_2_MATH_UNITS),
+        buildAnalyzeProblemsPrompt(GRADE_2_ALL_UNITS),
         z.array(z.unknown()),
         parsedProblemsResponseSchema,
         images,

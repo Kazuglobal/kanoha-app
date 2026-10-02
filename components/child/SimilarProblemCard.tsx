@@ -3,6 +3,7 @@
 import { useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { answersMatch } from "@/lib/utils/answers";
+import { soundManager } from "@/lib/audio/soundSystem";
 import { RubyAuto } from "./RubyText";
 
 export type SimilarProblem = {
@@ -49,11 +50,15 @@ export function SimilarProblemCard({
 
   async function submit(answer: string) {
     if (pending || selected !== null) return;
+    soundManager.playTap();
     setMessage("");
     setSelected(answer);
     setLastAttempt(answer);
     if (problem.answer !== undefined) {
-      setResult({ correct: answersMatch(answer, problem.answer), explanation: problem.explanation });
+      const isCorrect = answersMatch(answer, problem.answer);
+      if (isCorrect) soundManager.playCorrect();
+      else soundManager.playWrong();
+      setResult({ correct: isCorrect, explanation: problem.explanation });
       return;
     }
     setPending(true);
@@ -64,6 +69,8 @@ export function SimilarProblemCard({
       setMessage(RETRY_MESSAGE);
       return;
     }
+    if (judged.correct) soundManager.playCorrect();
+    else soundManager.playWrong();
     setResult(judged);
   }
 

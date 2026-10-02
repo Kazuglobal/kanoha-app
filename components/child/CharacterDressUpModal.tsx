@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, Lock, Shirt } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
+import { soundManager } from "@/lib/audio/soundSystem";
 import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
 import {
   ACCESSORY_CATALOG,
@@ -11,6 +12,7 @@ import {
   getEquippedAccessories,
   equipAccessory,
   isAccessoryUnlocked,
+  type AccessoryCategory,
   type AccessoryItem,
   type EquippedAccessories,
   type CharacterProgress,
@@ -22,7 +24,7 @@ interface CharacterDressUpModalProps {
 }
 
 export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModalProps) {
-  const [activeTab, setActiveTab] = useState<"hat" | "glasses" | "gloves">("hat");
+  const [activeTab, setActiveTab] = useState<AccessoryCategory>("clothes");
   const [equipped, setEquipped] = useState<EquippedAccessories>(DEFAULT_EQUIPPED_FALLBACK);
   const [progress, setProgress] = useState<CharacterProgress | null>(null);
 
@@ -42,6 +44,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
 
   const handleSelect = (item: AccessoryItem) => {
     if (!isAccessoryUnlocked(item, totalCorrect)) return;
+    soundManager.playTap();
     const updated = equipAccessory(item.category, item.id);
     setEquipped(updated);
   };
@@ -116,22 +119,41 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
               <div className={styles.dressUpTabs}>
                 <button
                   type="button"
+                  className={`${styles.dressUpTab} ${activeTab === "clothes" ? styles.dressUpTabActive : ""}`}
+                  onClick={() => {
+                    soundManager.playTap();
+                    setActiveTab("clothes");
+                  }}
+                >
+                  👕 ふく
+                </button>
+                <button
+                  type="button"
                   className={`${styles.dressUpTab} ${activeTab === "hat" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => setActiveTab("hat")}
+                  onClick={() => {
+                    soundManager.playTap();
+                    setActiveTab("hat");
+                  }}
                 >
                   🎩 ぼうし
                 </button>
                 <button
                   type="button"
                   className={`${styles.dressUpTab} ${activeTab === "glasses" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => setActiveTab("glasses")}
+                  onClick={() => {
+                    soundManager.playTap();
+                    setActiveTab("glasses");
+                  }}
                 >
                   👓 めがね
                 </button>
                 <button
                   type="button"
                   className={`${styles.dressUpTab} ${activeTab === "gloves" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => setActiveTab("gloves")}
+                  onClick={() => {
+                    soundManager.playTap();
+                    setActiveTab("gloves");
+                  }}
                 >
                   🧤 てぶくろ
                 </button>
@@ -188,7 +210,10 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
             <button
               className={styles.primaryButton}
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                soundManager.playCelebrate();
+                onClose();
+              }}
               style={{ minWidth: "180px" }}
             >
               <Sparkles size={18} />
@@ -205,4 +230,5 @@ const DEFAULT_EQUIPPED_FALLBACK: EquippedAccessories = {
   hat: "hat_safari",
   glasses: "glasses_none",
   gloves: "gloves_mitten",
+  clothes: "clothes_tshirt",
 };

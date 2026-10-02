@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { RewardMeter } from "@/components/child/RewardMeter";
+import { SoundToggleButton } from "@/components/child/SoundToggleButton";
 
 const PARENT_HOME = "/parent/dashboard";
 
@@ -46,6 +47,7 @@ export function ChildHeader({ progress }: { progress?: string }) {
       </Link>
       <div className={styles.topActions}>
         <RewardMeter />
+        <SoundToggleButton />
         {progress ? <strong>{progress}</strong> : null}
         <Link className={styles.ghostButton} href="/child/home" aria-label="ホーム">
           <Home size={20} />

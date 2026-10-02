@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
+import {
+  getEquippedAccessories,
+  type EquippedAccessories,
+} from "@/lib/rewards/characterGrowthStore";
 
 export function CharacterCoach({
   message,
@@ -13,6 +17,17 @@ export function CharacterCoach({
 }) {
   const [mounted, setMounted] = useState(false);
   const [use3D, setUse3D] = useState(false);
+  const [accessories, setAccessories] = useState<EquippedAccessories>(() => {
+    if (typeof window !== "undefined") {
+      return getEquippedAccessories();
+    }
+    return {
+      hat: "hat_safari",
+      glasses: "glasses_none",
+      gloves: "gloves_mitten",
+      clothes: "clothes_tshirt",
+    };
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -23,7 +38,20 @@ export function CharacterCoach({
     } catch {
       setUse3D(false);
     }
+
+    const handleAccessoryChange = (e: Event) => {
+      const customEvent = e as CustomEvent<EquippedAccessories>;
+      if (customEvent.detail) {
+        setAccessories(customEvent.detail);
+      }
+    };
+    window.addEventListener("kanoha-accessory-update", handleAccessoryChange);
+    return () => {
+      window.removeEventListener("kanoha-accessory-update", handleAccessoryChange);
+    };
   }, []);
+
+  const clothes = accessories.clothes || "clothes_tshirt";
 
   return (
     <aside className={styles.coach} aria-label={`かのはコーチ: ${message}`}>
@@ -50,10 +78,10 @@ export function CharacterCoach({
         {/* 3D WebGL Character (Three.js) when supported */}
         {mounted && use3D ? (
           <div style={{ width: "100%", height: "100%", position: "relative" }}>
-            <ThreeCharacterCoach mood={mood} />
+            <ThreeCharacterCoach mood={mood} accessories={accessories} />
           </div>
         ) : (
-          /* SVG Mascot Fallback (For SSR / Test / Non-WebGL environments) */
+          /* Human Child Coach SVG Fallback (For SSR / Test / Non-WebGL environments) */
           <svg
             className={styles.coachSvg}
             viewBox="0 0 160 160"
@@ -61,137 +89,205 @@ export function CharacterCoach({
             xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
-              <linearGradient id="coachBodyGradHappy" x1="20" y1="20" x2="140" y2="150" gradientUnits="userSpaceOnUse">
+              <linearGradient id="hairGrad" x1="40" y1="20" x2="120" y2="90" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#6d4c41" />
+                <stop offset="100%" stopColor="#4e342e" />
+              </linearGradient>
+
+              <linearGradient id="skinGrad" x1="60" y1="40" x2="100" y2="120" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#fff1e6" />
+                <stop offset="100%" stopColor="#ffd8c0" />
+              </linearGradient>
+
+              <linearGradient id="clothGradHappy" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#2dd4bf" />
-                <stop offset="60%" stopColor="#0d9f8c" />
-                <stop offset="100%" stopColor="#08796c" />
+                <stop offset="100%" stopColor="#0d9f8c" />
               </linearGradient>
-              <linearGradient id="coachBodyGradThink" x1="20" y1="20" x2="140" y2="150" gradientUnits="userSpaceOnUse">
+              <linearGradient id="clothGradThink" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#818cf8" />
-                <stop offset="60%" stopColor="#6366f1" />
-                <stop offset="100%" stopColor="#4f46e5" />
+                <stop offset="100%" stopColor="#6366f1" />
               </linearGradient>
-              <linearGradient id="coachBodyGradCelebrate" x1="20" y1="20" x2="140" y2="150" gradientUnits="userSpaceOnUse">
+              <linearGradient id="clothGradCelebrate" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#ff7b6b" />
-                <stop offset="60%" stopColor="#ff5b4f" />
-                <stop offset="100%" stopColor="#e1382b" />
+                <stop offset="100%" stopColor="#ff5b4f" />
               </linearGradient>
 
-              <linearGradient id="sproutGrad" x1="80" y1="10" x2="80" y2="55" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#a3e635" />
-                <stop offset="100%" stopColor="#4ade80" />
+              {/* 着せ替え服グラデーション */}
+              <linearGradient id="clothGradSchool" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#2563eb" />
+                <stop offset="100%" stopColor="#1e3a8a" />
               </linearGradient>
-
-              <radialGradient id="highlightGlow" cx="60" cy="50" r="50" fx="50" fy="40" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </radialGradient>
+              <linearGradient id="clothGradSafari" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#d4a373" />
+                <stop offset="100%" stopColor="#b08968" />
+              </linearGradient>
+              <linearGradient id="clothGradHoodie" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#fb923c" />
+                <stop offset="100%" stopColor="#ea580c" />
+              </linearGradient>
+              <linearGradient id="clothGradWizard" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#9333ea" />
+                <stop offset="100%" stopColor="#581c87" />
+              </linearGradient>
+              <linearGradient id="clothGradHero" x1="40" y1="100" x2="120" y2="160" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#fbbf24" />
+                <stop offset="100%" stopColor="#d97706" />
+              </linearGradient>
             </defs>
 
-            <ellipse cx="80" cy="148" rx="42" ry="7" fill="rgba(22, 36, 59, 0.12)" className={styles.groundShadow} />
+            {/* 地面の影 */}
+            <ellipse cx="80" cy="150" rx="42" ry="6" fill="rgba(22, 36, 59, 0.12)" className={styles.groundShadow} />
 
-            <g className={styles.sproutGroup}>
-              <path
-                d="M80 50 C80 34 85 24 94 20 C96 28 92 38 83 45"
-                fill="url(#sproutGrad)"
-                stroke="#16a34a"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M80 50 C76 36 68 28 58 27 C58 36 66 43 77 47"
-                fill="url(#sproutGrad)"
-                stroke="#16a34a"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <circle cx="80" cy="48" r="3.5" fill="#4ade80" />
-            </g>
+            {/* 勇者の赤いマント */}
+            {clothes === "clothes_hero" && (
+              <path d="M34 118 L80 100 L126 118 L130 156 L30 156 Z" fill="#d90429" />
+            )}
 
-            <rect
-              x="24"
-              y="42"
-              width="112"
-              height="102"
-              rx="51"
+            {/* 後ろ髪 */}
+            <circle cx="80" cy="68" r="48" fill="url(#hairGrad)" />
+
+            {/* 体・洋服 */}
+            <path
+              d="M44 122 C44 104 60 98 80 98 C100 98 116 104 116 122 L120 152 C120 155 116 156 112 156 L48 156 C44 156 40 155 40 152 Z"
               fill={
-                mood === "celebrate"
-                  ? "url(#coachBodyGradCelebrate)"
+                clothes === "clothes_school"
+                  ? "url(#clothGradSchool)"
+                  : clothes === "clothes_safari"
+                  ? "url(#clothGradSafari)"
+                  : clothes === "clothes_hoodie"
+                  ? "url(#clothGradHoodie)"
+                  : clothes === "clothes_wizard"
+                  ? "url(#clothGradWizard)"
+                  : clothes === "clothes_hero"
+                  ? "url(#clothGradHero)"
+                  : mood === "celebrate"
+                  ? "url(#clothGradCelebrate)"
                   : mood === "think"
-                  ? "url(#coachBodyGradThink)"
-                  : "url(#coachBodyGradHappy)"
+                  ? "url(#clothGradThink)"
+                  : "url(#clothGradHappy)"
               }
               stroke="#ffffff"
-              strokeWidth="5"
+              strokeWidth="3.5"
+            />
+
+            {/* 白い襟 / 襟元装飾 */}
+            {clothes === "clothes_school" ? (
+              <>
+                <path d="M72 98 L80 110 L88 98 Z" fill="#ffffff" />
+                {/* 赤いリボンタイ */}
+                <path d="M76 106 L84 106 L80 116 Z" fill="#ef4444" />
+                <circle cx="80" cy="126" r="2.5" fill="#facc15" />
+                <circle cx="80" cy="138" r="2.5" fill="#facc15" />
+              </>
+            ) : clothes === "clothes_safari" ? (
+              <>
+                <path d="M72 98 L80 106 L88 98 Z" fill="#15803d" />
+                <rect x="52" y="122" width="16" height="14" rx="2" fill="#996e47" />
+                <rect x="92" y="122" width="16" height="14" rx="2" fill="#996e47" />
+              </>
+            ) : clothes === "clothes_hoodie" ? (
+              <>
+                <path d="M68 98 C68 108 92 108 92 98 Z" fill="#c2410c" />
+                <rect x="62" y="132" width="36" height="16" rx="4" fill="#c2410c" opacity="0.6" />
+              </>
+            ) : clothes === "clothes_wizard" ? (
+              <>
+                <path d="M73 98 L80 108 L87 98 Z" fill="#facc15" />
+                <line x1="80" y1="108" x2="80" y2="154" stroke="#facc15" strokeWidth="2.5" />
+              </>
+            ) : clothes === "clothes_hero" ? (
+              <>
+                <path d="M70 98 L80 108 L90 98 Z" fill="#f59e0b" />
+                {/* 勇者のブルーダイヤクリスタル */}
+                <polygon points="80,114 86,122 80,130 74,122" fill="#3b82f6" stroke="#ffffff" strokeWidth="1" />
+              </>
+            ) : (
+              <path d="M72 98 L80 110 L88 98 Z" fill="#ffffff" />
+            )}
+
+            {/* 首 */}
+            <rect x="73" y="86" width="14" height="16" rx="6" fill="#ffd8c0" />
+
+            {/* 耳 */}
+            <circle cx="34" cy="74" r="9" fill="#ffd8c0" stroke="#f0bba0" strokeWidth="1.5" />
+            <circle cx="126" cy="74" r="9" fill="#ffd8c0" stroke="#f0bba0" strokeWidth="1.5" />
+
+            {/* 顔 */}
+            <circle
+              cx="80"
+              cy="72"
+              r="40"
+              fill="url(#skinGrad)"
+              stroke="#ffffff"
+              strokeWidth="4"
               className={styles.bodyShape}
             />
-            <ellipse cx="64" cy="68" rx="30" ry="18" fill="url(#highlightGlow)" />
 
-            <ellipse cx="48" cy="104" rx="9" ry="5.5" fill="#ff7694" opacity="0.65" />
-            <ellipse cx="112" cy="104" rx="9" ry="5.5" fill="#ff7694" opacity="0.65" />
+            {/* 前髪 */}
+            <path
+              d="M40 68 C42 42 60 30 80 30 C100 30 118 42 120 68 C116 54 106 46 96 52 C88 56 86 48 76 52 C66 56 52 50 40 68 Z"
+              fill="url(#hairGrad)"
+            />
 
+            {/* ほっぺ */}
+            <ellipse cx="54" cy="85" rx="8" ry="5" fill="#ff7694" opacity="0.6" />
+            <ellipse cx="106" cy="85" rx="8" ry="5" fill="#ff7694" opacity="0.6" />
+
+            {/* 表情 */}
             {mood === "happy" && (
               <g className={styles.faceFeatures}>
-                <circle cx="58" cy="88" r="7.5" fill="#16243b" className={styles.eyeBlink} />
-                <circle cx="56" cy="85.5" r="2.8" fill="#ffffff" />
-                <circle cx="102" cy="88" r="7.5" fill="#16243b" className={styles.eyeBlink} />
-                <circle cx="100" cy="85.5" r="2.8" fill="#ffffff" />
-                <path
-                  d="M72 98 Q80 108 88 98"
-                  stroke="#16243b"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  fill="none"
-                />
+                {/* 眉 */}
+                <path d="M52 64 Q60 60 68 64" stroke="#4e342e" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                <path d="M92 64 Q100 60 108 64" stroke="#4e342e" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                {/* 目 */}
+                <circle cx="60" cy="73" r="6" fill="#16243b" className={styles.eyeBlink} />
+                <circle cx="58" cy="71" r="2.2" fill="#ffffff" />
+                <circle cx="100" cy="73" r="6" fill="#16243b" className={styles.eyeBlink} />
+                <circle cx="98" cy="71" r="2.2" fill="#ffffff" />
+                {/* 口 */}
+                <path d="M72 82 Q80 91 88 82" stroke="#16243b" strokeWidth="3" strokeLinecap="round" fill="none" />
               </g>
             )}
 
             {mood === "think" && (
               <g className={styles.faceFeatures}>
-                <circle cx="60" cy="84" r="8" fill="#16243b" />
-                <circle cx="63" cy="81" r="3" fill="#ffffff" />
-                <circle cx="104" cy="84" r="8" fill="#16243b" />
-                <circle cx="107" cy="81" r="3" fill="#ffffff" />
-                <ellipse cx="80" cy="101" rx="5" ry="6" fill="#16243b" />
+                {/* 眉（考え中） */}
+                <path d="M52 63 Q60 66 68 62" stroke="#4e342e" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                <path d="M92 62 Q100 66 108 63" stroke="#4e342e" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                {/* 目 */}
+                <circle cx="61" cy="72" r="6" fill="#16243b" />
+                <circle cx="63" cy="70" r="2.2" fill="#ffffff" />
+                <circle cx="101" cy="72" r="6" fill="#16243b" />
+                <circle cx="103" cy="70" r="2.2" fill="#ffffff" />
+                {/* 口（おちょぼ口） */}
+                <ellipse cx="80" cy="84" rx="4" ry="4.5" fill="#16243b" />
               </g>
             )}
 
             {mood === "celebrate" && (
               <g className={styles.faceFeatures}>
-                <path
-                  d="M51 90 Q58 79 66 90"
-                  stroke="#ffffff"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-                <path
-                  d="M94 90 Q102 79 110 90"
-                  stroke="#ffffff"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-                <path
-                  d="M68 97 Q80 114 92 97 Z"
-                  fill="#ffffff"
-                />
-                <path
-                  d="M73 103 Q80 111 87 103"
-                  fill="#ff4d6d"
-                />
+                {/* 笑顔の目（ニコニコ線） */}
+                <path d="M53 74 Q61 64 69 74" stroke="#16243b" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                <path d="M91 74 Q99 64 107 74" stroke="#16243b" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                {/* 笑顔の口 */}
+                <path d="M70 82 Q80 97 90 82 Z" fill="#ff4d6d" stroke="#16243b" strokeWidth="2.5" />
               </g>
             )}
 
+            {/* 手 */}
             {mood === "celebrate" ? (
               <g className={styles.handsCelebrate}>
-                <ellipse cx="23" cy="62" rx="9" ry="11" fill="#ff7b6b" stroke="#ffffff" strokeWidth="3" transform="rotate(-30 23 62)" />
-                <ellipse cx="137" cy="62" rx="9" ry="11" fill="#ff7b6b" stroke="#ffffff" strokeWidth="3" transform="rotate(30 137 62)" />
+                <circle cx="30" cy="62" r="8" fill="#ffd8c0" stroke="#ffffff" strokeWidth="2.5" />
+                <circle cx="130" cy="62" r="8" fill="#ffd8c0" stroke="#ffffff" strokeWidth="2.5" />
+              </g>
+            ) : mood === "think" ? (
+              <g className={styles.handsResting}>
+                <circle cx="80" cy="94" r="7" fill="#ffd8c0" stroke="#ffffff" strokeWidth="2" />
               </g>
             ) : (
               <g className={styles.handsResting}>
-                <ellipse cx="32" cy="116" rx="9" ry="7" fill={mood === "think" ? "#818cf8" : "#2dd4bf"} stroke="#ffffff" strokeWidth="3" />
-                <ellipse cx="128" cy="116" rx="9" ry="7" fill={mood === "think" ? "#818cf8" : "#2dd4bf"} stroke="#ffffff" strokeWidth="3" />
+                <circle cx="36" cy="120" r="7.5" fill="#ffd8c0" stroke="#ffffff" strokeWidth="2.5" />
+                <circle cx="124" cy="110" r="7.5" fill="#ffd8c0" stroke="#ffffff" strokeWidth="2.5" />
               </g>
             )}
           </svg>

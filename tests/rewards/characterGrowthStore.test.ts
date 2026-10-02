@@ -52,12 +52,16 @@ describe("characterGrowthStore", () => {
     it("locks higher level items until required correct answers are met", () => {
       const beretHat = ACCESSORY_CATALOG.find((item) => item.id === "hat_beret")!; // Lv.2 (min 5 correct)
       const crownHat = ACCESSORY_CATALOG.find((item) => item.id === "hat_crown")!; // Lv.5 (min 50 correct)
+      const heroClothes = ACCESSORY_CATALOG.find((item) => item.id === "clothes_hero")!; // Lv.5 (min 50 correct)
 
       expect(isAccessoryUnlocked(beretHat, 4)).toBe(false);
       expect(isAccessoryUnlocked(beretHat, 5)).toBe(true);
 
       expect(isAccessoryUnlocked(crownHat, 49)).toBe(false);
       expect(isAccessoryUnlocked(crownHat, 50)).toBe(true);
+
+      expect(isAccessoryUnlocked(heroClothes, 49)).toBe(false);
+      expect(isAccessoryUnlocked(heroClothes, 50)).toBe(true);
     });
   });
 
@@ -67,14 +71,19 @@ describe("characterGrowthStore", () => {
       expect(equipped.hat).toBe("hat_safari");
       expect(equipped.glasses).toBe("glasses_none");
       expect(equipped.gloves).toBe("gloves_mitten");
+      expect(equipped.clothes).toBe("clothes_tshirt");
     });
 
-    it("updates and saves equipped accessory", () => {
+    it("updates and saves equipped accessory and clothes", () => {
       const dispatchSpy = vi.spyOn(window, "dispatchEvent");
       const updated = equipAccessory("hat", "hat_beret");
 
       expect(updated.hat).toBe("hat_beret");
       expect(getEquippedAccessories().hat).toBe("hat_beret");
+
+      const updatedClothes = equipAccessory("clothes", "clothes_school");
+      expect(updatedClothes.clothes).toBe("clothes_school");
+      expect(getEquippedAccessories().clothes).toBe("clothes_school");
 
       expect(dispatchSpy).toHaveBeenCalledWith(
         expect.objectContaining({ type: "kanoha-accessory-update" })

@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import styles from "@/components/kanoha.module.css";
+import { soundManager } from "@/lib/audio/soundSystem";
 import { CharacterCoach } from "./CharacterCoach";
 import { HandwritingPad } from "./HandwritingPad";
 import { HintStepper } from "./HintStepper";
@@ -33,6 +35,24 @@ export function LearningFlow({
   preferences?: LearningPreferences;
 }) {
   const flow = useLearningFlow(persisted);
+  const isJapanese =
+    persisted?.subject === "japanese" ||
+    flow.unit === "漢字" ||
+    flow.unit === "お話の読解" ||
+    flow.unit === "ことばのきまり";
+
+  // 教科に応じた BGM の自動開始 & 終了
+  useEffect(() => {
+    if (!preferences.enableAudio) return;
+    if (flow.finished) {
+      soundManager.startBgm("celebrate");
+    } else {
+      soundManager.startBgm(isJapanese ? "japanese" : "math");
+    }
+    return () => {
+      soundManager.stopBgm();
+    };
+  }, [flow.finished, isJapanese, preferences.enableAudio]);
 
   if (flow.dailyLimit) return <LimitScreen usedMinutes={flow.dailyLimit.usedMinutes} />;
   if (flow.finished) {
@@ -63,7 +83,22 @@ export function LearningFlow({
     <>
       <section className={styles.problemCard}>
         <div className={styles.quizTop}>
-          <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span
+              style={{
+                fontSize: "13px",
+                fontWeight: 800,
+                padding: "3px 10px",
+                borderRadius: "99px",
+                background: isJapanese ? "#fff0ee" : "#e6f7f4",
+                color: isJapanese ? "#cf3a2e" : "#076d5f",
+                border: `1px solid ${isJapanese ? "#ffc9c4" : "#bcebe3"}`,
+              }}
+            >
+              {isJapanese ? "📖 こくご" : "🧮 さんすう"}
+            </span>
+            <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
+          </div>
           {preferences.enableAudio ? <VoiceButton text={flow.question} /> : null}
         </div>
         <h1 className={styles.problemText}>
@@ -73,8 +108,8 @@ export function LearningFlow({
           <input
             aria-label="こたえ"
             className={styles.answerInput}
-            inputMode="numeric"
-            placeholder="すうじ"
+            inputMode={isJapanese ? "text" : "numeric"}
+            placeholder={isJapanese ? "こたえ" : "すうじ"}
             value={flow.answer}
             onChange={(event) => flow.setAnswer(event.target.value)}
           />

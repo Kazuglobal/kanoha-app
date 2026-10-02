@@ -262,10 +262,35 @@ describe("getTodayRecommendations", () => {
       .where(eq(schema.reviewSchedule.problemId, "p-len"))
       .run();
 
-    // attempts を削除
-    await db.delete(schema.attempts).where(eq(schema.attempts.childId, CHILD)).run();
-
     const result = await getTodayRecommendations(CHILD, new Date(), db);
     expect(result.problems[0].id).toBe("p-sub");
+  });
+
+  it("filters recommendations by subject when subject is provided", async () => {
+    await setupDefaultScenario();
+    const now = nowJstIso();
+    // 国語の問題を追加
+    await db.insert(schema.problems).values({
+      id: "p-kanji",
+      childId: CHILD,
+      materialId: "m-today",
+      problemText: "青空の読み方を書きましょう。",
+      subject: "japanese",
+      grade: 2,
+      unit: "漢字",
+      subUnit: "漢字の読み",
+      difficulty: "standard",
+      correctAnswer: "あおぞら",
+      explanationJson: "{}",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    const mathResult = await getTodayRecommendations(CHILD, new Date(), db, "math");
+    expect(mathResult.problems.every((p) => p.unit !== "漢字")).toBe(true);
+
+    const japaneseResult = await getTodayRecommendations(CHILD, new Date(), db, "japanese");
+    expect(japaneseResult.problems.some((p) => p.id === "p-kanji")).toBe(true);
   });
 });

@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import styles from "@/components/kanoha.module.css";
+import { soundManager } from "@/lib/audio/soundSystem";
 import { CharacterCoach } from "./CharacterCoach";
 import { RubyAuto } from "./RubyText";
 import { FLOW_TEXT } from "./childStrings";
@@ -42,6 +44,10 @@ export function FinishedScreen({
   resultHref: string;
   onRestart: () => void;
 }) {
+  useEffect(() => {
+    soundManager.playCelebrate();
+  }, []);
+
   const mastered = score >= 4;
   return (
     <section className={`${styles.card} ${styles.resultHero}`}>

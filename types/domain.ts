@@ -1,5 +1,9 @@
 import type { Grade2MathUnit } from "@/lib/curriculum/grade2Math";
-import type { MistakeType } from "@/lib/curriculum/mistakeTypes";
+import type { Grade2JapaneseUnit } from "@/lib/curriculum/grade2Japanese";
+import type { Grade2Unit, Subject } from "@/lib/curriculum/subjects";
+import type { AllMistakeType, MistakeType } from "@/lib/curriculum/mistakeTypes";
+
+export type { Grade2MathUnit, Grade2JapaneseUnit, Grade2Unit, Subject };
 
 export type Uuid = string;
 export type IsoDate = string;
@@ -23,9 +27,9 @@ export type HintLevel = 0 | 1 | 2 | 3 | 4;
 export type ReviewStage = 1 | 2 | 3;
 
 export interface CurriculumClassification {
-  subject: "math";
+  subject: Subject;
   grade: 2;
-  unit: Grade2MathUnit;
+  unit: Grade2Unit;
   subUnit: string;
   difficulty: Difficulty;
 }
@@ -35,6 +39,6 @@ export interface AttemptResult {
   answerType: AnswerType;
   isCorrect: boolean;
   hintLevelUsed: HintLevel;
-  mistakeType: MistakeType | null;
+  mistakeType: AllMistakeType | MistakeType | null;
   aiFeedback: string | null;
 }

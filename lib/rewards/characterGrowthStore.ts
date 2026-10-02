@@ -2,10 +2,12 @@
 
 import { getRewardState } from "./rewardStore";
 
+export type AccessoryCategory = "hat" | "glasses" | "gloves" | "clothes";
+
 export interface AccessoryItem {
   id: string;
   name: string;
-  category: "hat" | "glasses" | "gloves";
+  category: AccessoryCategory;
   icon: string;
   unlockLevel: number;
   description: string;
@@ -19,7 +21,7 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
     category: "hat",
     icon: "🌱",
     unlockLevel: 1,
-    description: "あたまの めが よくみえるよ",
+    description: "すずしげな ヘアスタイルだよ",
   },
   {
     id: "hat_safari",
@@ -59,7 +61,7 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
     category: "hat",
     icon: "👑",
     unlockLevel: 5,
-    description: "さんすうマスターの おうかん！",
+    description: "がくしゅうマスターの おうかん！",
   },
 
   // めがね (Glasses)
@@ -113,18 +115,70 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
     unlockLevel: 4,
     description: "かがやく ゆうしゃの グローブ",
   },
+
+  // ふく (Clothes)
+  {
+    id: "clothes_tshirt",
+    name: "いつものTシャツ",
+    category: "clothes",
+    icon: "👕",
+    unlockLevel: 1,
+    description: "げんきいっぱいの えりつきTシャツ",
+  },
+  {
+    id: "clothes_school",
+    name: "がくせいふく",
+    category: "clothes",
+    icon: "🎒",
+    unlockLevel: 1,
+    description: "きりっと かっこいい がくせいふく",
+  },
+  {
+    id: "clothes_safari",
+    name: "たんけんベスト",
+    category: "clothes",
+    icon: "🏕️",
+    unlockLevel: 2,
+    description: "ポケットいっぱいの たんけんベスト",
+  },
+  {
+    id: "clothes_hoodie",
+    name: "ポップパーカー",
+    category: "clothes",
+    icon: "🧥",
+    unlockLevel: 3,
+    description: "ふんわり あたたかい カラフルパーカー",
+  },
+  {
+    id: "clothes_wizard",
+    name: "まほうのローブ",
+    category: "clothes",
+    icon: "🔮",
+    unlockLevel: 4,
+    description: "ほしが ひかる まほうの ローブ",
+  },
+  {
+    id: "clothes_hero",
+    name: "ゆうしゃのよろい",
+    category: "clothes",
+    icon: "🛡️",
+    unlockLevel: 5,
+    description: "きんいろに かがやく ゆうしゃの よろい！",
+  },
 ] as const;
 
 export interface EquippedAccessories {
   hat: string;
   glasses: string;
   gloves: string;
+  clothes: string;
 }
 
 export const DEFAULT_EQUIPPED: EquippedAccessories = {
   hat: "hat_safari",
   glasses: "glasses_none",
   gloves: "gloves_mitten",
+  clothes: "clothes_tshirt",
 };
 
 export interface GrowthLevelInfo {
@@ -143,7 +197,7 @@ export const GROWTH_LEVELS: readonly GrowthLevelInfo[] = [
     minCorrect: 0,
     maxCorrect: 5,
     title: "ちいさな めぶき",
-    rewardDescription: "たんけんぼう と まるめがね が つかえるよ",
+    rewardDescription: "たんけんぼう と まるめがね、がくせいふく が つかえるよ",
   },
   {
     level: 2,
@@ -151,7 +205,7 @@ export const GROWTH_LEVELS: readonly GrowthLevelInfo[] = [
     minCorrect: 5,
     maxCorrect: 15,
     title: "げんきな ふたば",
-    rewardDescription: "あかいベレーぼう が かいほう！",
+    rewardDescription: "あかいベレーぼう と たんけんベスト が かいほう！",
   },
   {
     level: 3,
@@ -159,7 +213,7 @@ export const GROWTH_LEVELS: readonly GrowthLevelInfo[] = [
     minCorrect: 15,
     maxCorrect: 30,
     title: "しあわせの よつば",
-    rewardDescription: "ピンクのリボン と ほしのサングラス が かいほう！",
+    rewardDescription: "ピンクのリボン、ほしのサングラス、ポップパーカー が かいほう！",
   },
   {
     level: 4,
@@ -167,15 +221,15 @@ export const GROWTH_LEVELS: readonly GrowthLevelInfo[] = [
     minCorrect: 30,
     maxCorrect: 50,
     title: "かがやく つぼみ",
-    rewardDescription: "まほうのぼうし と きんのグローブ が かいほう！",
+    rewardDescription: "まほうのぼうし、きんのグローブ、まほうのローブ が かいほう！",
   },
   {
     level: 5,
     stageName: "まんかいマスター",
     minCorrect: 50,
     maxCorrect: Infinity,
-    title: "まんかいの さんすうマスター",
-    rewardDescription: "きんのクラウン が かいほう！",
+    title: "まんかいの がくしゅうマスター",
+    rewardDescription: "きんのクラウン と ゆうしゃのよろい が かいほう！",
   },
 ] as const;
 
@@ -237,6 +291,7 @@ export function getEquippedAccessories(): EquippedAccessories {
       hat: typeof parsed.hat === "string" ? parsed.hat : DEFAULT_EQUIPPED.hat,
       glasses: typeof parsed.glasses === "string" ? parsed.glasses : DEFAULT_EQUIPPED.glasses,
       gloves: typeof parsed.gloves === "string" ? parsed.gloves : DEFAULT_EQUIPPED.gloves,
+      clothes: typeof parsed.clothes === "string" ? parsed.clothes : DEFAULT_EQUIPPED.clothes,
     };
   } catch {
     return DEFAULT_EQUIPPED;
@@ -256,7 +311,7 @@ export function saveEquippedAccessories(accessories: EquippedAccessories): void 
 }
 
 export function equipAccessory(
-  category: "hat" | "glasses" | "gloves",
+  category: AccessoryCategory,
   itemId: string
 ): EquippedAccessories {
   const current = getEquippedAccessories();

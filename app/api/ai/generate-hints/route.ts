@@ -38,7 +38,13 @@ export async function POST(request: Request) {
   const maxLevel = await hintMaxLevel(childId, problemId, sessionId, auth.db);
   if (maxLevel === null) return internalError();
 
-  const regenerated = await regenerateHints(auth, problem.problemText, parsed.data.explanationLevel);
+  const subject = (problem.subject as "math" | "japanese") || "math";
+  const regenerated = await regenerateHints(
+    auth,
+    problem.problemText,
+    parsed.data.explanationLevel,
+    subject,
+  );
   if ("response" in regenerated) return regenerated.response;
 
   const revealed = Object.fromEntries(
@@ -59,10 +65,11 @@ async function regenerateHints(
   auth: Auth,
   problemText: string,
   level: z.infer<typeof explanationLevel>,
+  subject: "math" | "japanese" = "math",
 ): Promise<{ hints: Hints } | { response: Response }> {
   const provider = getAiProvider();
   if (provider.name === "mock") {
-    const raw = await provider.generateHints(buildHintsPrompt(problemText, level));
+    const raw = await provider.generateHints(buildHintsPrompt(problemText, level, subject));
     const validated = hintsSchema.safeParse(raw);
     return validated.success
       ? { hints: scrubPiiFromHints(validated.data) }
@@ -87,7 +94,7 @@ async function regenerateHints(
   }
 
   try {
-    const raw = await provider.generateHints(buildHintsPrompt(problemText, level));
+    const raw = await provider.generateHints(buildHintsPrompt(problemText, level, subject));
     const validated = hintsSchema.safeParse(raw);
     if (!validated.success) return { response: internalError() };
     return { hints: scrubPiiFromHints(validated.data) };

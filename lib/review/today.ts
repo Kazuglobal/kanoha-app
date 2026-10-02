@@ -1,5 +1,7 @@
 import { eq, and, desc, asc, gte, lt, inArray } from "drizzle-orm";
 import { mistakeTypeSchema } from "@/lib/ai/schemas";
+import { isAnyMistakeType } from "@/lib/curriculum/mistakeTypes";
+import type { Subject } from "@/lib/curriculum/subjects";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { recommendToday, type RecommendationCandidate } from "@/lib/review/recommend";
@@ -30,6 +32,7 @@ interface ProblemRow {
   unit: string;
   sub_unit: string;
   difficulty: RecommendationCandidate["difficulty"];
+  subject: string;
 }
 
 interface SimilarRow {
@@ -66,7 +69,10 @@ export const findRecentMistake = (
   unitOf: (attempt: AttemptRow) => string | undefined,
 ): { mistakeType: string; unit: string } | null => {
   const recent = attempts.find(
-    (attempt) => !attempt.is_correct && mistakeTypeSchema.safeParse(attempt.mistake_type).success,
+    (attempt) =>
+      !attempt.is_correct &&
+      (mistakeTypeSchema.safeParse(attempt.mistake_type).success ||
+        isAnyMistakeType(attempt.mistake_type ?? "")),
   );
   const unit = recent ? unitOf(recent) : undefined;
   return recent && unit ? { mistakeType: recent.mistake_type as string, unit } : null;
@@ -146,6 +152,7 @@ async function loadSources(childId: string, now: Date, db = getDb()) {
           unit: schema.problems.unit,
           sub_unit: schema.problems.subUnit,
           difficulty: schema.problems.difficulty,
+          subject: schema.problems.subject,
         })
         .from(schema.problems)
         .where(and(eq(schema.problems.childId, childId), eq(schema.problems.status, "active")))
@@ -213,13 +220,20 @@ async function loadSources(childId: string, now: Date, db = getDb()) {
     ]);
 
     return {
-      problems: problemsRows.map((p) => ({ ...p, difficulty: p.difficulty as RecommendationCandidate["difficulty"] })),
-      reviews: reviewsRows,
-      weakness: weaknessRows,
+      problems: problemsRows.map((p) => ({
+        ...p,
+        difficulty: p.difficulty as RecommendationCandidate["difficulty"],
+        subject: p.subject ?? "math",
+      })),
+      reviews: reviewsRows as ReviewRow[],
+      weakness: weaknessRows as WeaknessRow[],
       attempts: attemptsRows.map((a) => ({ ...a, is_correct: Boolean(a.is_correct) })),
       dailyLimitMinutes: settingsRow?.daily_limit_minutes ?? DEFAULT_LIMIT_MINUTES,
       sessions: sessionsResult.data,
-      similar: similarRows.map((s) => ({ ...s, difficulty: s.difficulty as RecommendationCandidate["difficulty"] })),
+      similar: similarRows.map((s) => ({
+        ...s,
+        difficulty: s.difficulty as RecommendationCandidate["difficulty"],
+      })) as SimilarRow[],
       error: false,
     };
   } catch {
@@ -236,12 +250,24 @@ async function loadSources(childId: string, now: Date, db = getDb()) {
   }
 }
 
-export async function getTodayRecommendations(childId: string, now = new Date(), db = getDb()) {
+export async function getTodayRecommendations(
+  childId: string,
+  now = new Date(),
+  db = getDb(),
+  subject?: Subject,
+) {
   const today = todayKeyJst(now);
   const data = await loadSources(childId, now, db);
   if (data.error) return { error: true as const, problems: [], limitReached: false, remainingMinutes: 0 };
 
-  const { problems, similar, attempts, reviews: reviewList, weakness: weaknessList, dailyLimitMinutes, sessions } = data;
+  const filteredProblems = subject
+    ? data.problems.filter((p) => p.subject === subject)
+    : data.problems;
+  // もし指定教科の問題がなければ全体から推薦
+  const finalProblems = filteredProblems.length > 0 ? filteredProblems : data.problems;
+
+  const { similar, attempts, reviews: reviewList, weakness: weaknessList, dailyLimitMinutes, sessions } = data;
+  const problems = finalProblems;
   const reviews = new Map(reviewList.map((item) => [item.problem_id, item]));
   const weakness = new Map(weaknessList.map((item) => [`${item.unit}:${item.sub_unit}`, item]));
   const byId = new Map(problems.map((problem) => [problem.id, problem]));
