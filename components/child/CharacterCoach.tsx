@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
-import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
 import { AnimeCharacterGirl } from "./AnimeCharacterGirl";
 import {
   getCharacterProgress,
@@ -11,6 +10,14 @@ import {
   type EquippedAccessories,
 } from "@/lib/rewards/characterGrowthStore";
 
+const TAP_REACTIONS = [
+  "えへへ、いっしょに がんばろうね！",
+  "きょうも たのしく べんきょう しよう！",
+  "いつでも おうえん してるよっ♪",
+  "すごいね！そのちょうし だよ！",
+  "だいじょうぶ、ゆっくり かんがえてみてね！",
+];
+
 export function CharacterCoach({
   message,
   mood = "happy",
@@ -18,9 +25,10 @@ export function CharacterCoach({
   message: string;
   mood?: "happy" | "think" | "celebrate";
 }) {
-  const [mounted, setMounted] = useState(false);
-  const [use3D, setUse3D] = useState(false);
   const [level, setLevel] = useState(1);
+  const [tapMessage, setTapMessage] = useState<string | null>(null);
+  const [tapMood, setTapMood] = useState<"happy" | "think" | "celebrate" | null>(null);
+  const [isJumping, setIsJumping] = useState(false);
   const [accessories, setAccessories] = useState<EquippedAccessories>(() => {
     if (typeof window !== "undefined") {
       return getEquippedAccessories();
@@ -29,15 +37,6 @@ export function CharacterCoach({
   });
 
   useEffect(() => {
-    setMounted(true);
-    try {
-      const canvas = document.createElement("canvas");
-      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-      setUse3D(Boolean(gl));
-    } catch {
-      setUse3D(false);
-    }
-
     setLevel(getCharacterProgress().currentLevel.level);
     setAccessories(getEquippedAccessories());
 
@@ -63,37 +62,56 @@ export function CharacterCoach({
     };
   }, []);
 
+  const handleCharacterClick = () => {
+    const randomMsg = TAP_REACTIONS[Math.floor(Math.random() * TAP_REACTIONS.length)];
+    setTapMessage(randomMsg);
+    setTapMood("celebrate");
+    setIsJumping(true);
+
+    setTimeout(() => {
+      setIsJumping(false);
+    }, 800);
+
+    setTimeout(() => {
+      setTapMessage(null);
+      setTapMood(null);
+    }, 3500);
+  };
+
+  const activeMood = tapMood || mood;
+  const displayMessage = tapMessage || message;
+
   return (
-    <aside className={styles.coach} aria-label={`かのはコーチ: ${message}`}>
+    <aside className={styles.coach} aria-label={`かのはコーチ: ${displayMessage}`}>
       <div className={styles.speechBubble}>
-        <p className={styles.speechText}>{message}</p>
+        <p className={styles.speechText}>{displayMessage}</p>
         <span className={styles.speechArrow} aria-hidden="true" />
       </div>
 
-      <div className={styles.coachAvatarWrapper} data-mood={mood} aria-hidden="true">
+      <div
+        className={`${styles.coachAvatarWrapper} ${isJumping ? styles.celebrateJump : ""}`}
+        data-mood={activeMood}
+        aria-hidden="true"
+        onClick={handleCharacterClick}
+        title="タップしておはなししてみてね！"
+        style={{ cursor: "pointer" }}
+      >
         {/* Decorative sparkles for celebrate / think */}
-        {mood === "celebrate" && (
+        {activeMood === "celebrate" && (
           <div className={styles.celebrateStars}>
             <span className={styles.star1}>✦</span>
             <span className={styles.star2}>★</span>
             <span className={styles.star3}>✨</span>
           </div>
         )}
-        {mood === "think" && (
+        {activeMood === "think" && (
           <div className={styles.thinkBubble}>
             <span>？</span>
           </div>
         )}
 
-        {/* WebGL 3D Three.js Character when supported */}
-        {mounted && use3D ? (
-          <div style={{ width: "100%", height: "100%", position: "relative" }}>
-            <ThreeCharacterCoach mood={mood} level={level} accessories={accessories} />
-          </div>
-        ) : (
-          /* High-quality SVG Mascot Fallback (For SSR / Test / Non-WebGL environments) */
-          <AnimeCharacterGirl mood={mood} level={level} accessories={accessories} />
-        )}
+        {/* 最高峰セルアニメ調の女の子キャラクター「かのはちゃん」 */}
+        <AnimeCharacterGirl mood={activeMood} level={level} accessories={accessories} />
       </div>
     </aside>
   );

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Trophy, X, ArrowRight, Shirt } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
-import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
+import { AnimeCharacterGirl } from "./AnimeCharacterGirl";
 import type { GrowthLevelInfo } from "@/lib/rewards/characterGrowthStore";
 
 interface LevelUpModalProps {
@@ -72,9 +71,9 @@ export function LevelUpModal({
             ))}
           </div>
 
-          {/* 3D Preview with celebrate motion */}
+          {/* セルアニメ調女の子キャラクター（レベルアップ祝賀モーション） */}
           <div className={styles.levelUp3DStage} aria-hidden="true">
-            <ThreeCharacterCoach mood="celebrate" level={newLevel.level} />
+            <AnimeCharacterGirl mood="celebrate" level={newLevel.level} />
           </div>
 
           <div className={styles.rewardModalContent}>

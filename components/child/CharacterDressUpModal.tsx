@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, Lock, Shirt } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
-import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
+import { AnimeCharacterGirl } from "./AnimeCharacterGirl";
 import {
   ACCESSORY_CATALOG,
   getCharacterProgress,
@@ -83,7 +83,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
             {/* Left: 3D Realtime Preview Stage */}
             <div className={styles.dressUpPreviewStage}>
               <div className={styles.dressUp3DContainer}>
-                <ThreeCharacterCoach
+                <AnimeCharacterGirl
                   mood="happy"
                   level={currentLevel}
                   accessories={equipped}
