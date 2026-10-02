@@ -26,6 +26,10 @@
     "BETTER_AUTH_URL": "https://kanoha-app.globalbunny.workers.dev",
     "NEXT_PUBLIC_APP_URL": "https://kanoha-app.globalbunny.workers.dev",
     "AI_PROVIDER_TEXT": "mock",
+    "GEMINI_TEXT_MODEL": "gemini-2.5-flash",
+    "GEMINI_VISION_MODEL": "gemini-2.5-flash",
+    "GEMINI_STRUCTURED_MODEL": "gemini-2.5-flash",
+    "IMAGE_GENERATION_MODEL": "gemini-3.1-flash-lite-image",
     "MATERIAL_RETENTION_DAYS": "30",
     "DAILY_LEARNING_LIMIT_MINUTES": "15",
     "AI_DAILY_COST_LIMIT_USD": "2",
@@ -34,6 +38,6 @@
     "AI_RECOGNIZE_COST_USD": "0.005",
     "AI_SIMILAR_COST_USD": "0.005",
     "AI_HINTS_COST_USD": "0.002",
-    "AI_IMAGE_COST_USD": "0.04"
+    "AI_IMAGE_COST_USD": "0.01"
   }
 }
