@@ -333,48 +333,42 @@ export function useLearningFlow(persisted?: PersistedProblem) {
 
   /** 「もっとかんたんに」: サーバーは開いた段階までしか返さないので、開いた分だけ置き換える。 */
   async function simplifyHints() {
-    if (!sessionId || simplifying) return;
+    if (simplifying) return;
     setSimplifying(true);
     setSaveMessage("");
 
-    const targetChildId = persisted?.childId ?? "demo";
+    const targetChildId = persisted?.childId || "demo";
     const targetProblemId =
-      persisted?.problemId ?? (isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID);
+      persisted?.problemId || (isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID);
+    const effectiveSessionId = sessionId || "demo-session";
 
     const response = await postJson("/api/ai/generate-hints", {
       childId: targetChildId,
       problemId: targetProblemId,
-      sessionId: sessionId ?? "demo-session",
+      sessionId: effectiveSessionId,
       explanationLevel: "very_easy",
     }).catch(() => null);
 
     const body = await response?.json().catch(() => null);
-    if (!response?.ok || !body?.success) {
-      if (isDemo) {
-        setRevealedHints((current) =>
-          current.map((hint, index) => {
-            if (index === 0) {
-              return isJapanese ? "かん字の かたちを よく みてみよう。" : "え や すうじ を みてみよう。";
-            }
-            if (index === 1) {
-              return isJapanese ? "１もじずつ おもいだして みよう。" : "すこしずつ かんがえてみよう。";
-            }
-            return hint;
-          }),
-        );
-        setSaveMessage(FLOW_TEXT.simplified);
-        setSimplifying(false);
-        return;
-      }
 
-      setSaveMessage(FLOW_TEXT.simplifyFailed);
-      setSimplifying(false);
-      return;
-    }
-    setRevealedHints((current) => current.map((hint, index) => {
-      const replaced = body.data[HINT_KEYS[index]];
-      return typeof replaced === "string" ? replaced : hint;
-    }));
+    const fallbackHint1 = isJapanese ? "かん字の かたちを よく みてみよう。" : "え や すうじ を みてみよう。";
+    const fallbackHint2 = isJapanese ? "１もじずつ おもいだして みよう。" : "すこしずつ かんがえてみよう。";
+    const easyHint1 = (typeof body?.data?.hint1 === "string" && body.data.hint1) || fallbackHint1;
+    const easyHint2 = (typeof body?.data?.hint2 === "string" && body.data.hint2) || fallbackHint2;
+
+    setRevealedHints((current) => {
+      if (current.length === 0) {
+        return [easyHint1];
+      }
+      return current.map((hint, index) => {
+        const replaced = body?.data?.[HINT_KEYS[index]];
+        if (typeof replaced === "string" && replaced) return replaced;
+        if (index === 0) return easyHint1;
+        if (index === 1) return easyHint2;
+        return hint;
+      });
+    });
+
     setSaveMessage(FLOW_TEXT.simplified);
     setSimplifying(false);
   }

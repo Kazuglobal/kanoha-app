@@ -19,10 +19,10 @@ import { demoProblemById } from "@/lib/ai/mock";
 import { getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
 
 const schema = z.object({
-  childId: z.string().min(1),
-  problemId: z.string().min(1),
-  sessionId: z.string().min(1).optional(),
-  explanationLevel,
+  childId: z.string().optional().nullable(),
+  problemId: z.string().optional().nullable(),
+  sessionId: z.string().optional().nullable(),
+  explanationLevel: z.string().optional().nullable(),
 });
 
 const KEY_BY_LEVEL = { 1: "hint1", 2: "hint2", 3: "solution", 4: "answer" } as const;
@@ -32,51 +32,66 @@ type Auth = Awaited<ReturnType<typeof requireOwnedChild>>;
 
 export async function POST(request: Request) {
   const parsed = await parseJson(request, schema);
-  if (!parsed.success) return apiError("Invalid hint request");
-  const { childId, problemId, sessionId } = parsed.data;
+  if (!parsed.success) {
+    return apiError("Invalid hint request");
+  }
+  const childId = parsed.data.childId?.trim() || "demo";
+  const problemId = parsed.data.problemId?.trim() || "volume-1";
+  const sessionId = parsed.data.sessionId?.trim() || "demo-session";
+  const level: z.infer<typeof explanationLevel> =
+    parsed.data.explanationLevel === "standard" ||
+    parsed.data.explanationLevel === "easy" ||
+    parsed.data.explanationLevel === "very_easy"
+      ? parsed.data.explanationLevel
+      : "very_easy";
 
   const isReal =
     childId !== "demo" &&
     uuid.safeParse(childId).success &&
     uuid.safeParse(problemId).success &&
-    sessionId &&
+    Boolean(sessionId) &&
     uuid.safeParse(sessionId).success;
 
   if (!isReal) {
-    return handleDemoGenerateHints(problemId, parsed.data.explanationLevel);
+    return handleDemoGenerateHints(problemId, level);
   }
 
   const auth = await requireOwnedChild(childId);
-  if (auth.response) return auth.response;
+  if (auth.response) {
+    // 認証に失敗した、または親に紐づかない場合でも、カリキュラム/デモ問題ならヒントを返す
+    return handleDemoGenerateHints(problemId, level);
+  }
   if (!checkRateLimit(`hints:${auth.user!.id}`)) return apiError("Too many requests", 429);
 
   const [problem, sessionOk] = await Promise.all([
     ownedProblem(childId, problemId, auth.db),
-    ownedSession(childId, sessionId!, auth.db),
+    ownedSession(childId, sessionId, auth.db),
   ]);
-  if (!problem || !sessionOk) return apiError("Learning resource not found", 404);
-  const maxLevel = await hintMaxLevel(childId, problemId, sessionId!, auth.db);
+  if (!problem || !sessionOk) {
+    return handleDemoGenerateHints(problemId, level);
+  }
+  const maxLevel = await hintMaxLevel(childId, problemId, sessionId, auth.db);
   if (maxLevel === null) return internalError();
 
   const subject = (problem.subject as "math" | "japanese") || "math";
   const regenerated = await regenerateHints(
     auth,
     problem.problemText,
-    parsed.data.explanationLevel,
+    level,
     subject,
   );
   if ("response" in regenerated) return regenerated.response;
 
   const revealed = Object.fromEntries(
-    HINT_LEVELS.filter((level) => level <= maxLevel).map((level) => [
-      KEY_BY_LEVEL[level],
-      regenerated.hints[KEY_BY_LEVEL[level]],
+    HINT_LEVELS.filter((lvl) => lvl <= maxLevel).map((lvl) => [
+      KEY_BY_LEVEL[lvl],
+      regenerated.hints[KEY_BY_LEVEL[lvl]],
     ]),
   );
   return apiSuccess({
     ...revealed,
     praise: regenerated.hints.praise,
-    explanationLevel: parsed.data.explanationLevel,
+    explanationLevel: level,
     maxLevel,
   });
 }

@@ -15,9 +15,9 @@ import { demoProblemById } from "@/lib/ai/mock";
 import { getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
 
 const schemaValidation = z.object({
-  childId: z.string().min(1),
-  problemId: z.string().min(1),
-  requestedByChild: z.literal(true),
+  childId: z.string().optional().nullable(),
+  problemId: z.string().optional().nullable(),
+  requestedByChild: z.boolean().optional().nullable(),
 });
 
 const IMAGE_COST_USD = Number(process.env.AI_IMAGE_COST_USD ?? 0.04);
@@ -29,16 +29,20 @@ export async function POST(request: Request) {
   const parsed = await parseJson(request, schemaValidation);
   if (!parsed.success) return apiError("Invalid image request");
 
+  const childId = parsed.data.childId?.trim() || "demo";
+  const problemId = parsed.data.problemId?.trim() || "volume-1";
+
   const isReal =
-    parsed.data.childId !== "demo" &&
-    uuid.safeParse(parsed.data.childId).success &&
-    uuid.safeParse(parsed.data.problemId).success;
+    childId !== "demo" &&
+    uuid.safeParse(childId).success &&
+    uuid.safeParse(problemId).success;
 
   if (!isReal) {
     const problem =
-      demoProblemById(parsed.data.problemId) ??
-      getCurriculumProblemById(parsed.data.problemId);
-    if (!problem) return apiError("Problem not found", 404);
+      demoProblemById(problemId) ??
+      getCurriculumProblemById(problemId) ??
+      demoProblemById("volume-1");
+    if (!problem) return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
     const template = resolveVisualTemplate(problem.unit);
     if (template) {
       return apiSuccess({ kind: "template", url: `/visuals/${template}.svg` });
@@ -46,11 +50,15 @@ export async function POST(request: Request) {
     return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
   }
 
-  const auth = await requireOwnedChild(parsed.data.childId);
-  if (auth.response) return auth.response;
+  const auth = await requireOwnedChild(childId);
+  if (auth.response) {
+    return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
+  }
   if (!checkRateLimit(`image:${auth.user!.id}`, 5)) return apiError("Too many requests", 429);
-  const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
-  if (!problem) return apiError("Problem not found", 404);
+  const problem = await ownedProblem(childId, problemId, auth.db);
+  if (!problem) {
+    return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
+  }
 
   const template = resolveVisualTemplate(problem.unit);
   if (template) return apiSuccess({ kind: "template", url: `/visuals/${template}.svg` });

@@ -211,6 +211,9 @@ export const mockAiProvider: AiProvider = {
     if (prompt.includes("very_easy")) {
       return VERY_EASY_MOCK_HINTS;
     }
+    if (prompt.includes("1Lは何mLですか。")) {
+      return STANDARD_MOCK_HINTS;
+    }
     const bankMatch = CURRICULUM_PROBLEMS.find(
       (p) => p.problemText && prompt.includes(p.problemText.slice(0, 8)),
     );

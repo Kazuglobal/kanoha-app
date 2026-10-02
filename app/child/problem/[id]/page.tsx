@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
 import { demoProblemById } from "@/lib/ai/mock";
-import { getCurriculumStageProgress } from "@/lib/curriculum/curriculumBank";
+import { getCurriculumProblemById, getCurriculumStageProgress } from "@/lib/curriculum/curriculumBank";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -25,10 +25,19 @@ export default async function ProblemPage({
   const isReal = childId && UUID.test(id) && UUID.test(childId);
   const loaded = isReal ? await loadProblem(id, childId) : null;
 
-  const demo = !isReal ? demoProblemById(id) : null;
+  const demo = !loaded
+    ? (demoProblemById(id) ??
+       (getCurriculumProblemById(id) ? {
+         problem_text: getCurriculumProblemById(id)!.problemText,
+         unit: getCurriculumProblemById(id)!.unit,
+         subject: getCurriculumProblemById(id)!.subject,
+         correct_answer: getCurriculumProblemById(id)!.correctAnswer,
+       } : demoProblemById("volume-1")!))
+    : null;
+
   const persisted = loaded?.persisted ?? (demo ? {
     childId: childId ?? "demo",
-    problemId: id,
+    problemId: id || "volume-1",
     question: demo.problem_text,
     unit: demo.unit,
     subject: demo.subject,

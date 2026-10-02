@@ -21,8 +21,14 @@ export function apiError(error: string, status = 400) {
 
 export async function parseJson<T>(request: Request, schema: z.ZodType<T>) {
   try {
-    return schema.safeParse(await request.json());
-  } catch {
+    const text = await request.text();
+    if (!text || text.trim() === "") {
+      return schema.safeParse(undefined);
+    }
+    const json = JSON.parse(text);
+    return schema.safeParse(json);
+  } catch (error) {
+    console.error("[parseJson] JSON parse error:", error);
     return schema.safeParse(undefined);
   }
 }
