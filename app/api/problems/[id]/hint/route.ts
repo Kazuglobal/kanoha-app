@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { demoProblemById } from "@/lib/ai/mock";
+import * as schema from "@/lib/db/schema";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild, type ApiResponse } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import {
@@ -12,18 +13,16 @@ import {
   type HintLevel,
 } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
+import { nowJstIso } from "@/lib/utils/date";
 
 const levelSchema = z.number().int().min(1).max(4);
-const schema = z.object({ childId: uuid, sessionId: uuid, level: levelSchema });
+const schemaValidation = z.object({ childId: uuid, sessionId: uuid, level: levelSchema });
 const demoSchema = z.object({ level: levelSchema });
 
 const DEMO_COOKIE = "kanoha_demo_hint";
 const NOT_YET = "まえの ヒントを さきに みてね";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-const isSupabaseConfigured = () =>
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 const hintPayload = (level: HintLevel, text: string, maxLevel: number) => ({
   level,
@@ -34,44 +33,59 @@ const hintPayload = (level: HintLevel, text: string, maxLevel: number) => ({
 
 /**
  * 段階開示(A2): ヒントは 1 段階ずつ、直前の段階まで開いていないと出さない(level <= max_level + 1)。
- * 開いた段階は problem_hint_views に記録し、/api/attempts が hint_level_used として読む。
- * 答え(level 4)はここ以外からクライアントへ渡さない。
  */
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  if (!isSupabaseConfigured()) return demoHint(request, id);
-  if (!uuid.safeParse(id).success) return apiError("Problem not found", 404);
-  const parsed = await parseJson(request, schema);
+  if (!uuid.safeParse(id).success) return demoHint(request, id);
+
+  const parsed = await parseJson(request, schemaValidation);
   if (!parsed.success) return apiError("Invalid hint request");
   const { childId, sessionId } = parsed.data;
   const level = parsed.data.level as HintLevel;
+
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
   if (!checkRateLimit(`hint:${auth.user!.id}`, 60)) return apiError("Too many requests", 429);
 
   const [problem, sessionOk] = await Promise.all([
-    ownedProblem(auth.supabase, childId, id),
-    ownedSession(auth.supabase, childId, sessionId),
+    ownedProblem(childId, id, auth.db),
+    ownedSession(childId, sessionId, auth.db),
   ]);
   if (!problem || !sessionOk) return apiError("Learning resource not found", 404);
 
-  const current = await hintMaxLevel(auth.supabase, childId, id, sessionId);
+  const current = await hintMaxLevel(childId, id, sessionId, auth.db);
   if (current === null) return internalError();
   if (level > current + 1) return apiError(NOT_YET, 400);
 
   const maxLevel = Math.max(current, level);
-  const { error } = await auth.supabase.from("problem_hint_views").upsert({
-    child_id: childId,
-    problem_id: id,
-    session_id: sessionId,
-    max_level: maxLevel,
-  }, { onConflict: "child_id,problem_id,session_id" });
-  if (error) return internalError();
+  const now = nowJstIso();
+
+  try {
+    await auth.db
+      .insert(schema.problemHintViews)
+      .values({
+        childId,
+        problemId: id,
+        sessionId,
+        maxLevel,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [schema.problemHintViews.childId, schema.problemHintViews.problemId, schema.problemHintViews.sessionId],
+        set: {
+          maxLevel,
+          updatedAt: now,
+        },
+      })
+      .run();
+  } catch {
+    return internalError();
+  }
 
   return apiSuccess(hintPayload(level, hintTextAtLevel(problem, level), maxLevel));
 }
 
-/** Supabase 未設定時のデモ: 開いた段階は cookie で数え、同じ規則で 1 段ずつ返す。 */
+/** デモ問題対応: 開いた段階は cookie で数え、同じ規則で 1 段ずつ返す。 */
 async function demoHint(request: Request, id: string) {
   const problem = demoProblemById(id);
   if (!problem) return apiError("Problem not found", 404);

@@ -6,6 +6,7 @@ import styles from "@/components/kanoha.module.css";
 import { RubyAuto } from "./RubyText";
 
 const labels = ["ヒント 1", "ヒント 2", "ときかた", "こたえ"] as const;
+const stepIcons = ["💡", "🔍", "✏️", "🎯"] as const;
 
 /** 「えで おしえて」はヒント2以降でだけ出す(doc §7 手順6)。 */
 const VISUAL_MIN_REVEALED = 2;
@@ -60,19 +61,37 @@ export function HintStepper({
       <div className={styles.hintSteps}>
         {shown.map((hint, index) => (
           <article className={styles.hintItem} key={labels[index]}>
-            <strong>{labels[index]}</strong>
+            <strong>
+              <span aria-hidden="true">{stepIcons[index] ?? "💡"}</span> {labels[index]}
+            </strong>
             <p><RubyAuto text={hint} readingMode={readingMode} /></p>
           </article>
         ))}
         {visualUrl ? (
-          <article className={styles.hintItem}>
-            <strong>えで かんがえよう</strong>
+          <article className={styles.visualHintCard}>
+            <div className={styles.visualHintHeader}>
+              <ImageIcon size={22} color="#0d9f8c" />
+              <span>えで かんがえよう！</span>
+            </div>
             {/* The API returns a same-origin static template or an ephemeral generated image. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img alt="もんだいの えヒント" className={styles.visualHintImage} src={visualUrl} />
+            <p className={styles.visualHintCaption}>
+              💡 えの かずや めもりを みて、じゅんばんに かんがえてみよう！
+            </p>
           </article>
         ) : null}
       </div>
+      {shown.length === 0 && !visualUrl ? (
+        <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
+          💡 「ヒントを みる」を すすめると、「えで おしえて」ボタンが つかえるよ！
+        </p>
+      ) : null}
+      {shown.length === 1 && !visualUrl ? (
+        <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
+          💡 もうひとつ ヒントを みると、「えで おしえて」が つかえるよ！
+        </p>
+      ) : null}
       <div className={styles.hintActions}>
         {shown.length < labels.length ? (
           <button className={styles.primaryButton} disabled={loading} type="button" onClick={() => void revealNext()}>
@@ -81,9 +100,15 @@ export function HintStepper({
           </button>
         ) : null}
         {onVisual && shown.length >= VISUAL_MIN_REVEALED ? (
-          <button className={styles.secondaryButton} disabled={visualPending} type="button" onClick={onVisual}>
+          <button
+            className={styles.visualActionButton}
+            disabled={visualPending}
+            type="button"
+            onClick={onVisual}
+            aria-label="えで おしえて"
+          >
             <ImageIcon size={20} aria-hidden="true" />
-            {visualPending ? "えを じゅんびちゅう..." : "えで おしえて"}
+            {visualPending ? "えを じゅんびちゅう..." : visualUrl ? "✨ えを ひょうじ中" : "えで おしえて"}
           </button>
         ) : null}
         {onSimplify ? (

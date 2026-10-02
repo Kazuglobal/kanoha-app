@@ -1,7 +1,10 @@
+import { eq } from "drizzle-orm";
+import * as schema from "@/lib/db/schema";
 import { slackWebhookInput } from "@/lib/slack/schemas";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
+import { nowJstIso } from "@/lib/utils/date";
 
 type RouteContext = { params: Promise<{ childId: string }> };
 
@@ -12,13 +15,36 @@ export async function POST(request: Request, context: RouteContext) {
   if (!parsed.success) return apiError("Invalid Slack webhook");
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
-  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "settings", 20))) return apiError("Too many requests", 429);
+  if (!(await checkRateLimitDb(auth.user!.id, "settings", 20))) {
+    return apiError("Too many requests", 429);
+  }
 
-  const { error } = await auth.supabase.rpc("set_slack_webhook", {
-    target_child_id: childId,
-    webhook_url: parsed.data.webhookUrl,
-  });
-  return error ? internalError() : apiSuccess({ configured: true, enabled: true });
+  const now = nowJstIso();
+  try {
+    await auth.db
+      .insert(schema.appSettings)
+      .values({
+        id: crypto.randomUUID(),
+        childId,
+        enableSlack: 1,
+        slackWebhookUrl: parsed.data.webhookUrl,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [schema.appSettings.childId],
+        set: {
+          enableSlack: 1,
+          slackWebhookUrl: parsed.data.webhookUrl,
+          updatedAt: now,
+        },
+      })
+      .run();
+
+    return apiSuccess({ configured: true, enabled: true });
+  } catch {
+    return internalError();
+  }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
@@ -26,10 +52,24 @@ export async function DELETE(_request: Request, context: RouteContext) {
   if (!uuid.safeParse(childId).success) return apiError("Invalid child profile");
   const auth = await requireOwnedChild(childId);
   if (auth.response) return auth.response;
-  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "settings", 20))) return apiError("Too many requests", 429);
+  if (!(await checkRateLimitDb(auth.user!.id, "settings", 20))) {
+    return apiError("Too many requests", 429);
+  }
 
-  const { error } = await auth.supabase.rpc("remove_slack_webhook", {
-    target_child_id: childId,
-  });
-  return error ? internalError() : apiSuccess({ configured: false, enabled: false });
+  const now = nowJstIso();
+  try {
+    await auth.db
+      .update(schema.appSettings)
+      .set({
+        enableSlack: 0,
+        slackWebhookUrl: null,
+        updatedAt: now,
+      })
+      .where(eq(schema.appSettings.childId, childId))
+      .run();
+
+    return apiSuccess({ configured: false, enabled: false });
+  } catch {
+    return internalError();
+  }
 }

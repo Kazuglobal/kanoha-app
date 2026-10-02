@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { callsFor, fakeSupabase, type QueryCall, type Row, type TableHandler } from "@/tests/review/fakeSupabase";
+import { getDb } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { nowJstIso, todayKeyJst } from "@/lib/utils/date";
 
 const CHILD = "11111111-1111-4111-8111-111111111111";
 
 const state = vi.hoisted(() => ({
-  supabase: null as unknown,
   rateLimitAllowed: true,
   sent: [] as string[],
   sendError: false,
@@ -14,7 +16,11 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/utils/api")>();
   return {
     ...original,
-    requireOwnedChild: vi.fn(async () => ({ supabase: state.supabase, user: { id: "user-1" }, response: null })),
+    requireOwnedChild: vi.fn(async () => ({
+      db: getDb(),
+      user: { id: "user-slack-1" },
+      response: null,
+    })),
   };
 });
 
@@ -30,69 +36,183 @@ vi.mock("@/lib/slack/sendReport", () => ({
   }),
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({
-    rpc: async () => ({
-      data: [{ enable_slack: true, webhook_url: "https://hooks.slack.com/services/a/b/c" }],
-      error: null,
-    }),
-  }),
-}));
-
-const post = (body: Row) =>
+const post = (body: unknown) =>
   new Request("http://localhost/api/reports/slack", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 
-const today = new Date().toISOString();
-
-const baseTables = (overrides: Record<string, TableHandler> = {}): Record<string, TableHandler> => ({
-  parent_reports: (call: QueryCall) => {
-    if (call.operation === "select") return [];
-    if (call.operation === "upsert") return [{ id: "report-1", slack_sent_at: null }];
-    return [{ id: "report-1" }];
-  },
-  learning_sessions: () => [{ started_at: today, duration_seconds: 600 }],
-  attempts: () => [
-    { created_at: today, hint_level_used: 1, is_correct: true, mistake_type: null, problem_id: "p1", similar_problem_id: null },
-    { created_at: today, hint_level_used: 0, is_correct: false, mistake_type: "carry_error", problem_id: "p1", similar_problem_id: null },
-  ],
-  weakness_map: () => [
-    { unit: "たし算", sub_unit: "くり上がり", accuracy_rate: 0.5, mistake_count: 1, mastery_level: "learning" },
-  ],
-  review_schedule: () => [],
-  problems: () => [{ id: "p1", problem_text: "3+9は？", unit: "たし算" }],
-  ...overrides,
-});
-
 const loadRoute = async () => (await import("@/app/api/reports/slack/route")).POST;
 
 describe("POST /api/reports/slack (real daily report)", () => {
-  beforeEach(() => {
+  const db = getDb();
+
+  beforeEach(async () => {
     state.rateLimitAllowed = true;
     state.sent = [];
     state.sendError = false;
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
+
+    const now = nowJstIso();
+    const today = todayKeyJst();
+
+    // 関連テーブル初期化
+    await db.delete(schema.parentReports).where(eq(schema.parentReports.childId, CHILD)).run();
+    await db.delete(schema.attempts).where(eq(schema.attempts.childId, CHILD)).run();
+    await db.delete(schema.learningSessions).where(eq(schema.learningSessions.childId, CHILD)).run();
+    await db.delete(schema.weaknessMap).where(eq(schema.weaknessMap.childId, CHILD)).run();
+    await db.delete(schema.problems).where(eq(schema.problems.childId, CHILD)).run();
+    await db.delete(schema.appSettings).where(eq(schema.appSettings.childId, CHILD)).run();
+    await db.delete(schema.uploadedMaterials).where(eq(schema.uploadedMaterials.childId, CHILD)).run();
+    await db.delete(schema.childProfiles).where(eq(schema.childProfiles.id, CHILD)).run();
+
+    await db
+      .insert(schema.users)
+      .values({
+        id: "user-slack-1",
+        name: "parent",
+        email: "user-slack-1@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing()
+      .run();
+
+    await db
+      .insert(schema.childProfiles)
+      .values({
+        id: CHILD,
+        userId: "user-slack-1",
+        nickname: "子",
+        grade: 2,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    await db
+      .insert(schema.uploadedMaterials)
+      .values({
+        id: "m-slack",
+        childId: CHILD,
+        fileUrls: "[]",
+        fileType: "image/png",
+        pageCount: 1,
+        sourceType: "camera",
+        expiresAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    await db
+      .insert(schema.problems)
+      .values({
+        id: "p1",
+        childId: CHILD,
+        materialId: "m-slack",
+        problemText: "3+9は？",
+        subject: "math",
+        grade: 2,
+        unit: "たし算",
+        subUnit: "くり上がり",
+        difficulty: "standard",
+        correctAnswer: "12",
+        explanationJson: "{}",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    await db
+      .insert(schema.appSettings)
+      .values({
+        id: "set-slack",
+        childId: CHILD,
+        enableSlack: 1,
+        slackWebhookUrl: "https://hooks.slack.com/services/a/b/c",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    await db
+      .insert(schema.learningSessions)
+      .values({
+        id: "sess-slack",
+        childId: CHILD,
+        startedAt: now,
+        durationSeconds: 600,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    await db
+      .insert(schema.attempts)
+      .values([
+        {
+          id: "att-slack-1",
+          sessionId: "sess-slack",
+          childId: CHILD,
+          problemId: "p1",
+          similarProblemId: null,
+          childAnswer: "12",
+          answerType: "keypad",
+          hintLevelUsed: 1,
+          isCorrect: 1,
+          createdAt: now,
+        },
+        {
+          id: "att-slack-2",
+          sessionId: "sess-slack",
+          childId: CHILD,
+          problemId: "p1",
+          similarProblemId: null,
+          childAnswer: "11",
+          answerType: "keypad",
+          mistakeType: "carry_error",
+          hintLevelUsed: 0,
+          isCorrect: 0,
+          createdAt: now,
+        },
+      ])
+      .run();
+
+    await db
+      .insert(schema.weaknessMap)
+      .values({
+        id: "w-slack",
+        childId: CHILD,
+        unit: "たし算",
+        subUnit: "くり上がり",
+        accuracyRate: 0.5,
+        mistakeCount: 1,
+        masteryLevel: "learning",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
   });
 
   it("builds the report from real aggregates, saves it, and sends the §17 message", async () => {
-    const fake = fakeSupabase({ tables: baseTables() });
-    state.supabase = fake.client;
-
     const response = await (await loadRoute())(post({ childId: CHILD }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({ sent: true, alreadySent: false });
-    const upsert = callsFor(fake.calls, "parent_reports", "upsert")[0];
-    const payload = upsert.payload as Row;
-    expect(payload.child_id).toBe(CHILD);
-    expect(payload.accuracy_rate).toBe(0.5);
-    expect(payload.weak_units).toEqual(["たし算・くり上がり"]);
-    expect(upsert.options).toEqual({ onConflict: "child_id,report_date" });
+
+    const saved = await db
+      .select()
+      .from(schema.parentReports)
+      .where(eq(schema.parentReports.childId, CHILD))
+      .get();
+
+    expect(saved).toBeDefined();
+    expect(saved?.accuracyRate).toBe(0.5);
+    expect(JSON.parse(saved?.weakUnits ?? "[]")).toEqual(["たし算・くり上がり"]);
+
     expect(state.sent).toHaveLength(1);
     expect(state.sent[0]).toContain("学習時間:10分");
     expect(state.sent[0]).toContain("正答率:1/2");
@@ -101,8 +221,6 @@ describe("POST /api/reports/slack (real daily report)", () => {
 
   it("returns 429 when the DB rate limit rejects the call", async () => {
     state.rateLimitAllowed = false;
-    const fake = fakeSupabase({ tables: baseTables() });
-    state.supabase = fake.client;
 
     const response = await (await loadRoute())(post({ childId: CHILD }));
 
@@ -111,12 +229,25 @@ describe("POST /api/reports/slack (real daily report)", () => {
   });
 
   it("does not send twice for the same day", async () => {
-    const fake = fakeSupabase({
-      tables: baseTables({
-        parent_reports: () => [{ id: "report-1", slack_sent_at: "2026-06-13T12:00:00Z" }],
-      }),
-    });
-    state.supabase = fake.client;
+    const today = todayKeyJst();
+    const now = nowJstIso();
+
+    await db
+      .insert(schema.parentReports)
+      .values({
+        id: "rep-done",
+        childId: CHILD,
+        reportDate: today,
+        summary: "test",
+        accuracyRate: 1,
+        weakUnits: "[]",
+        growthPoints: "[]",
+        nextRecommendations: "[]",
+        slackSentAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
     const response = await (await loadRoute())(post({ childId: CHILD }));
     const body = await response.json();
@@ -128,14 +259,16 @@ describe("POST /api/reports/slack (real daily report)", () => {
 
   it("releases the claim and returns 502 when Slack delivery fails", async () => {
     state.sendError = true;
-    const fake = fakeSupabase({ tables: baseTables() });
-    state.supabase = fake.client;
 
     const response = await (await loadRoute())(post({ childId: CHILD }));
 
     expect(response.status).toBe(502);
-    const updates = callsFor(fake.calls, "parent_reports", "update");
-    expect(updates).toHaveLength(2);
-    expect((updates[1].payload as Row).slack_sent_at).toBeNull();
+
+    const saved = await db
+      .select()
+      .from(schema.parentReports)
+      .where(eq(schema.parentReports.childId, CHILD))
+      .get();
+    expect(saved?.slackSentAt).toBeNull();
   });
 });

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/auth/session";
+import { getDb, type Database } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -25,34 +28,25 @@ export async function parseJson<T>(request: Request, schema: z.ZodType<T>) {
 }
 
 export async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  return { supabase, user: error ? null : user };
+  const session = await getServerSession();
+  const db = getDb();
+  return { db, user: session?.user ?? null };
 }
 
-export async function ownsChild(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  childId: string,
-) {
-  const { data, error } = await supabase
-    .from("child_profiles")
-    .select("id")
-    .eq("id", childId)
-    .eq("user_id", userId)
-    .maybeSingle();
+export async function ownsChild(userId: string, childId: string, db = getDb()) {
+  const row = await db
+    .select({ id: schema.childProfiles.id })
+    .from(schema.childProfiles)
+    .where(and(eq(schema.childProfiles.id, childId), eq(schema.childProfiles.userId, userId)))
+    .get();
 
-  return !error && Boolean(data);
+  return Boolean(row);
 }
 
 export async function requireOwnedChild(childId: string) {
   const auth = await requireUser();
   if (!auth.user) return { ...auth, response: apiError("Authentication required", 401) };
-  if (!(await ownsChild(auth.supabase, auth.user.id, childId))) {
+  if (!(await ownsChild(auth.user.id, childId, auth.db))) {
     return { ...auth, response: apiError("Child profile not found", 404) };
   }
   return { ...auth, response: null };

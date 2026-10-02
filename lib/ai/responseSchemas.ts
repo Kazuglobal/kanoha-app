@@ -1,5 +1,5 @@
-import { GRADE_2_MATH_UNITS } from "@/lib/curriculum/grade2Math";
-import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { GRADE_2_ALL_UNITS, SUBJECTS } from "@/lib/curriculum/subjects";
+import { ALL_MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 
 import { difficultySchema } from "./schemas";
 
@@ -24,9 +24,10 @@ const enumOf = (values: readonly string[]): JsonSchema => ({
   enum: [...values],
 });
 
-const unitEnum = enumOf(GRADE_2_MATH_UNITS);
-const mistakeTypeEnum = enumOf(MISTAKE_TYPE_IDS);
+const unitEnum = enumOf(GRADE_2_ALL_UNITS);
+const mistakeTypeEnum = enumOf(ALL_MISTAKE_TYPE_IDS);
 const difficultyEnum = enumOf(difficultySchema.options);
+const subjectEnum = enumOf(SUBJECTS);
 
 export const hintsResponseSchema = object(
   {
@@ -45,7 +46,7 @@ export const parsedProblemResponseSchema = object(
     detectedAnswer: text,
     correctAnswer: text,
     isCorrect: boolean,
-    subject: enumOf(["math"]),
+    subject: subjectEnum,
     grade: integer,
     unit: unitEnum,
     subUnit: text,

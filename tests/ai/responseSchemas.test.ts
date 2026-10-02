@@ -16,8 +16,8 @@ import {
   parsedProblemSchema,
   similarProblemSchema,
 } from "@/lib/ai/schemas";
-import { GRADE_2_MATH_UNITS } from "@/lib/curriculum/grade2Math";
-import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { GRADE_2_ALL_UNITS, SUBJECTS } from "@/lib/curriculum/subjects";
+import { ALL_MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 
 type SchemaLike = {
   properties?: Record<string, Record<string, unknown>>;
@@ -73,11 +73,12 @@ describe("Gemini responseSchema definitions", () => {
 
   it("generates unit / mistakeType / difficulty enums from the curriculum constants", () => {
     const properties = (parsedProblemResponseSchema as SchemaLike).properties!;
-    expect(properties.unit.enum).toEqual([...GRADE_2_MATH_UNITS]);
-    expect(properties.mistakeType.enum).toEqual([...MISTAKE_TYPE_IDS]);
+    expect(properties.unit.enum).toEqual([...GRADE_2_ALL_UNITS]);
+    expect(properties.mistakeType.enum).toEqual([...ALL_MISTAKE_TYPE_IDS]);
     expect(properties.difficulty.enum).toEqual([...difficultySchema.options]);
+    expect(properties.subject.enum).toEqual([...SUBJECTS]);
     const similarProperties = (similarProblemResponseSchema as SchemaLike).properties!;
-    expect(similarProperties.unit.enum).toEqual([...GRADE_2_MATH_UNITS]);
+    expect(similarProperties.unit.enum).toEqual([...GRADE_2_ALL_UNITS]);
     expect(similarProperties.difficulty.enum).toEqual([...difficultySchema.options]);
   });
 

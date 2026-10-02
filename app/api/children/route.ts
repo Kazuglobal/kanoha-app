@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { childProfileInput } from "@/lib/children/schemas";
+import * as schema from "@/lib/db/schema";
 import { apiError, apiSuccess, internalError, parseJson, requireUser } from "@/lib/utils/api";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
+import { nowJstIso } from "@/lib/utils/date";
 
-const profileColumns = "id, nickname, grade, reading_mode, created_at, updated_at";
 /** doc.md §14.2: 1ユーザーあたりの子どもプロフィール上限。 */
 const MAX_CHILD_PROFILES = 8;
 
@@ -10,13 +12,25 @@ export async function GET() {
   const auth = await requireUser();
   if (!auth.user) return apiError("Authentication required", 401);
 
-  const { data, error } = await auth.supabase
-    .from("child_profiles")
-    .select(profileColumns)
-    .eq("user_id", auth.user.id)
-    .order("created_at");
+  try {
+    const data = await auth.db
+      .select({
+        id: schema.childProfiles.id,
+        nickname: schema.childProfiles.nickname,
+        grade: schema.childProfiles.grade,
+        reading_mode: schema.childProfiles.readingMode,
+        created_at: schema.childProfiles.createdAt,
+        updated_at: schema.childProfiles.updatedAt,
+      })
+      .from(schema.childProfiles)
+      .where(eq(schema.childProfiles.userId, auth.user.id))
+      .orderBy(schema.childProfiles.createdAt)
+      .all();
 
-  return error ? internalError() : apiSuccess(data ?? []);
+    return apiSuccess(data ?? []);
+  } catch {
+    return internalError();
+  }
 }
 
 export async function POST(request: Request) {
@@ -25,37 +39,57 @@ export async function POST(request: Request) {
 
   const auth = await requireUser();
   if (!auth.user) return apiError("Authentication required", 401);
-  if (!(await checkRateLimitDb(auth.supabase, auth.user.id, "children", 10))) return apiError("Too many requests", 429);
-
-  const existing = await auth.supabase
-    .from("child_profiles")
-    .select("id")
-    .eq("user_id", auth.user.id);
-  if (existing.error) return internalError();
-  if ((existing.data ?? []).length >= MAX_CHILD_PROFILES) {
-    return apiError("Child profile limit reached", 400);
+  if (!(await checkRateLimitDb(auth.user.id, "children", 10))) {
+    return apiError("Too many requests", 429);
   }
 
-  const { data, error } = await auth.supabase
-    .from("child_profiles")
-    .insert({
-      user_id: auth.user.id,
-      nickname: parsed.data.nickname,
-      grade: parsed.data.grade,
-      reading_mode: parsed.data.readingMode,
-    })
-    .select(profileColumns)
-    .single();
-  if (error || !data) return internalError();
+  try {
+    const existing = await auth.db
+      .select({ id: schema.childProfiles.id })
+      .from(schema.childProfiles)
+      .where(eq(schema.childProfiles.userId, auth.user.id))
+      .all();
 
-  const { error: settingsError } = await auth.supabase.from("app_settings").insert({
-    child_id: data.id,
-  });
-  if (settingsError) {
-    await auth.supabase.from("child_profiles").delete().eq("id", data.id);
+    if ((existing ?? []).length >= MAX_CHILD_PROFILES) {
+      return apiError("Child profile limit reached", 400);
+    }
+
+    const now = nowJstIso();
+    const childId = crypto.randomUUID();
+
+    const created = await auth.db
+      .insert(schema.childProfiles)
+      .values({
+        id: childId,
+        userId: auth.user.id,
+        nickname: parsed.data.nickname,
+        grade: parsed.data.grade,
+        readingMode: parsed.data.readingMode,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({
+        id: schema.childProfiles.id,
+        nickname: schema.childProfiles.nickname,
+        grade: schema.childProfiles.grade,
+        reading_mode: schema.childProfiles.readingMode,
+        created_at: schema.childProfiles.createdAt,
+        updated_at: schema.childProfiles.updatedAt,
+      })
+      .get();
+
+    await auth.db
+      .insert(schema.appSettings)
+      .values({
+        id: crypto.randomUUID(),
+        childId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    return apiSuccess(created, 201);
+  } catch {
     return internalError();
   }
-
-  return apiSuccess(data, 201);
 }
-

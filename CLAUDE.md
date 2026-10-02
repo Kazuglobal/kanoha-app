@@ -81,3 +81,13 @@ npm run lint         # ESLint
 - Phase 1〜7 の骨格は実装済み(2026-09-01 の設計レビューで中核ループの結線不備を多数検出)
 - 現在は `docs/goals/kanoha-v01-complete/`(GoalBuddy ボード)に沿って修復・完成作業中。設計判断 A1〜A5 と欠陥リスト B1〜B15 は同ディレクトリの `goal.md` が正
 - 単元・間違え方分類の正は `lib/curriculum/*`、日付は `lib/utils/date.ts`(Asia/Tokyo)のみを使う。`AI_PROVIDER_TEXT` は本番で必須
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

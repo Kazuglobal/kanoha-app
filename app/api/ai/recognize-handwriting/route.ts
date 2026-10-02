@@ -6,8 +6,8 @@ import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
+import type { Subject } from "@/lib/curriculum/subjects";
 
-/** base64 で約1.5MBの画像に相当する上限。巨大ペイロードでのメモリ圧迫を防ぐ。 */
 const MAX_IMAGE_DATA_CHARS = 2_000_000;
 
 const schema = z.object({
@@ -31,7 +31,6 @@ const MAGIC_CHECKS: Record<string, (bytes: Buffer) => boolean> = {
     bytes.toString("latin1", 8, 12) === "WEBP",
 };
 
-/** 宣言された mimeType と base64 先頭のマジックバイトが一致するか検証する(なりすまし対策)。 */
 function matchesDeclaredType(data: string, mimeType: string): boolean {
   try {
     const prefix = Buffer.from(data.slice(0, 32), "base64");
@@ -51,31 +50,37 @@ export async function POST(request: Request) {
   if (auth.response) return auth.response;
   if (!checkRateLimit(`handwriting:${auth.user!.id}`, 10)) return apiError("Too many requests", 429);
 
-  const problem = await ownedProblem(auth.supabase, parsed.data.childId, parsed.data.problemId);
+  const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
   if (!problem) return apiError("Problem not found", 404);
 
   const provider = getAiProvider();
+  const subject: Subject = problem.subject === "japanese" ? "japanese" : "math";
   if (provider.name === "mock") {
-    const result = await provider.recognizeHandwriting([], problem.problem_text);
+    const result = await provider.recognizeHandwriting([], problem.problemText, subject);
     return apiSuccess(result);
   }
 
-  // 予約はプロバイダ呼び出しの「前」。RPC不通は 503(フェイルクローズ、B10)。
-  const reservation = await reserveAiUsage(auth.supabase, auth.user!.id, RECOGNIZE_COST_USD, costLimitsFromEnv());
+  const reservation = await reserveAiUsage(
+    auth.user!.id,
+    RECOGNIZE_COST_USD,
+    costLimitsFromEnv(),
+    auth.db,
+  );
   if (reservation.outcome === "unavailable") {
-    return apiError("AIをいまは つかえないよ。すうじで にゅうりょくしてね。", 503);
+    return apiError("AIをいまは利用できません。しばらくしてからお試しください。", 503);
   }
   if (reservation.outcome === "denied") {
-    return apiError("AIの利用上限に達しました。すうじで にゅうりょくしてね。", 429);
+    return apiError("AIの利用上限に達しました。しばらくしてからお試しください。", 429);
   }
 
   try {
     const result = await provider.recognizeHandwriting(
-      [{ data: parsed.data.image.data, mimeType: parsed.data.image.mimeType }],
-      problem.problem_text,
+      [{ mimeType: parsed.data.image.mimeType, data: parsed.data.image.data }],
+      problem.problemText,
+      subject,
     );
     return apiSuccess(result);
   } catch {
-    return apiError("てがきを よみとれなかったよ。すうじで にゅうりょくしてね。", 502);
+    return apiError("文字の読み取りに失敗しました。もう一度お試しください。", 502);
   }
 }

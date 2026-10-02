@@ -14,6 +14,7 @@ interface MockProblemSpec {
   problemText: string;
   recommendedVisualTemplate?: string;
   subUnit: string;
+  subject?: ParsedProblem["subject"];
   unit: ParsedProblem["unit"];
 }
 
@@ -24,7 +25,7 @@ const makeProblem = (spec: MockProblemSpec): ParsedProblem => ({
   hints: {
     answer: spec.correctAnswer,
     hint1: "わかるところから、ゆっくり考えよう。",
-    hint2: "数字とたんいに注目してみよう。",
+    hint2: "数字やことばに注目してみよう。",
     praise: "よく問題を見られたね。",
     solution: `考え方を使うと、答えは${spec.correctAnswer}です。`,
     ...spec.hints,
@@ -34,7 +35,7 @@ const makeProblem = (spec: MockProblemSpec): ParsedProblem => ({
   rubyTextRequired: true,
   similarProblemCount: 5,
   subUnit: spec.subUnit,
-  subject: "math",
+  subject: spec.subject ?? "math",
   unit: spec.unit,
 });
 
@@ -67,25 +68,82 @@ export const mockProblems: readonly ParsedProblem[] = [
   }),
 ];
 
-/** Supabase 未設定時のデモ問題(app/child/home の /child/problem/volume-1)。 */
+export const mockJapaneseProblems: readonly ParsedProblem[] = [
+  makeProblem({
+    subject: "japanese",
+    correctAnswer: "あおぞら",
+    hints: {
+      hint1: "「青」と「空」をそれぞれ読んでみよう。",
+      hint2: "「空」は「そら」だけど、ここではにごるよ。",
+      praise: "漢字をよく見られたね！",
+      solution: "「青（あお）」と「空（ぞら）」をあわせて「あおぞら」と読みます。",
+    },
+    problemText: "次の漢字の読み方をひらがなで書きましょう。「青空」",
+    subUnit: "漢字の読み",
+    unit: "漢字",
+  }),
+  makeProblem({
+    subject: "japanese",
+    correctAnswer: "うれしい気持ち",
+    hints: {
+      hint1: "たけしさんが笑った場面を探してみよう。",
+      hint2: "「ありがとう」と言われたときの気持ちを想像してみよう。",
+      praise: "文章をていねいに読めたね！",
+      solution: "友だちに喜んでもらえて、たけしさんは『うれしい気持ち』になりました。",
+    },
+    problemText: "たけしさんは、どんな気持ちでしたか。文の中からさがしましょう。",
+    subUnit: "登場人物の気持ち",
+    unit: "お話の読解",
+  }),
+];
+
+/** Supabase 未設定時のデモ問題(app/child/home の /child/problem/volume-1, kanji-1)。 */
 export const DEMO_PROBLEM_ID = "volume-1";
+export const DEMO_JAPANESE_PROBLEM_ID = "kanji-1";
 
 /** デモ問題を DB 行と同じ形で返す(/api/problems/[id]/hint の Supabase 未設定経路)。 */
 export const demoProblemById = (id: string) => {
-  if (id !== DEMO_PROBLEM_ID) return null;
-  const problem = mockProblems[0];
-  return {
-    correct_answer: problem.correctAnswer,
-    explanation_json: buildProblemExplanation(problem),
-    problem_text: problem.problemText,
-    unit: problem.unit,
-  };
+  if (id === DEMO_PROBLEM_ID) {
+    const problem = mockProblems[0];
+    return {
+      correct_answer: problem.correctAnswer,
+      explanation_json: buildProblemExplanation(problem),
+      problem_text: problem.problemText,
+      subject: "math",
+      unit: problem.unit,
+    };
+  }
+  if (id === DEMO_JAPANESE_PROBLEM_ID) {
+    const problem = mockJapaneseProblems[0];
+    return {
+      correct_answer: problem.correctAnswer,
+      explanation_json: buildProblemExplanation(problem),
+      problem_text: problem.problemText,
+      subject: "japanese",
+      unit: problem.unit,
+    };
+  }
+  return null;
 };
 
 const makeSimilarProblem = (
   input: SimilarProblemRequest,
   index: number,
 ): SimilarProblemDraft => {
+  const isJapanese = input.unit === "漢字" || input.unit === "お話の読解" || input.unit === "ことばのきまり";
+  if (isJapanese) {
+    const kanjiSamples = ["青空", "春風", "青い鳥", "青葉", "大空"];
+    const sample = kanjiSamples[index % kanjiSamples.length];
+    return {
+      answer: "よみかた",
+      difficulty: input.difficulty,
+      explanation: `漢字の読み方をていねいに確認しましょう。`,
+      problemText: `次の漢字の読み方を書きましょう。「${sample}」`,
+      subUnit: input.subUnit,
+      unit: input.unit,
+    };
+  }
+
   const count = index + 1;
   return {
     answer: `${count * 1000}mL`,
@@ -114,10 +172,22 @@ const VERY_EASY_MOCK_HINTS: Hints = {
   solution: "100が 10こで 1000だよ。",
 };
 
+const JAPANESE_MOCK_HINTS: Hints = {
+  answer: "あおぞら",
+  hint1: "漢字の１文字ずつに注目してみよう。",
+  hint2: "「青」と「空」の読み方を思い出そう。",
+  praise: "よく気づけたね！",
+  solution: "「青」は「あお」、「空」はにごって「ぞら」と読みます。",
+};
+
 export const mockAiProvider: AiProvider = {
   analyzeProblems: async () => [...mockProblems],
-  generateHints: async (prompt) =>
-    prompt.includes("very_easy") ? VERY_EASY_MOCK_HINTS : STANDARD_MOCK_HINTS,
+  generateHints: async (prompt) => {
+    if (prompt.includes("こくご") || prompt.includes("漢字") || prompt.includes("青空")) {
+      return JAPANESE_MOCK_HINTS;
+    }
+    return prompt.includes("very_easy") ? VERY_EASY_MOCK_HINTS : STANDARD_MOCK_HINTS;
+  },
   generateSimilarProblems: async (input) =>
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),
   name: "mock",

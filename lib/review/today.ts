@@ -1,5 +1,9 @@
-import type { createClient } from "@/lib/supabase/server";
+import { eq, and, desc, asc, gte, lt, inArray } from "drizzle-orm";
 import { mistakeTypeSchema } from "@/lib/ai/schemas";
+import { isAnyMistakeType } from "@/lib/curriculum/mistakeTypes";
+import type { Subject } from "@/lib/curriculum/subjects";
+import { getDb } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
 import { recommendToday, type RecommendationCandidate } from "@/lib/review/recommend";
 import {
   dailyLimitFromSessions,
@@ -11,12 +15,15 @@ import {
 } from "@/lib/sessions/dailyLimit";
 import { jstDayRange, todayKeyJst } from "@/lib/utils/date";
 
-type Supabase = Awaited<ReturnType<typeof createClient>>;
-
 const ESTIMATED_MINUTES = 3;
 const DEFAULT_LIMIT_MINUTES = 15;
 const LIMITS = {
-  attempts: 300, problems: 100, reviews: 200, sessionAttempts: 500, similar: 50, weakness: 100,
+  attempts: 300,
+  problems: 100,
+  reviews: 200,
+  sessionAttempts: 500,
+  similar: 50,
+  weakness: 100,
 } as const;
 
 interface ProblemRow {
@@ -25,6 +32,7 @@ interface ProblemRow {
   unit: string;
   sub_unit: string;
   difficulty: RecommendationCandidate["difficulty"];
+  subject: string;
 }
 
 interface SimilarRow {
@@ -61,7 +69,10 @@ export const findRecentMistake = (
   unitOf: (attempt: AttemptRow) => string | undefined,
 ): { mistakeType: string; unit: string } | null => {
   const recent = attempts.find(
-    (attempt) => !attempt.is_correct && mistakeTypeSchema.safeParse(attempt.mistake_type).success,
+    (attempt) =>
+      !attempt.is_correct &&
+      (mistakeTypeSchema.safeParse(attempt.mistake_type).success ||
+        isAnyMistakeType(attempt.mistake_type ?? "")),
   );
   const unit = recent ? unitOf(recent) : undefined;
   return recent && unit ? { mistakeType: recent.mistake_type as string, unit } : null;
@@ -74,69 +85,197 @@ interface SessionAttemptRow {
 
 /**
  * 当日(Asia/Tokyo)の learning_sessions に、未終了セッションの最終 attempt 時刻を付けて返す。
- * 放置された未終了セッションを猶予つきで打ち切るための入力(lib/sessions/dailyLimit.ts)。
- * /api/sessions と今日のおすすめの共通経路。
  */
 export async function loadSessionUsage(
-  supabase: Supabase,
   childId: string,
   now: Date,
+  db = getDb(),
 ): Promise<{ data: SessionUsage[]; error: boolean }> {
-  const range = jstDayRange(now);
-  const sessions = await supabase.from("learning_sessions")
-    .select("id, started_at, ended_at, duration_seconds")
-    .eq("child_id", childId).gte("started_at", range.start).lt("started_at", range.end);
-  if (sessions.error) return { data: [], error: true };
-  const rows = (sessions.data ?? []) as SessionRow[];
-  const openIds = openSessionIds(rows);
-  if (openIds.length === 0) return { data: withLastAttempts(rows, new Map()), error: false };
+  try {
+    const range = jstDayRange(now);
+    const sessions = await db
+      .select({
+        id: schema.learningSessions.id,
+        started_at: schema.learningSessions.startedAt,
+        ended_at: schema.learningSessions.endedAt,
+        duration_seconds: schema.learningSessions.durationSeconds,
+      })
+      .from(schema.learningSessions)
+      .where(
+        and(
+          eq(schema.learningSessions.childId, childId),
+          gte(schema.learningSessions.startedAt, range.start),
+          lt(schema.learningSessions.startedAt, range.end),
+        ),
+      )
+      .all();
 
-  const attempts = await supabase.from("attempts").select("session_id, created_at")
-    .eq("child_id", childId).in("session_id", openIds)
-    .order("created_at", { ascending: false }).limit(LIMITS.sessionAttempts);
-  if (attempts.error) return { data: [], error: true };
-  const lastAttempts = lastAttemptBySession((attempts.data ?? []) as SessionAttemptRow[]);
-  return { data: withLastAttempts(rows, lastAttempts), error: false };
+    const rows = (sessions ?? []) as SessionRow[];
+    const openIds = openSessionIds(rows);
+    if (openIds.length === 0) return { data: withLastAttempts(rows, new Map()), error: false };
+
+    const attempts = await db
+      .select({
+        session_id: schema.attempts.sessionId,
+        created_at: schema.attempts.createdAt,
+      })
+      .from(schema.attempts)
+      .where(
+        and(eq(schema.attempts.childId, childId), inArray(schema.attempts.sessionId, openIds)),
+      )
+      .orderBy(desc(schema.attempts.createdAt))
+      .limit(LIMITS.sessionAttempts)
+      .all();
+
+    const lastAttempts = lastAttemptBySession((attempts ?? []) as SessionAttemptRow[]);
+    return { data: withLastAttempts(rows, lastAttempts), error: false };
+  } catch {
+    return { data: [], error: true };
+  }
 }
 
-async function loadSources(supabase: Supabase, childId: string, now: Date) {
-  return Promise.all([
-    supabase.from("problems").select("id, problem_text, unit, sub_unit, difficulty")
-      .eq("child_id", childId).eq("status", "active")
-      .order("created_at", { ascending: false }).limit(LIMITS.problems),
-    supabase.from("review_schedule").select("problem_id, scheduled_for, status")
-      .eq("child_id", childId).eq("status", "pending")
-      .order("scheduled_for", { ascending: true }).limit(LIMITS.reviews),
-    supabase.from("weakness_map").select("unit, sub_unit, accuracy_rate, mastery_level")
-      .eq("child_id", childId).order("accuracy_rate", { ascending: true }).limit(LIMITS.weakness),
-    supabase.from("attempts").select("problem_id, similar_problem_id, mistake_type, is_correct")
-      .eq("child_id", childId).order("created_at", { ascending: false }).limit(LIMITS.attempts),
-    supabase.from("app_settings").select("daily_limit_minutes").eq("child_id", childId).maybeSingle(),
-    loadSessionUsage(supabase, childId, now),
-    supabase.from("generated_similar_problems").select("id, source_problem_id, unit, sub_unit, difficulty")
-      .eq("child_id", childId).order("created_at", { ascending: false }).limit(LIMITS.similar),
-  ]);
+async function loadSources(childId: string, now: Date, db = getDb()) {
+  try {
+    const [
+      problemsRows,
+      reviewsRows,
+      weaknessRows,
+      attemptsRows,
+      settingsRow,
+      sessionsResult,
+      similarRows,
+    ] = await Promise.all([
+      db
+        .select({
+          id: schema.problems.id,
+          problem_text: schema.problems.problemText,
+          unit: schema.problems.unit,
+          sub_unit: schema.problems.subUnit,
+          difficulty: schema.problems.difficulty,
+          subject: schema.problems.subject,
+        })
+        .from(schema.problems)
+        .where(and(eq(schema.problems.childId, childId), eq(schema.problems.status, "active")))
+        .orderBy(desc(schema.problems.createdAt))
+        .limit(LIMITS.problems)
+        .all(),
+      db
+        .select({
+          problem_id: schema.reviewSchedule.problemId,
+          scheduled_for: schema.reviewSchedule.scheduledFor,
+          status: schema.reviewSchedule.status,
+        })
+        .from(schema.reviewSchedule)
+        .where(
+          and(eq(schema.reviewSchedule.childId, childId), eq(schema.reviewSchedule.status, "pending")),
+        )
+        .orderBy(asc(schema.reviewSchedule.scheduledFor))
+        .limit(LIMITS.reviews)
+        .all(),
+      db
+        .select({
+          unit: schema.weaknessMap.unit,
+          sub_unit: schema.weaknessMap.subUnit,
+          accuracy_rate: schema.weaknessMap.accuracyRate,
+          mastery_level: schema.weaknessMap.masteryLevel,
+        })
+        .from(schema.weaknessMap)
+        .where(eq(schema.weaknessMap.childId, childId))
+        .orderBy(asc(schema.weaknessMap.accuracyRate))
+        .limit(LIMITS.weakness)
+        .all(),
+      db
+        .select({
+          problem_id: schema.attempts.problemId,
+          similar_problem_id: schema.attempts.similarProblemId,
+          mistake_type: schema.attempts.mistakeType,
+          is_correct: schema.attempts.isCorrect,
+        })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.childId, childId))
+        .orderBy(desc(schema.attempts.createdAt))
+        .limit(LIMITS.attempts)
+        .all(),
+      db
+        .select({
+          daily_limit_minutes: schema.appSettings.dailyLimitMinutes,
+        })
+        .from(schema.appSettings)
+        .where(eq(schema.appSettings.childId, childId))
+        .get(),
+      loadSessionUsage(childId, now, db),
+      db
+        .select({
+          id: schema.generatedSimilarProblems.id,
+          source_problem_id: schema.generatedSimilarProblems.sourceProblemId,
+          unit: schema.generatedSimilarProblems.unit,
+          sub_unit: schema.generatedSimilarProblems.subUnit,
+          difficulty: schema.generatedSimilarProblems.difficulty,
+        })
+        .from(schema.generatedSimilarProblems)
+        .where(eq(schema.generatedSimilarProblems.childId, childId))
+        .orderBy(desc(schema.generatedSimilarProblems.createdAt))
+        .limit(LIMITS.similar)
+        .all(),
+    ]);
+
+    return {
+      problems: problemsRows.map((p) => ({
+        ...p,
+        difficulty: p.difficulty as RecommendationCandidate["difficulty"],
+        subject: p.subject ?? "math",
+      })),
+      reviews: reviewsRows as ReviewRow[],
+      weakness: weaknessRows as WeaknessRow[],
+      attempts: attemptsRows.map((a) => ({ ...a, is_correct: Boolean(a.is_correct) })),
+      dailyLimitMinutes: settingsRow?.daily_limit_minutes ?? DEFAULT_LIMIT_MINUTES,
+      sessions: sessionsResult.data,
+      similar: similarRows.map((s) => ({
+        ...s,
+        difficulty: s.difficulty as RecommendationCandidate["difficulty"],
+      })) as SimilarRow[],
+      error: false,
+    };
+  } catch {
+    return {
+      problems: [],
+      reviews: [],
+      weakness: [],
+      attempts: [],
+      dailyLimitMinutes: DEFAULT_LIMIT_MINUTES,
+      sessions: [],
+      similar: [],
+      error: true,
+    };
+  }
 }
 
-export async function getTodayRecommendations(supabase: Supabase, childId: string, now = new Date()) {
+export async function getTodayRecommendations(
+  childId: string,
+  now = new Date(),
+  db = getDb(),
+  subject?: Subject,
+) {
   const today = todayKeyJst(now);
-  const [problemsResult, reviewsResult, weaknessResult, attemptsResult, settingsResult, sessionsResult, similarResult] =
-    await loadSources(supabase, childId, now);
-  const failed = [problemsResult, reviewsResult, weaknessResult, attemptsResult, sessionsResult, similarResult]
-    .some(({ error }) => error);
-  if (failed) return { error: true as const, problems: [], limitReached: false, remainingMinutes: 0 };
+  const data = await loadSources(childId, now, db);
+  if (data.error) return { error: true as const, problems: [], limitReached: false, remainingMinutes: 0 };
 
-  const problems = (problemsResult.data ?? []) as ProblemRow[];
-  const similar = (similarResult.data ?? []) as SimilarRow[];
-  const attempts = (attemptsResult.data ?? []) as AttemptRow[];
-  const reviews = new Map(((reviewsResult.data ?? []) as ReviewRow[]).map((item) => [item.problem_id, item]));
-  const weakness = new Map(((weaknessResult.data ?? []) as WeaknessRow[])
-    .map((item) => [`${item.unit}:${item.sub_unit}`, item]));
+  const filteredProblems = subject
+    ? data.problems.filter((p) => p.subject === subject)
+    : data.problems;
+  // もし指定教科の問題がなければ全体から推薦
+  const finalProblems = filteredProblems.length > 0 ? filteredProblems : data.problems;
+
+  const { similar, attempts, reviews: reviewList, weakness: weaknessList, dailyLimitMinutes, sessions } = data;
+  const problems = finalProblems;
+  const reviews = new Map(reviewList.map((item) => [item.problem_id, item]));
+  const weakness = new Map(weaknessList.map((item) => [`${item.unit}:${item.sub_unit}`, item]));
   const byId = new Map(problems.map((problem) => [problem.id, problem]));
   const similarById = new Map(similar.map((item) => [item.id, item]));
 
   const recentMistake = findRecentMistake(attempts, (attempt) =>
-    (attempt.problem_id ? byId.get(attempt.problem_id) : similarById.get(attempt.similar_problem_id ?? ""))?.unit);
+    (attempt.problem_id ? byId.get(attempt.problem_id) : similarById.get(attempt.similar_problem_id ?? ""))?.unit,
+  );
   const attemptsFor = (key: "problem_id" | "similar_problem_id", id: string) =>
     attempts.filter((attempt) => attempt[key] === id);
   const stats = (unit: string, subUnit: string) => weakness.get(`${unit}:${subUnit}`);
@@ -166,11 +305,7 @@ export async function getTodayRecommendations(supabase: Supabase, childId: strin
       weaknessAccuracyRate: stats(item.unit, item.sub_unit)?.accuracy_rate ?? null,
     }));
 
-  const limit = dailyLimitFromSessions(
-    settingsResult.data?.daily_limit_minutes ?? DEFAULT_LIMIT_MINUTES,
-    sessionsResult.data,
-    now,
-  );
+  const limit = dailyLimitFromSessions(dailyLimitMinutes, sessions, now);
   const selected = recommendToday([...problemCandidates, ...similarCandidates], {
     today,
     maxMinutes: limit.remainingMinutes,

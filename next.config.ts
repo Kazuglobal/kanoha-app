@@ -1,15 +1,17 @@
 import type { NextConfig } from "next";
-import path from "node:path";
 
 /**
  * 全ルート共通のセキュリティヘッダー(B15)。
  * script/style の 'unsafe-inline' は Next のインライン初期化スクリプトに必要。
  * connect-src は Supabase(API/Storage)のみ許可。
  */
+const isDev = process.env.NODE_ENV !== "production";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
+  isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
   "connect-src 'self' https://*.supabase.co",
   "frame-ancestors 'none'",
@@ -23,6 +25,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   typedRoutes: true,
   async headers() {
@@ -38,9 +41,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  turbopack: {
-    root: path.resolve(process.cwd(), ".."),
-  },
+
 };
 
 export default nextConfig;

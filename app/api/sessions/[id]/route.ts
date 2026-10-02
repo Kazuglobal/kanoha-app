@@ -1,10 +1,12 @@
+import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
+import * as schema from "@/lib/db/schema";
 import { clampDurationSeconds, sessionAttemptCounts } from "@/lib/review/loop";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { uuid } from "@/lib/utils/schemas";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
+import { nowJstIso } from "@/lib/utils/date";
 
-/** 正解数・問題数はクライアントから受け取らず、サーバーが attempts から導出する。 */
 const finishSchema = z.object({
   childId: uuid,
   durationSeconds: z.number().int().min(0).max(86_400),
@@ -19,33 +21,55 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return apiError("Invalid learning session");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
-  if (!(await checkRateLimitDb(auth.supabase, auth.user!.id, "sessions", 30))) return apiError("Too many requests", 429);
+  if (!(await checkRateLimitDb(auth.user!.id, "sessions", 30))) {
+    return apiError("Too many requests", 429);
+  }
 
-  const session = await auth.supabase.from("learning_sessions")
-    .select("id, started_at, ended_at")
-    .eq("id", id)
-    .eq("child_id", parsed.data.childId)
-    .maybeSingle();
-  if (session.error) return internalError();
-  if (!session.data || session.data.ended_at) return apiError("Learning session not found", 404);
+  try {
+    const session = await auth.db
+      .select({
+        id: schema.learningSessions.id,
+        started_at: schema.learningSessions.startedAt,
+        ended_at: schema.learningSessions.endedAt,
+      })
+      .from(schema.learningSessions)
+      .where(and(eq(schema.learningSessions.id, id), eq(schema.learningSessions.childId, parsed.data.childId)))
+      .get();
 
-  const counts = await sessionAttemptCounts(auth.supabase, parsed.data.childId, id);
-  if (!counts) return internalError();
-  const now = new Date();
+    if (!session || session.ended_at) return apiError("Learning session not found", 404);
 
-  const { data, error } = await auth.supabase.from("learning_sessions")
-    .update({
-      ended_at: now.toISOString(),
-      duration_seconds: clampDurationSeconds(parsed.data.durationSeconds, session.data.started_at, now),
-      total_questions: counts.total,
-      correct_count: counts.correct,
-    })
-    .eq("id", id)
-    .eq("child_id", parsed.data.childId)
-    .is("ended_at", null)
-    .select("id, ended_at, duration_seconds, total_questions, correct_count")
-    .maybeSingle();
+    const counts = await sessionAttemptCounts(parsed.data.childId, id, auth.db);
+    if (!counts) return internalError();
+    const now = new Date();
+    const nowIso = nowJstIso(now);
 
-  if (error) return internalError();
-  return data ? apiSuccess(data) : apiError("Learning session not found", 404);
+    const updated = await auth.db
+      .update(schema.learningSessions)
+      .set({
+        endedAt: nowIso,
+        durationSeconds: clampDurationSeconds(parsed.data.durationSeconds, session.started_at, now),
+        totalQuestions: counts.total,
+        correctCount: counts.correct,
+        updatedAt: nowIso,
+      })
+      .where(
+        and(
+          eq(schema.learningSessions.id, id),
+          eq(schema.learningSessions.childId, parsed.data.childId),
+          isNull(schema.learningSessions.endedAt),
+        ),
+      )
+      .returning({
+        id: schema.learningSessions.id,
+        ended_at: schema.learningSessions.endedAt,
+        duration_seconds: schema.learningSessions.durationSeconds,
+        total_questions: schema.learningSessions.totalQuestions,
+        correct_count: schema.learningSessions.correctCount,
+      })
+      .get();
+
+    return updated ? apiSuccess(updated) : apiError("Learning session not found", 404);
+  } catch {
+    return internalError();
+  }
 }

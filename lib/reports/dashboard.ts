@@ -1,4 +1,6 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { eq, desc, inArray } from "drizzle-orm";
+import { getDb } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
 import { jstDayRange, toJstDateKey } from "@/lib/utils/date";
 
 export interface DashboardSession {
@@ -139,56 +141,115 @@ function calculateStreak(sessions: readonly DashboardSession[], now: Date) {
   return streak;
 }
 
-const uniqueIds = (
-  attempts: readonly DashboardAttempt[],
-  key: "problem_id" | "similar_problem_id",
-): readonly string[] =>
-  [...new Set(attempts.flatMap((attempt) => (attempt[key] ? [attempt[key] as string] : [])))];
+const uniqueIds = (attempts: readonly DashboardAttempt[], key: "problem_id" | "similar_problem_id") =>
+  Array.from(new Set(attempts.map((a) => a[key]).filter((id): id is string => Boolean(id))));
 
-async function loadReferencedProblems(supabase: SupabaseClient, attempts: readonly DashboardAttempt[]) {
+async function loadReferencedProblems(attempts: readonly DashboardAttempt[], db = getDb()) {
   const problemIds = uniqueIds(attempts, "problem_id");
   const similarIds = uniqueIds(attempts, "similar_problem_id");
-  const empty = { data: [] as DashboardProblem[], error: null };
-  const [problems, similar] = await Promise.all([
-    problemIds.length
-      ? supabase.from("problems").select("id, problem_text, unit").in("id", problemIds)
-      : Promise.resolve(empty),
-    similarIds.length
-      ? supabase.from("generated_similar_problems").select("id, problem_text, unit").in("id", similarIds)
-      : Promise.resolve(empty),
+
+  const [problemsRows, similarRows] = await Promise.all([
+    problemIds.length > 0
+      ? db
+          .select({
+            id: schema.problems.id,
+            problem_text: schema.problems.problemText,
+            unit: schema.problems.unit,
+          })
+          .from(schema.problems)
+          .where(inArray(schema.problems.id, problemIds))
+          .all()
+      : Promise.resolve([]),
+    similarIds.length > 0
+      ? db
+          .select({
+            id: schema.generatedSimilarProblems.id,
+            problem_text: schema.generatedSimilarProblems.problemText,
+            unit: schema.generatedSimilarProblems.unit,
+          })
+          .from(schema.generatedSimilarProblems)
+          .where(inArray(schema.generatedSimilarProblems.id, similarIds))
+          .all()
+      : Promise.resolve([]),
   ]);
-  if (problems.error || similar.error) return null;
-  return { problems: problems.data ?? [], similarProblems: similar.data ?? [] };
+
+  return {
+    problems: problemsRows,
+    similarProblems: similarRows,
+  };
 }
 
 /** 親ダッシュボードと日次レポート(reports/slack)で共有する読み込み。 */
 export async function loadDashboardInput(
-  supabase: SupabaseClient,
   childId: string,
+  db = getDb(),
 ): Promise<DashboardInput | null> {
-  const [sessions, attempts, weaknesses, reviews] = await Promise.all([
-    supabase.from("learning_sessions")
-      .select("started_at, duration_seconds")
-      .eq("child_id", childId).order("started_at", { ascending: false }).limit(90),
-    supabase.from("attempts")
-      .select("created_at, hint_level_used, is_correct, mistake_type, problem_id, similar_problem_id")
-      .eq("child_id", childId).order("created_at", { ascending: false }).limit(500),
-    supabase.from("weakness_map")
-      .select("unit, sub_unit, accuracy_rate, mistake_count, mastery_level")
-      .eq("child_id", childId),
-    supabase.from("review_schedule")
-      .select("problem_id, unit, sub_unit, scheduled_for, status")
-      .eq("child_id", childId),
-  ]);
-  if (sessions.error || attempts.error || weaknesses.error || reviews.error) return null;
-  const referenced = await loadReferencedProblems(supabase, attempts.data ?? []);
-  if (!referenced) return null;
-  return {
-    attempts: attempts.data ?? [],
-    problems: referenced.problems,
-    reviews: reviews.data ?? [],
-    sessions: sessions.data ?? [],
-    similarProblems: referenced.similarProblems,
-    weaknesses: weaknesses.data ?? [],
-  };
+  try {
+    const [sessionsRows, attemptsRows, weaknessesRows, reviewsRows] = await Promise.all([
+      db
+        .select({
+          started_at: schema.learningSessions.startedAt,
+          duration_seconds: schema.learningSessions.durationSeconds,
+        })
+        .from(schema.learningSessions)
+        .where(eq(schema.learningSessions.childId, childId))
+        .orderBy(desc(schema.learningSessions.startedAt))
+        .limit(90)
+        .all(),
+      db
+        .select({
+          created_at: schema.attempts.createdAt,
+          hint_level_used: schema.attempts.hintLevelUsed,
+          is_correct: schema.attempts.isCorrect,
+          mistake_type: schema.attempts.mistakeType,
+          problem_id: schema.attempts.problemId,
+          similar_problem_id: schema.attempts.similarProblemId,
+        })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.childId, childId))
+        .orderBy(desc(schema.attempts.createdAt))
+        .limit(500)
+        .all(),
+      db
+        .select({
+          unit: schema.weaknessMap.unit,
+          sub_unit: schema.weaknessMap.subUnit,
+          accuracy_rate: schema.weaknessMap.accuracyRate,
+          mistake_count: schema.weaknessMap.mistakeCount,
+          mastery_level: schema.weaknessMap.masteryLevel,
+        })
+        .from(schema.weaknessMap)
+        .where(eq(schema.weaknessMap.childId, childId))
+        .all(),
+      db
+        .select({
+          problem_id: schema.reviewSchedule.problemId,
+          unit: schema.reviewSchedule.unit,
+          sub_unit: schema.reviewSchedule.subUnit,
+          scheduled_for: schema.reviewSchedule.scheduledFor,
+          status: schema.reviewSchedule.status,
+        })
+        .from(schema.reviewSchedule)
+        .where(eq(schema.reviewSchedule.childId, childId))
+        .all(),
+    ]);
+
+    const mappedAttempts: DashboardAttempt[] = (attemptsRows ?? []).map((a) => ({
+      ...a,
+      is_correct: Boolean(a.is_correct),
+    }));
+
+    const referenced = await loadReferencedProblems(mappedAttempts, db);
+
+    return {
+      attempts: mappedAttempts,
+      problems: referenced.problems,
+      reviews: reviewsRows ?? [],
+      sessions: sessionsRows ?? [],
+      similarProblems: referenced.similarProblems,
+      weaknesses: weaknessesRows ?? [],
+    };
+  } catch {
+    return null;
+  }
 }

@@ -6,6 +6,7 @@ import { similarProblemDraftsSchema, unitSchema } from "@/lib/ai/schemas";
 import type { SimilarProblemDraft, SimilarProblemRequest } from "@/lib/ai/schemas";
 import { reserveAiUsage } from "@/lib/ai/usage";
 import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import * as schema from "@/lib/db/schema";
 import { recentUnitAttempts } from "@/lib/review/loop";
 import { buildChoices } from "@/lib/review/choices";
 import { difficultyForNextSimilarSet } from "@/lib/review/recommend";
@@ -13,8 +14,9 @@ import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } fro
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { difficulty, uuid } from "@/lib/utils/schemas";
+import { nowJstIso } from "@/lib/utils/date";
 
-const schema = z.object({
+const schemaValidation = z.object({
   childId: uuid,
   problemId: uuid,
   difficulty: difficulty.optional(),
@@ -22,33 +24,32 @@ const schema = z.object({
 });
 
 const SIMILAR_COST_USD = Number(process.env.AI_SIMILAR_COST_USD ?? 0.005);
-/** 「同じ間違いが連続」を判定する直近 attempts の数(doc.md §12.2)。 */
 const MISTAKE_HISTORY_SIZE = 5;
 
 type Auth = Awaited<ReturnType<typeof requireOwnedChild>>;
 type Problem = NonNullable<Awaited<ReturnType<typeof ownedProblem>>>;
 
 export async function POST(request: Request) {
-  const parsed = await parseJson(request, schema);
+  const parsed = await parseJson(request, schemaValidation);
   if (!parsed.success) return apiError("Invalid similar problem request");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
   if (!checkRateLimit(`similar:${auth.user!.id}`, 10)) return apiError("Too many requests", 429);
-  const problem = await ownedProblem(auth.supabase, parsed.data.childId, parsed.data.problemId);
+  const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
   if (!problem) return apiError("Problem not found", 404);
 
   const unit = unitSchema.safeParse(problem.unit);
   if (!unit.success) return internalError();
-  const history = await recentUnitAttempts(auth.supabase, parsed.data.childId, unit.data, MISTAKE_HISTORY_SIZE);
+  const history = await recentUnitAttempts(parsed.data.childId, unit.data, MISTAKE_HISTORY_SIZE, auth.db);
   const { difficulty: adjusted, streak } = difficultyForNextSimilarSet(
-    parsed.data.difficulty ?? problem.difficulty,
+    (parsed.data.difficulty as any) ?? problem.difficulty,
     history,
   );
   const input: SimilarProblemRequest = {
     difficulty: adjusted,
     mistakeType: parsed.data.mistakeType ?? streak.mistakeType ?? undefined,
-    problemText: problem.problem_text,
-    subUnit: problem.sub_unit,
+    problemText: problem.problemText,
+    subUnit: problem.subUnit,
     unit: unit.data,
   };
 
@@ -66,8 +67,12 @@ async function generateWithGemini(
   provider: ReturnType<typeof getAiProvider>,
   input: SimilarProblemRequest,
 ) {
-  // 予約はプロバイダ呼び出しの「前」。失敗しても払い戻さない(B10)。
-  const reservation = await reserveAiUsage(auth.supabase, auth.user!.id, SIMILAR_COST_USD, costLimitsFromEnv());
+  const reservation = await reserveAiUsage(
+    auth.user!.id,
+    SIMILAR_COST_USD,
+    costLimitsFromEnv(),
+    auth.db,
+  );
   if (reservation.outcome === "unavailable") {
     return apiError("AIをいまは利用できません。しばらくしてからお試しください。", 503);
   }
@@ -85,29 +90,48 @@ async function generateWithGemini(
   return persistDrafts(auth, problem, drafts);
 }
 
-/**
- * 4 択は生成時にサーバーが作って保存する(A2 / B13)。レスポンスに answer / explanation は含めない:
- * 正誤判定と解説は /api/attempts が返す。PII除去は Zod 検証後・insert 前(B12)。
- */
 async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly SimilarProblemDraft[]) {
   const validated = similarProblemDraftsSchema.safeParse(drafts);
   if (!validated.success) return internalError();
 
+  const now = nowJstIso();
   const rows = validated.data.map(scrubPiiFromSimilarProblem).map((item, index) => ({
-    source_problem_id: problem.id,
-    child_id: problem.child_id,
-    problem_text: item.problemText,
+    id: crypto.randomUUID(),
+    sourceProblemId: problem.id,
+    childId: problem.childId,
+    problemText: item.problemText,
     answer: item.answer,
     explanation: item.explanation,
     unit: item.unit,
-    sub_unit: item.subUnit,
+    subUnit: item.subUnit,
     difficulty: item.difficulty,
-    choices: buildChoices(item.answer, `${problem.id}:${index}`),
+    choices: JSON.stringify(buildChoices(item.answer, `${problem.id}:${index}`)),
+    createdAt: now,
   }));
-  const { data, error } = await auth.supabase
-    .from("generated_similar_problems")
-    .insert(rows)
-    .select("id, problem_text, unit, sub_unit, difficulty, choices");
-  if (error) return internalError();
-  return apiSuccess(data, 201);
+
+  try {
+    const inserted = [];
+    for (const r of rows) {
+      const res = await auth.db
+        .insert(schema.generatedSimilarProblems)
+        .values(r)
+        .returning({
+          id: schema.generatedSimilarProblems.id,
+          problem_text: schema.generatedSimilarProblems.problemText,
+          unit: schema.generatedSimilarProblems.unit,
+          sub_unit: schema.generatedSimilarProblems.subUnit,
+          difficulty: schema.generatedSimilarProblems.difficulty,
+          choices: schema.generatedSimilarProblems.choices,
+        })
+        .get();
+      inserted.push({
+        ...res,
+        choices: res.choices ? JSON.parse(res.choices) : null,
+      });
+    }
+
+    return apiSuccess(inserted, 201);
+  } catch {
+    return internalError();
+  }
 }

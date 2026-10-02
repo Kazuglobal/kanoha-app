@@ -1,15 +1,21 @@
 import { z } from "zod";
 
 import { GRADE_2_MATH_UNITS } from "@/lib/curriculum/grade2Math";
-import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { GRADE_2_JAPANESE_UNITS } from "@/lib/curriculum/grade2Japanese";
+import { GRADE_2_ALL_UNITS } from "@/lib/curriculum/subjects";
+import { ALL_MISTAKE_TYPE_IDS, MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 
 export const difficultySchema = z.enum(["basic", "standard", "advanced"]);
+export const subjectSchema = z.enum(["math", "japanese"]);
 
 /** Mistake classification. Source of truth: lib/curriculum/mistakeTypes.ts (13 ids). */
 export const mistakeTypeSchema = z.enum(MISTAKE_TYPE_IDS);
+export const allMistakeTypeSchema = z.enum(ALL_MISTAKE_TYPE_IDS);
 
 /** Unit classification. Source of truth: lib/curriculum/grade2Math.ts (11 units). */
 export const unitSchema = z.enum(GRADE_2_MATH_UNITS);
+export const japaneseUnitSchema = z.enum(GRADE_2_JAPANESE_UNITS);
+export const allUnitSchema = z.enum(GRADE_2_ALL_UNITS);
 
 export const TEXT_LIMITS = {
   answer: 200,
@@ -44,12 +50,12 @@ export const parsedProblemSchema = z
     detectedAnswer: answerText.optional(),
     correctAnswer: answerText,
     isCorrect: z.boolean().optional(),
-    subject: z.literal("math"),
+    subject: subjectSchema,
     grade: z.literal(2),
-    unit: unitSchema,
+    unit: allUnitSchema,
     subUnit: subUnitText,
     difficulty: difficultySchema,
-    mistakeType: mistakeTypeSchema.optional(),
+    mistakeType: allMistakeTypeSchema.optional(),
     mistakeReason: boundedText(TEXT_LIMITS.mistakeReason).optional(),
     hints: hintsSchema,
     rubyTextRequired: z.boolean(),
@@ -76,7 +82,7 @@ export const similarProblemSchema = z
   .object({
     problemText,
     answer: answerText,
-    unit: unitSchema,
+    unit: allUnitSchema,
     subUnit: subUnitText,
     difficulty: difficultySchema,
     explanation: boundedText(TEXT_LIMITS.explanation),
@@ -105,18 +111,19 @@ export const handwritingAnswerSchema = z
 export const similarProblemRequestSchema = z
   .object({
     difficulty: difficultySchema,
-    mistakeType: mistakeTypeSchema.optional(),
+    mistakeType: allMistakeTypeSchema.optional(),
     problemText,
     subUnit: subUnitText,
-    unit: unitSchema,
+    unit: allUnitSchema,
   })
   .strict();
 
 export type SimilarProblemRequest = z.infer<typeof similarProblemRequestSchema>;
 
 export type Difficulty = z.infer<typeof difficultySchema>;
-export type MistakeTypeId = z.infer<typeof mistakeTypeSchema>;
-export type Unit = z.infer<typeof unitSchema>;
+export type MistakeTypeId = z.infer<typeof allMistakeTypeSchema>;
+export type MathUnit = z.infer<typeof unitSchema>;
+export type Unit = z.infer<typeof allUnitSchema>;
 export type SimilarChoices = z.infer<typeof similarChoicesSchema>;
 export type HandwritingAnswer = z.infer<typeof handwritingAnswerSchema>;
 export type Hints = z.infer<typeof hintsSchema>;

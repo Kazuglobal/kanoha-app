@@ -25,7 +25,7 @@ export interface ProblemRecord {
   problem_text: string;
   status: "active";
   sub_unit: string;
-  subject: "math";
+  subject: ParsedProblem["subject"];
   unit: string;
 }
 

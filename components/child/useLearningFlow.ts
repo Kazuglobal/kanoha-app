@@ -10,12 +10,20 @@ import {
   type StoredSimilarProblem,
 } from "@/lib/sessions/progress";
 import { answersMatch } from "@/lib/utils/answers";
+import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
+import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
+import { soundManager } from "@/lib/audio/soundSystem";
 import {
   DEMO_PROBLEM_ID,
   DEMO_QUESTION,
   DEMO_SIMILAR_PROBLEMS,
   DEMO_UNIT,
   DEMO_VISUAL_URL,
+  DEMO_JAPANESE_PROBLEM_ID,
+  DEMO_JAPANESE_QUESTION,
+  DEMO_JAPANESE_UNIT,
+  DEMO_JAPANESE_ANSWER,
+  DEMO_JAPANESE_SIMILAR_PROBLEMS,
   FLOW_TEXT,
 } from "./childStrings";
 import {
@@ -37,6 +45,7 @@ export interface PersistedProblem {
   problemId: string;
   question: string;
   unit: string;
+  subject?: string;
 }
 
 export interface PersistedSimilarProblem extends SimilarProblem {
@@ -75,6 +84,12 @@ const toStoredSimilar = (
  * - タブが隠れる/閉じるときは keepalive PATCH で利用時間を記録する。
  */
 export function useLearningFlow(persisted?: PersistedProblem) {
+  const isJapanese = persisted?.subject === "japanese" || persisted?.problemId === DEMO_JAPANESE_PROBLEM_ID;
+  const defaultQuestion = isJapanese ? DEMO_JAPANESE_QUESTION : DEMO_QUESTION;
+  const defaultUnit = isJapanese ? DEMO_JAPANESE_UNIT : DEMO_UNIT;
+  const defaultAnswer = isJapanese ? DEMO_JAPANESE_ANSWER : DEMO_ANSWER;
+  const defaultSimilar = isJapanese ? DEMO_JAPANESE_SIMILAR_PROBLEMS : DEMO_SIMILAR_PROBLEMS;
+
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState<{ correct: boolean } | null>(null);
   const [revealedHints, setRevealedHints] = useState<readonly string[]>([]);
@@ -82,7 +97,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   const [score, setScore] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(() => Date.now());
-  const [similarProblems, setSimilarProblems] = useState<readonly FlowSimilarProblem[]>(DEMO_SIMILAR_PROBLEMS);
+  const [similarProblems, setSimilarProblems] = useState<readonly FlowSimilarProblem[]>(defaultSimilar);
   const [pending, setPending] = useState(Boolean(persisted));
   const [simplifying, setSimplifying] = useState(false);
   const [visualPending, setVisualPending] = useState(false);
@@ -95,8 +110,8 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   const originalSavedRef = useRef(false);
 
   const finished = practiceIndex !== null && practiceIndex >= similarProblems.length;
-  const question = persisted?.question ?? DEMO_QUESTION;
-  const unit = persisted?.unit ?? DEMO_UNIT;
+  const question = persisted?.question ?? defaultQuestion;
+  const unit = persisted?.unit ?? defaultUnit;
   const resultHref = persisted
     ? `/child/result?score=${score}&unit=${encodeURIComponent(unit)}&problemId=${persisted.problemId}&childId=${persisted.childId}`
     : `/child/result?score=${score}&unit=${encodeURIComponent(unit)}`;
@@ -204,7 +219,8 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     }
     const level = revealedHints.length + 1;
     const body = persisted ? { childId: persisted.childId, sessionId, level } : { level };
-    const text = await fetchHintText(persisted?.problemId ?? DEMO_PROBLEM_ID, body);
+    const demoId = isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID;
+    const text = await fetchHintText(persisted?.problemId ?? demoId, body);
     if (text === null) {
       setSaveMessage(FLOW_TEXT.hintLoadFailed);
       setRetryAction(() => () => void requestNextHint());
@@ -213,13 +229,21 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
     setRetryAction(null);
     setRevealedHints((current) => [...current, text]);
+    soundManager.playHint();
     return true;
   }
 
   /** 元問題の正誤はサーバー(/api/attempts)が判定する。デモだけはクライアントで照合する。 */
   async function checkOriginalAnswer() {
     if (!persisted) {
-      setChecked({ correct: answersMatch(answer, DEMO_ANSWER) });
+      const isCorrect = answersMatch(answer, defaultAnswer);
+      setChecked({ correct: isCorrect });
+      if (isCorrect) {
+        soundManager.playCorrect();
+        recordCorrectAnswer();
+      } else {
+        soundManager.playWrong();
+      }
       return;
     }
     if (!sessionId || originalSavedRef.current) return;
@@ -240,6 +264,12 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
     setRetryAction(null);
     setChecked({ correct: result.correct });
+    if (result.correct) {
+      soundManager.playCorrect();
+      recordCorrectAnswer();
+    } else {
+      soundManager.playWrong();
+    }
   }
 
   async function startPractice() {
@@ -290,6 +320,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   async function showVisualHint() {
     if (!persisted) {
       setVisualUrl(DEMO_VISUAL_URL);
+      setSaveMessage("");
       return;
     }
     if (visualPending) return;
@@ -301,12 +332,22 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       requestedByChild: true,
     }).catch(() => null);
     const body = await response?.json().catch(() => null);
-    if (!response?.ok || !body?.success) {
-      setSaveMessage(FLOW_TEXT.visualUnavailable);
+    const receivedUrl = body?.data?.url ?? body?.data?.dataUrl;
+
+    if (response?.ok && body?.success && typeof receivedUrl === "string") {
+      setVisualUrl(receivedUrl);
       setVisualPending(false);
       return;
     }
-    setVisualUrl(body.data.url);
+
+    // サーバーが失敗した場合(403設定OFFやネットワーク等)でも、小2単元の静的SVGテンプレートをフォールバック表示
+    const fallback = resolveVisualTemplate(persisted.unit);
+    if (fallback) {
+      setVisualUrl(`/visuals/${fallback}.svg`);
+      setSaveMessage("");
+    } else {
+      setSaveMessage(FLOW_TEXT.visualUnavailable);
+    }
     setVisualPending(false);
   }
 
@@ -338,6 +379,9 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }
 
   async function completeSimilar(correct: boolean) {
+    if (correct) {
+      recordCorrectAnswer();
+    }
     setScore((currentScore) => currentScore + (correct ? 1 : 0));
     const nextIndex = (practiceIndex ?? 0) + 1;
     // 利用時間の上限は類題の区切りでだけ確かめる(問題の途中では止めない)。

@@ -5,7 +5,7 @@ import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import styles from "@/components/kanoha.module.css";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/auth-client";
 
 type Mode = "login" | "signup";
 
@@ -24,34 +24,38 @@ export function LoginForm() {
     setIsError(false);
 
     const form = new FormData(event.currentTarget);
-    const credentials = {
-      email: String(form.get("email") ?? "").trim(),
-      password: String(form.get("password") ?? ""),
-    };
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
 
     try {
-      const supabase = createClient();
-      const result = mode === "login"
-        ? await supabase.auth.signInWithPassword(credentials)
-        : await supabase.auth.signUp(credentials);
+      if (mode === "login") {
+        const { error } = await authClient.signIn.email({
+          email,
+          password,
+        });
 
-      if (result.error) {
-        setIsError(true);
-        setMessage(mode === "login"
-          ? "メールアドレスまたはパスワードを確認してください。"
-          : "登録できませんでした。入力内容を確認してください。");
-        return;
-      }
+        if (error) {
+          setIsError(true);
+          setMessage("メールアドレスまたはパスワードを確認してください。");
+          return;
+        }
+      } else {
+        const { error } = await authClient.signUp.email({
+          email,
+          password,
+          name: email.split("@")[0] || "保護者",
+        });
 
-      if (mode === "signup" && !result.data.session) {
-        setMessage("確認メールを送りました。メール内のリンクから登録を完了してください。");
-        return;
+        if (error) {
+          setIsError(true);
+          setMessage("登録できませんでした。入力内容を確認してください。");
+          return;
+        }
       }
 
       const next = searchParams.get("next");
-      const destination: Route = next && /^\/(?:parent|child)\//.test(next)
-        ? next as Route
-        : "/parent/dashboard";
+      const destination: Route =
+        next && /^\/(?:parent|child)\//.test(next) ? (next as Route) : "/parent/dashboard";
       router.replace(destination);
       router.refresh();
     } catch {
@@ -84,7 +88,11 @@ export function LoginForm() {
         {pending ? "しばらくお待ちください" : mode === "login" ? "ログイン" : "登録する"}
       </button>
       {message ? (
-        <p aria-live="polite" className={isError ? styles.feedbackWrong : styles.feedback} role={isError ? "alert" : "status"}>
+        <p
+          aria-live="polite"
+          className={isError ? styles.feedbackWrong : styles.feedback}
+          role={isError ? "alert" : "status"}
+        >
           {message}
         </p>
       ) : null}
@@ -93,7 +101,7 @@ export function LoginForm() {
         disabled={pending}
         type="button"
         onClick={() => {
-          setMode((current) => current === "login" ? "signup" : "login");
+          setMode((current) => (current === "login" ? "signup" : "login"));
           setMessage("");
           setIsError(false);
         }}

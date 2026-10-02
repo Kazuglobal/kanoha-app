@@ -43,6 +43,26 @@ export function PinSettings({ hasPin: initialHasPin }: { hasPin: boolean }) {
 
   async function startChildMode() {
     if (pending) return;
+
+    if (!hasPin && pin.length === 4) {
+      setPending(true);
+      const pinRes = await fetch("/api/parent/pin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pin }),
+      }).catch(() => null);
+      const pinBody = await pinRes?.json().catch(() => null);
+      if (!pinRes?.ok || !pinBody?.success) {
+        show("親PINを保存できませんでした。", true);
+        return;
+      }
+      setHasPin(true);
+      setPin("");
+    } else if (!hasPin) {
+      show("子どもモードを始めるには、4桁の親PINを登録してください（保護者用画面に戻るために必要です）。", true);
+      return;
+    }
+
     setPending(true);
     const response = await fetch("/api/child-mode", { method: "POST" }).catch(() => null);
     const body = await response?.json().catch(() => null);
@@ -66,6 +86,7 @@ export function PinSettings({ hasPin: initialHasPin }: { hasPin: boolean }) {
           <input
             autoComplete="off"
             disabled={pending}
+            id="parent-pin-input"
             inputMode="numeric"
             maxLength={4}
             pattern="\d{4}"
@@ -79,7 +100,7 @@ export function PinSettings({ hasPin: initialHasPin }: { hasPin: boolean }) {
           <button className={styles.primaryButton} disabled={pending || pin.length !== 4} type="submit">
             {hasPin ? "PINを変更" : "PINを登録"}
           </button>
-          <button className={styles.secondaryButton} disabled={pending || !hasPin} type="button" onClick={() => void startChildMode()}>
+          <button className={styles.secondaryButton} disabled={pending} type="button" onClick={() => void startChildMode()}>
             子どもモードをはじめる
           </button>
         </div>

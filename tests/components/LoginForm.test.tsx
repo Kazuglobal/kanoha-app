@@ -5,18 +5,19 @@ import { LoginForm } from "@/components/auth/LoginForm";
 
 const replace = vi.fn();
 const refresh = vi.fn();
-const signInWithPassword = vi.fn();
-const signUp = vi.fn();
+const signInEmail = vi.fn();
+const signUpEmail = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, refresh }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
-vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({
-    auth: { signInWithPassword, signUp },
-  }),
+vi.mock("@/lib/auth/auth-client", () => ({
+  authClient: {
+    signIn: { email: (...args: unknown[]) => signInEmail(...args) },
+    signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
+  },
 }));
 
 describe("LoginForm", () => {
@@ -25,8 +26,8 @@ describe("LoginForm", () => {
   });
 
   it("signs in and redirects to the parent dashboard", async () => {
-    signInWithPassword.mockResolvedValue({
-      data: { session: { access_token: "test" } },
+    signInEmail.mockResolvedValue({
+      data: { user: { id: "test" } },
       error: null,
     });
     const user = userEvent.setup();
@@ -36,7 +37,7 @@ describe("LoginForm", () => {
     await user.type(screen.getByLabelText("パスワード"), "password123");
     await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-    expect(signInWithPassword).toHaveBeenCalledWith({
+    expect(signInEmail).toHaveBeenCalledWith({
       email: "parent@example.com",
       password: "password123",
     });
@@ -44,17 +45,34 @@ describe("LoginForm", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("shows a confirmation message when signup requires email verification", async () => {
-    signUp.mockResolvedValue({ data: { session: null }, error: null });
+  it("shows an error message when sign in fails", async () => {
+    signInEmail.mockResolvedValue({ data: null, error: { message: "invalid" } });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText("メールアドレス"), "parent@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "wrongpassword");
+    await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("メールアドレスまたはパスワードを確認してください。");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("signs up and redirects to the parent dashboard", async () => {
+    signUpEmail.mockResolvedValue({ data: { user: { id: "new-user" } }, error: null });
     const user = userEvent.setup();
     render(<LoginForm />);
 
     await user.click(screen.getByRole("button", { name: "はじめての方はこちら" }));
-    await user.type(screen.getByLabelText("メールアドレス"), "parent@example.com");
+    await user.type(screen.getByLabelText("メールアドレス"), "newparent@example.com");
     await user.type(screen.getByLabelText("パスワード"), "password123");
     await user.click(screen.getByRole("button", { name: "登録する" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("確認メールを送りました");
-    expect(replace).not.toHaveBeenCalled();
+    expect(signUpEmail).toHaveBeenCalledWith({
+      email: "newparent@example.com",
+      password: "password123",
+      name: "newparent",
+    });
+    expect(replace).toHaveBeenCalledWith("/parent/dashboard");
   });
 });

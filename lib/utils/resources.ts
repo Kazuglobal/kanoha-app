@@ -1,63 +1,80 @@
-import type { createClient } from "@/lib/supabase/server";
+import { eq, and } from "drizzle-orm";
+import { getDb } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
 
-type Supabase = Awaited<ReturnType<typeof createClient>>;
-
-export async function ownedProblem(supabase: Supabase, childId: string, problemId: string) {
-  const { data, error } = await supabase
-    .from("problems")
-    .select("*")
-    .eq("id", problemId)
-    .eq("child_id", childId)
-    .maybeSingle();
-  return error ? null : data;
+export async function ownedProblem(childId: string, problemId: string, db = getDb()) {
+  const row = await db
+    .select()
+    .from(schema.problems)
+    .where(and(eq(schema.problems.id, problemId), eq(schema.problems.childId, childId)))
+    .get();
+  return row ?? null;
 }
 
-export async function ownedMaterial(supabase: Supabase, childId: string, materialId: string) {
-  const { data, error } = await supabase
-    .from("uploaded_materials")
-    .select("*")
-    .eq("id", materialId)
-    .eq("child_id", childId)
-    .maybeSingle();
-  return error ? null : data;
+export async function ownedMaterial(childId: string, materialId: string, db = getDb()) {
+  const row = await db
+    .select()
+    .from(schema.uploadedMaterials)
+    .where(
+      and(eq(schema.uploadedMaterials.id, materialId), eq(schema.uploadedMaterials.childId, childId)),
+    )
+    .get();
+  return row ?? null;
 }
 
-export async function ownedSession(supabase: Supabase, childId: string, sessionId: string) {
-  const { data, error } = await supabase
-    .from("learning_sessions")
-    .select("id")
-    .eq("id", sessionId)
-    .eq("child_id", childId)
-    .maybeSingle();
-  return !error && Boolean(data);
+export async function ownedSession(childId: string, sessionId: string, db = getDb()) {
+  const row = await db
+    .select({ id: schema.learningSessions.id })
+    .from(schema.learningSessions)
+    .where(
+      and(eq(schema.learningSessions.id, sessionId), eq(schema.learningSessions.childId, childId)),
+    )
+    .get();
+  return Boolean(row);
 }
 
 export async function ownedSimilarProblem(
-  supabase: Supabase,
   childId: string,
   similarProblemId: string,
+  db = getDb(),
 ) {
-  const { data, error } = await supabase
-    .from("generated_similar_problems")
-    .select("id")
-    .eq("id", similarProblemId)
-    .eq("child_id", childId)
-    .maybeSingle();
-  return !error && Boolean(data);
+  const row = await db
+    .select({ id: schema.generatedSimilarProblems.id })
+    .from(schema.generatedSimilarProblems)
+    .where(
+      and(
+        eq(schema.generatedSimilarProblems.id, similarProblemId),
+        eq(schema.generatedSimilarProblems.childId, childId),
+      ),
+    )
+    .get();
+  return Boolean(row);
 }
 
 export async function ownedSimilarProblemRecord(
-  supabase: Supabase,
   childId: string,
   similarProblemId: string,
+  db = getDb(),
 ) {
-  const { data, error } = await supabase
-    .from("generated_similar_problems")
-    .select("id, source_problem_id, unit, sub_unit, answer, explanation, choices")
-    .eq("id", similarProblemId)
-    .eq("child_id", childId)
-    .maybeSingle();
-  return error ? null : data;
+  const row = await db
+    .select({
+      id: schema.generatedSimilarProblems.id,
+      source_problem_id: schema.generatedSimilarProblems.sourceProblemId,
+      unit: schema.generatedSimilarProblems.unit,
+      sub_unit: schema.generatedSimilarProblems.subUnit,
+      answer: schema.generatedSimilarProblems.answer,
+      explanation: schema.generatedSimilarProblems.explanation,
+      choices: schema.generatedSimilarProblems.choices,
+    })
+    .from(schema.generatedSimilarProblems)
+    .where(
+      and(
+        eq(schema.generatedSimilarProblems.id, similarProblemId),
+        eq(schema.generatedSimilarProblems.childId, childId),
+      ),
+    )
+    .get();
+  return row ?? null;
 }
 
 export const HINT_LEVELS = [1, 2, 3, 4] as const;
@@ -84,34 +101,49 @@ const HINT_FALLBACKS: Record<HintLevel, string | null> = {
 };
 
 interface HintSource {
-  correct_answer: string;
-  explanation_json: unknown;
+  correct_answer?: string;
+  correctAnswer?: string;
+  explanation_json?: unknown;
+  explanationJson?: unknown;
 }
 
 /** 保存済みヒント(explanation_json)から 1 段階だけ取り出す。level 4 は答え。 */
 export const hintTextAtLevel = (problem: HintSource, level: HintLevel): string => {
-  const saved = problem.explanation_json && typeof problem.explanation_json === "object"
-    ? (problem.explanation_json as Record<string, unknown>)
-    : {};
-  const text = saved[HINT_KEYS[level]];
+  const raw = problem.explanation_json ?? problem.explanationJson;
+  let parsed: Record<string, unknown> = {};
+  if (typeof raw === "string") {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = {};
+    }
+  } else if (raw && typeof raw === "object") {
+    parsed = raw as Record<string, unknown>;
+  }
+
+  const text = parsed[HINT_KEYS[level]];
   if (typeof text === "string" && text.trim()) return text;
-  return HINT_FALLBACKS[level] ?? String(problem.correct_answer);
+  const answer = problem.correct_answer ?? problem.correctAnswer;
+  return HINT_FALLBACKS[level] ?? String(answer ?? "");
 };
 
 /** そのセッションで子どもが開いた最大ヒント段階(0 = 未開示)。 */
 export async function hintMaxLevel(
-  supabase: Supabase,
   childId: string,
   problemId: string,
   sessionId: string,
+  db = getDb(),
 ): Promise<number | null> {
-  const { data, error } = await supabase
-    .from("problem_hint_views")
-    .select("max_level")
-    .eq("child_id", childId)
-    .eq("problem_id", problemId)
-    .eq("session_id", sessionId)
-    .maybeSingle();
-  if (error) return null;
-  return Number(data?.max_level ?? 0);
+  const row = await db
+    .select({ maxLevel: schema.problemHintViews.maxLevel })
+    .from(schema.problemHintViews)
+    .where(
+      and(
+        eq(schema.problemHintViews.childId, childId),
+        eq(schema.problemHintViews.problemId, problemId),
+        eq(schema.problemHintViews.sessionId, sessionId),
+      ),
+    )
+    .get();
+  return Number(row?.maxLevel ?? 0);
 }

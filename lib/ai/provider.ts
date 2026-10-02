@@ -1,3 +1,4 @@
+import type { Subject } from "@/lib/curriculum/subjects";
 import type { GeminiImagePart } from "./gemini";
 import type {
   HandwritingAnswer,
@@ -16,6 +17,7 @@ export interface AiProvider {
   recognizeHandwriting(
     images: readonly GeminiImagePart[],
     problemText: string,
+    subject?: Subject,
   ): Promise<HandwritingAnswer>;
   generateSimilarProblems(
     input: SimilarProblemRequest,
