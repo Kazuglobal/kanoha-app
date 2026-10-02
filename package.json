@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "start": "next start",
-    "build": "next build",
+    "build": "opennextjs-cloudflare build",
+    "build:next": "next build",
     "lint": "eslint .",
     "test": "vitest run --testTimeout=15000",
     "test:watch": "vitest",

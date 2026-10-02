@@ -4,6 +4,9 @@ import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
 export const auth = betterAuth({
+  secret:
+    process.env.BETTER_AUTH_SECRET ||
+    "kanoha-app-secret-key-must-be-at-least-32-chars-long",
   baseURL:
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
