@@ -123,7 +123,12 @@ export function LearningFlow({
           </button>
           {preferences.enableVoiceAnswer ? <VoiceAnswer onAnswer={flow.setAnswer} /> : null}
           {persisted ? (
-            <HandwritingPad childId={persisted.childId} onAnswer={flow.setAnswer} problemId={persisted.problemId} />
+            <HandwritingPad
+              childId={persisted.childId}
+              onAnswer={flow.setAnswer}
+              problemId={persisted.problemId}
+              subject={isJapanese ? "japanese" : "math"}
+            />
           ) : null}
         </div>
         {flow.checked ? (

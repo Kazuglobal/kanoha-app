@@ -6,6 +6,7 @@ import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
+import type { Subject } from "@/lib/curriculum/subjects";
 
 const MAX_IMAGE_DATA_CHARS = 2_000_000;
 
@@ -53,8 +54,9 @@ export async function POST(request: Request) {
   if (!problem) return apiError("Problem not found", 404);
 
   const provider = getAiProvider();
+  const subject: Subject = problem.subject === "japanese" ? "japanese" : "math";
   if (provider.name === "mock") {
-    const result = await provider.recognizeHandwriting([], problem.problemText);
+    const result = await provider.recognizeHandwriting([], problem.problemText, subject);
     return apiSuccess(result);
   }
 
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
     const result = await provider.recognizeHandwriting(
       [{ mimeType: parsed.data.image.mimeType, data: parsed.data.image.data }],
       problem.problemText,
+      subject,
     );
     return apiSuccess(result);
   } catch {

@@ -5,9 +5,11 @@ import type { NextConfig } from "next";
  * script/style の 'unsafe-inline' は Next のインライン初期化スクリプトに必要。
  * connect-src は Supabase(API/Storage)のみ許可。
  */
+const isDev = process.env.NODE_ENV !== "production";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob:",

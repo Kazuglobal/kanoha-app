@@ -70,4 +70,40 @@ describe("HandwritingPad", () => {
     await user.click(screen.getByRole("button", { name: "これで こたえる" }));
     expect(await screen.findByText("うまく よみとれなかったよ。すうじで にゅうりょくしてね。")).toBeInTheDocument();
   });
+
+  it("supports undo, grid switching, and close button", async () => {
+    const user = userEvent.setup();
+    render(
+      <HandwritingPad
+        childId="11111111-1111-4111-8111-111111111111"
+        onAnswer={vi.fn()}
+        problemId="22222222-2222-4222-8222-222222222222"
+        subject="japanese"
+      />,
+    );
+
+    // Open pad
+    await user.click(screen.getByRole("button", { name: /てがきで こたえる/ }));
+    expect(screen.getByText("漢字・ことば てがきノート")).toBeInTheDocument();
+
+    // Mode switch
+    await user.click(screen.getByRole("button", { name: "2文字マス" }));
+    await user.click(screen.getByRole("button", { name: "ふとい" }));
+
+    // Draw a stroke
+    const canvas = screen.getByLabelText("てがき入力");
+    fireEvent.pointerDown(canvas, { clientX: 30, clientY: 30 });
+    fireEvent.pointerMove(canvas, { clientX: 50, clientY: 50 });
+    fireEvent.pointerUp(canvas);
+
+    // Undo button should be enabled and clear/redraw
+    const undoButton = screen.getByRole("button", { name: /1つもどす/ });
+    expect(undoButton).toBeEnabled();
+    await user.click(undoButton);
+    expect(fakeContext.clearRect).toHaveBeenCalled();
+
+    // Close button
+    await user.click(screen.getByRole("button", { name: /とじる/ }));
+    expect(screen.getByRole("button", { name: /てがきで こたえる/ })).toBeInTheDocument();
+  });
 });

@@ -286,8 +286,8 @@
 
 .coachAvatarWrapper {
   position: relative;
-  width: 170px;
-  height: 170px;
+  width: 175px;
+  height: 240px;
   display: grid;
   place-items: center;
   animation: coachFloat 4.5s ease-in-out infinite alternate;
@@ -306,6 +306,37 @@
   height: 100%;
   overflow: visible;
   filter: drop-shadow(0 12px 20px rgba(13, 159, 140, 0.22));
+}
+
+@keyframes animeIdleBreath {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.01);
+  }
+}
+
+@keyframes animeCelebrateJump {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-16px) scale(0.98, 1.03);
+  }
+  60% {
+    transform: translateY(-18px) scale(1.02, 0.98);
+  }
+}
+
+.idleBreath {
+  animation: animeIdleBreath 3s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.celebrateJump {
+  animation: animeCelebrateJump 0.75s ease-in-out infinite;
+  transform-origin: center bottom;
 }
 
 .sproutGroup {
@@ -975,34 +1006,189 @@
 }
 
 /* ==========================================================================
-   Handwriting Pad
+   Handwriting Pad (漢字・国語対応 ひろびろマス目ノート)
    ========================================================================== */
 
 .handwritingPad {
-  margin-top: 18px;
-  padding: 18px;
-  border: 2px dashed #b8ddd6;
+  margin-top: 20px;
+  padding: 20px;
+  border: 2.5px solid #a4dbc9;
   border-radius: 24px;
-  background: #fbfefd;
+  background: linear-gradient(180deg, #f9fdfb 0%, #f0fbf7 100%);
+  box-shadow: 0 8px 24px rgba(16, 122, 110, 0.08);
+  max-width: 580px;
+  margin-left: auto;
+  margin-right: auto;
+  transition: all 0.2s ease;
+}
+
+.handwritingHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px dashed #c8ebe2;
+}
+
+.handwritingTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #115e59;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.handwritingModeSwitch {
+  display: flex;
+  background: #e2f4ef;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.handwritingModeBtn {
+  border: none;
+  background: transparent;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #134e4a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.handwritingModeBtnActive {
+  background: #ffffff;
+  color: #0d9488;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.handwritingCanvasWrapper {
+  position: relative;
+  width: 100%;
+  margin: 0 auto 14px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), inset 0 2px 4px rgba(0, 0, 0, 0.03);
+  border: 3.5px solid #2dd4bf;
+  background-color: #ffffff;
+}
+
+/* 漢字練習帳の十字リーダー線（1マス） */
+.handwritingCanvasSingle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Cline x1='50%25' y1='0' x2='50%25' y2='100%25' stroke='%235eead4' stroke-width='2' stroke-dasharray='6,6'/%3E%3Cline x1='0' y1='50%25' x2='100%25' y2='50%25' stroke='%235eead4' stroke-width='2' stroke-dasharray='6,6'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+/* 2文字マス（熟語用） */
+.handwritingCanvasDouble {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Cline x1='50%25' y1='0' x2='50%25' y2='100%25' stroke='%2314b8a6' stroke-width='2.5'/%3E%3Cline x1='25%25' y1='0' x2='25%25' y2='100%25' stroke='%235eead4' stroke-width='1.5' stroke-dasharray='5,5'/%3E%3Cline x1='75%25' y1='0' x2='75%25' y2='100%25' stroke='%235eead4' stroke-width='1.5' stroke-dasharray='5,5'/%3E%3Cline x1='0' y1='50%25' x2='100%25' y2='50%25' stroke='%235eead4' stroke-width='1.5' stroke-dasharray='5,5'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+.handwritingCanvasNoGrid {
+  background-image: none;
 }
 
 .handwritingCanvas {
   display: block;
   width: 100%;
-  max-width: 340px;
-  height: 170px;
-  margin: 0 auto 12px;
-  border-radius: 18px;
-  border: 3px solid #b8ddd6;
-  background: white;
+  max-width: 540px;
+  height: 340px;
+  margin: 0 auto;
   touch-action: none;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+  cursor: crosshair;
+  background: transparent;
+}
+
+@media (min-width: 640px) {
+  .handwritingCanvas {
+    height: 380px;
+  }
+}
+
+.handwritingToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.handwritingPenGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e6f6f1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #115e59;
+}
+
+.handwritingPenBtn {
+  border: 1.5px solid transparent;
+  background: transparent;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f766e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.handwritingPenBtnActive {
+  background: #ffffff;
+  border-color: #2dd4bf;
+  color: #0f766e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.handwritingToolButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.handwritingSmallBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1.5px solid #bbf2e5;
+  color: #0f766e;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.handwritingSmallBtn:hover:not(:disabled) {
+  background: #e6f7f2;
+  border-color: #2dd4bf;
+}
+
+.handwritingSmallBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .handwritingActions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
   gap: 12px;
 }
 
@@ -1568,8 +1754,8 @@
     padding: 22px 18px;
   }
   .coachAvatarWrapper {
-    width: 140px;
-    height: 140px;
+    width: 145px;
+    height: 205px;
   }
   .speechBubble, .speech {
     position: relative;
@@ -2062,7 +2248,7 @@
 
 .dressUp3DContainer {
   width: 190px;
-  height: 190px;
+  height: 250px;
   position: relative;
 }
 
@@ -2284,8 +2470,8 @@
 }
 
 .levelUp3DStage {
-  width: 170px;
-  height: 170px;
+  width: 180px;
+  height: 240px;
   margin: 0 auto 12px;
   position: relative;
 }
