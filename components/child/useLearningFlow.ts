@@ -11,6 +11,7 @@ import {
 } from "@/lib/sessions/progress";
 import { answersMatch } from "@/lib/utils/answers";
 import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
+import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import {
   DEMO_PROBLEM_ID,
   DEMO_QUESTION,
@@ -220,7 +221,11 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   /** 元問題の正誤はサーバー(/api/attempts)が判定する。デモだけはクライアントで照合する。 */
   async function checkOriginalAnswer() {
     if (!persisted) {
-      setChecked({ correct: answersMatch(answer, DEMO_ANSWER) });
+      const isCorrect = answersMatch(answer, DEMO_ANSWER);
+      setChecked({ correct: isCorrect });
+      if (isCorrect) {
+        recordCorrectAnswer();
+      }
       return;
     }
     if (!sessionId || originalSavedRef.current) return;
@@ -241,6 +246,9 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
     setRetryAction(null);
     setChecked({ correct: result.correct });
+    if (result.correct) {
+      recordCorrectAnswer();
+    }
   }
 
   async function startPractice() {
@@ -350,6 +358,9 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }
 
   async function completeSimilar(correct: boolean) {
+    if (correct) {
+      recordCorrectAnswer();
+    }
     setScore((currentScore) => currentScore + (correct ? 1 : 0));
     const nextIndex = (practiceIndex ?? 0) + 1;
     // 利用時間の上限は類題の区切りでだけ確かめる(問題の途中では止めない)。

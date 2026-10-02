@@ -1579,3 +1579,355 @@
     margin-bottom: 12px;
   }
 }
+
+/* ==========================================================================
+   Reward System Styles (5-Yen Coin Animation & Reward Meter)
+   ========================================================================== */
+
+/* Reward Meter in Header */
+.rewardMeterWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.rewardMeterBadge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(254, 249, 195, 0.9));
+  border: 1.5px solid rgba(234, 179, 8, 0.35);
+  border-radius: 9999px;
+  box-shadow: 0 4px 16px -2px rgba(202, 138, 4, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.rewardMeterBadge:hover {
+  border-color: rgba(234, 179, 8, 0.6);
+  box-shadow: 0 6px 20px -2px rgba(202, 138, 4, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.rewardMeterPulse {
+  animation: rewardPulseAnim 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes rewardPulseAnim {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.6);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 12px rgba(234, 179, 8, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+  }
+}
+
+.rewardCoinIconWrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.rewardCoinIcon {
+  color: #ffffff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+.rewardMeterInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rewardAmountRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.rewardYenLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #854d0e;
+  letter-spacing: -0.02em;
+}
+
+.rewardYenValue {
+  font-size: 15px;
+  font-weight: 900;
+  color: #713f12;
+  font-feature-settings: "tnum";
+}
+
+.rewardMiniTrack {
+  width: 90px;
+  height: 6px;
+  background: rgba(234, 179, 8, 0.2);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.rewardMiniFill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #eab308);
+  border-radius: 9999px;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.rewardCountdown {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a16207;
+  white-space: nowrap;
+}
+
+/* 5-Yen Reward Modal Overlay */
+.rewardModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.rewardModalCard {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
+  border-radius: 32px;
+  padding: 36px 28px 28px;
+  text-align: center;
+  box-shadow: 0 25px 60px -15px rgba(217, 119, 6, 0.3),
+              0 0 0 1px rgba(251, 191, 36, 0.35),
+              inset 0 1px 2px rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+
+.rewardModalClose {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(243, 244, 246, 0.9);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+}
+
+.rewardModalClose:hover {
+  background: #e5e7eb;
+  color: #111827;
+  transform: scale(1.05);
+}
+
+/* Confetti particles */
+.rewardModalConfetti {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.confettiPiece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* 3D-Style Spinning 5-Yen Coin */
+.coinAnimationStage {
+  perspective: 900px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+  height: 140px;
+}
+
+.fiveYenCoin {
+  width: 120px;
+  height: 120px;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 14px 24px rgba(180, 83, 9, 0.38));
+}
+
+.coinOuter {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #eab308 45%, #ca8a04 80%, #a16207 100%);
+  border: 4px solid #fef9c3;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.9),
+              inset 0 -3px 6px rgba(113, 63, 18, 0.6);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.coinHole {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
+  box-shadow: inset 0 3px 6px rgba(113, 63, 18, 0.7),
+              0 0 0 2px #a16207;
+  z-index: 3;
+}
+
+.coinRiceSprout {
+  position: absolute;
+  top: 14px;
+  font-size: 20px;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.6));
+}
+
+.coinTextTop {
+  position: absolute;
+  top: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #713f12;
+  letter-spacing: 0.25em;
+  text-shadow: 0 1px 1px rgba(254, 240, 138, 0.8);
+}
+
+.coinTextCenter {
+  position: absolute;
+  bottom: 12px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #713f12;
+  letter-spacing: 0.15em;
+  text-shadow: 0 1px 1px rgba(254, 240, 138, 0.8);
+}
+
+.coinSparkle {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  color: #ffffff;
+  font-size: 18px;
+  animation: coinGleam 2s infinite ease-in-out;
+  text-shadow: 0 0 8px #ffffff;
+}
+
+@keyframes coinGleam {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.8) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3) rotate(45deg);
+  }
+}
+
+.rewardModalContent {
+  position: relative;
+  z-index: 2;
+}
+
+.rewardModalBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #92400e;
+  margin-bottom: 12px;
+}
+
+.rewardModalTitle {
+  font-size: 32px;
+  font-weight: 900;
+  color: #1e293b;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.rewardModalLead {
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.rewardStatsBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(254, 243, 199, 0.5);
+  border: 1.5px dashed #f59e0b;
+  border-radius: 20px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.rewardStatItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rewardStatItem span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.rewardStatItem strong {
+  font-size: 22px;
+  font-weight: 900;
+  color: #78350f;
+  font-feature-settings: "tnum";
+}
+
+.rewardStatDivider {
+  width: 1px;
+  height: 36px;
+  background: rgba(245, 158, 11, 0.4);
+}
+
