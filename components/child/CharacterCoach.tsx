@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
-import { AnimeCharacterGirl } from "./AnimeCharacterGirl";
+import { LovableKanohaCharacter } from "./LovableKanohaCharacter";
+import { speakCoachVoice } from "@/lib/audio/coachSpeech";
 import {
   getCharacterProgress,
   getEquippedAccessories,
@@ -25,7 +26,6 @@ export function CharacterCoach({
   message: string;
   mood?: "happy" | "think" | "celebrate";
 }) {
-  const [mounted, setMounted] = useState(false);
   const [level, setLevel] = useState(1);
   const [tapMessage, setTapMessage] = useState<string | null>(null);
   const [tapMood, setTapMood] = useState<"happy" | "think" | "celebrate" | null>(null);
@@ -38,7 +38,6 @@ export function CharacterCoach({
   });
 
   useEffect(() => {
-    setMounted(true);
     setLevel(getCharacterProgress().currentLevel.level);
     setAccessories(getEquippedAccessories());
 
@@ -53,14 +52,33 @@ export function CharacterCoach({
       setLevel(getCharacterProgress().currentLevel.level);
     };
 
+    const handleProblemSolved = (e: Event) => {
+      const customEvent = e as CustomEvent<{ correct?: boolean }>;
+      const isCorrect = customEvent.detail?.correct ?? true;
+      if (isCorrect) {
+        const cheerMsg = "やったぁーーっ！！だいせいかい！！すごいっ✨";
+        setTapMessage(cheerMsg);
+        setTapMood("celebrate");
+        setIsJumping(true);
+        void speakCoachVoice(cheerMsg, "celebrate");
+        setTimeout(() => setIsJumping(false), 1200);
+        setTimeout(() => {
+          setTapMessage(null);
+          setTapMood(null);
+        }, 4500);
+      }
+    };
+
     window.addEventListener("kanoha-accessory-update", handleAccessoryChange);
     window.addEventListener("kanoha-reward-update", handleGrowthChange);
     window.addEventListener("kanoha-level-up", handleGrowthChange);
+    window.addEventListener("kanoha-problem-solved", handleProblemSolved);
 
     return () => {
       window.removeEventListener("kanoha-accessory-update", handleAccessoryChange);
       window.removeEventListener("kanoha-reward-update", handleGrowthChange);
       window.removeEventListener("kanoha-level-up", handleGrowthChange);
+      window.removeEventListener("kanoha-problem-solved", handleProblemSolved);
     };
   }, []);
 
@@ -69,6 +87,7 @@ export function CharacterCoach({
     setTapMessage(randomMsg);
     setTapMood("celebrate");
     setIsJumping(true);
+    void speakCoachVoice(randomMsg, "celebrate");
 
     setTimeout(() => {
       setIsJumping(false);
@@ -85,8 +104,18 @@ export function CharacterCoach({
 
   return (
     <aside className={styles.coach} aria-label={`かのはコーチ: ${displayMessage}`}>
-      <div className={styles.speechBubble}>
-        <p className={styles.speechText}>{displayMessage}</p>
+      <div
+        className={styles.speechBubble}
+        onClick={() => void speakCoachVoice(displayMessage, activeMood)}
+        title="クリックして 声を きいてみてね！"
+        style={{ cursor: "pointer" }}
+      >
+        <p className={styles.speechText}>
+          {displayMessage}
+          <span style={{ marginLeft: "6px", fontSize: "14px", opacity: 0.8 }} aria-hidden="true">
+            🔊
+          </span>
+        </p>
         <span className={styles.speechArrow} aria-hidden="true" />
       </div>
 
@@ -112,8 +141,13 @@ export function CharacterCoach({
           </div>
         )}
 
-        {/* 生き生きと動くアニメ女の子キャラクター「かのはちゃん」 */}
-        <AnimeCharacterGirl mood={activeMood} level={level} accessories={accessories} />
+        {/* 誰からも愛される自然なマスコット「かのはちゃん」 */}
+        <LovableKanohaCharacter
+          mood={activeMood}
+          level={level}
+          accessories={accessories}
+          celebrating={activeMood === "celebrate"}
+        />
       </div>
     </aside>
   );

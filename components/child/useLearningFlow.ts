@@ -84,21 +84,33 @@ const toStoredSimilar = (
  * - タブが隠れる/閉じるときは keepalive PATCH で利用時間を記録する。
  */
 export function useLearningFlow(persisted?: PersistedProblem) {
-  const isJapanese = persisted?.subject === "japanese" || persisted?.problemId === DEMO_JAPANESE_PROBLEM_ID;
+  const isJapanese =
+    persisted?.subject === "japanese" ||
+    persisted?.problemId === DEMO_JAPANESE_PROBLEM_ID ||
+    persisted?.unit === "漢字" ||
+    persisted?.unit === "お話の読解" ||
+    persisted?.unit === "ことばのきまり";
   const defaultQuestion = isJapanese ? DEMO_JAPANESE_QUESTION : DEMO_QUESTION;
   const defaultUnit = isJapanese ? DEMO_JAPANESE_UNIT : DEMO_UNIT;
   const defaultAnswer = isJapanese ? DEMO_JAPANESE_ANSWER : DEMO_ANSWER;
   const defaultSimilar = isJapanese ? DEMO_JAPANESE_SIMILAR_PROBLEMS : DEMO_SIMILAR_PROBLEMS;
+
+  const isDemo =
+    !persisted ||
+    persisted.childId === "demo" ||
+    !/^[0-9a-f-]{36}$/i.test(persisted.childId) ||
+    persisted.problemId === DEMO_PROBLEM_ID ||
+    persisted.problemId === DEMO_JAPANESE_PROBLEM_ID;
 
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState<{ correct: boolean } | null>(null);
   const [revealedHints, setRevealedHints] = useState<readonly string[]>([]);
   const [practiceIndex, setPracticeIndex] = useState<number | null>(null);
   const [score, setScore] = useState(0);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(isDemo ? "demo-session" : null);
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [similarProblems, setSimilarProblems] = useState<readonly FlowSimilarProblem[]>(defaultSimilar);
-  const [pending, setPending] = useState(Boolean(persisted));
+  const [pending, setPending] = useState(Boolean(persisted) && !isDemo);
   const [simplifying, setSimplifying] = useState(false);
   const [visualPending, setVisualPending] = useState(false);
   const [visualUrl, setVisualUrl] = useState<string>();
@@ -117,6 +129,11 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     : `/child/result?score=${score}&unit=${encodeURIComponent(unit)}`;
 
   async function startNewSession(target: PersistedProblem) {
+    if (isDemo) {
+      setSessionId("demo-session");
+      setPending(false);
+      return;
+    }
     setPending(true);
     setSaveMessage("");
     setRetryAction(null);
@@ -235,7 +252,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
 
   /** 元問題の正誤はサーバー(/api/attempts)が判定する。デモだけはクライアントで照合する。 */
   async function checkOriginalAnswer() {
-    if (!persisted) {
+    if (!persisted || isDemo) {
       const isCorrect = answersMatch(answer, defaultAnswer);
       setChecked({ correct: isCorrect });
       if (isCorrect) {
@@ -273,7 +290,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }
 
   async function startPractice() {
-    if (!persisted) {
+    if (!persisted || isDemo) {
       setPracticeIndex(0);
       return;
     }

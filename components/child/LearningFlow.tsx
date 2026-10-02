@@ -102,7 +102,7 @@ export function LearningFlow({
           {preferences.enableAudio ? <VoiceButton text={flow.question} /> : null}
         </div>
         <h1 className={styles.problemText}>
-          <RubyAuto text={flow.question} readingMode={preferences.readingMode} />
+          <RubyAuto text={flow.question} readingMode={preferences.readingMode} excludeBrackets />
         </h1>
         <div className={styles.answerRow}>
           <input
@@ -163,7 +163,16 @@ export function LearningFlow({
           </button>
         ) : null}
       </section>
-      <CharacterCoach message={FLOW_TEXT.coachThink} mood="think" />
+      <CharacterCoach
+        message={
+          flow.checked?.correct
+            ? "やったぁ！だいせいかい！すごいねっ✨"
+            : flow.checked
+            ? "おしい！もういっかい かんがえてみよう！"
+            : FLOW_TEXT.coachThink
+        }
+        mood={flow.checked?.correct ? "celebrate" : "think"}
+      />
     </>
   );
 }

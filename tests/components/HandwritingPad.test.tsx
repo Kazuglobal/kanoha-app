@@ -71,6 +71,28 @@ describe("HandwritingPad", () => {
     expect(await screen.findByText("うまく よみとれなかったよ。すうじで にゅうりょくしてね。")).toBeInTheDocument();
   });
 
+  it("shows appropriate fallback message for japanese subject without asking for numbers", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: false, error: "AI error" }), { status: 502 }),
+    );
+    const user = userEvent.setup();
+
+    render(
+      <HandwritingPad
+        childId="demo"
+        onAnswer={vi.fn()}
+        problemId="kanji-1"
+        subject="japanese"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /てがきで こたえる/ }));
+    await user.click(screen.getByRole("button", { name: "これで こたえる" }));
+    expect(
+      await screen.findByText("うまく よみとれなかったよ。もういちど かくか、キーボードで にゅうりょくしてね。"),
+    ).toBeInTheDocument();
+  });
+
   it("supports undo, grid switching, and close button", async () => {
     const user = userEvent.setup();
     render(

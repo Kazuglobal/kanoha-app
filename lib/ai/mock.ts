@@ -191,5 +191,16 @@ export const mockAiProvider: AiProvider = {
   generateSimilarProblems: async (input) =>
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),
   name: "mock",
-  recognizeHandwriting: async () => ({ answer: "1000mL" }),
+  recognizeHandwriting: async (_images, problemText = "", subject = "math") => {
+    if (
+      subject === "japanese" ||
+      problemText.includes("漢字") ||
+      problemText.includes("青空") ||
+      problemText.includes("ことば") ||
+      problemText.includes("こくご")
+    ) {
+      return { answer: "あおぞら" };
+    }
+    return { answer: "1000mL" };
+  },
 };

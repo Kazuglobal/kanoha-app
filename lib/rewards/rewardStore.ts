@@ -78,6 +78,7 @@ export function recordCorrectAnswer(): RecordCorrectResult {
   saveRewardState(newState);
 
   if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("kanoha-problem-solved", { detail: { correct: true } }));
     if (earnedFiveYen) {
       window.dispatchEvent(new CustomEvent("kanoha-five-yen-earned", { detail: newState }));
     }
