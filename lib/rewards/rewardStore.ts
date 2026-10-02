@@ -1,5 +1,7 @@
 "use client";
 
+import { getCharacterLevel, type GrowthLevelInfo } from "./characterGrowthStore";
+
 export interface RewardState {
   currentCycleCount: number; // 0 - 10 (10問で1サイクル)
   totalCorrectCount: number;
@@ -47,28 +49,45 @@ export interface RecordCorrectResult {
   newState: RewardState;
   earnedFiveYen: boolean; // 今回の正解で10問達成（5円獲得）したか
   newCycleCount: number;
+  leveledUp: boolean; // 今回の正解でレベルアップしたか
+  newLevel: GrowthLevelInfo;
 }
 
 /**
  * 1問正解を記録する。
  * 10問正解ごとに5円獲得！
+ * 正解数に応じてキャラクターレベルもアップ！
  */
 export function recordCorrectAnswer(): RecordCorrectResult {
   const current = getRewardState();
   const nextCycle = current.currentCycleCount + 1;
   const earnedFiveYen = nextCycle >= 10;
 
+  const previousLevel = getCharacterLevel(current.totalCorrectCount);
+  const newTotalCorrect = current.totalCorrectCount + 1;
+  const newLevel = getCharacterLevel(newTotalCorrect);
+  const leveledUp = newLevel.level > previousLevel.level;
+
   const newState: RewardState = {
     currentCycleCount: earnedFiveYen ? 0 : nextCycle,
-    totalCorrectCount: current.totalCorrectCount + 1,
+    totalCorrectCount: newTotalCorrect,
     totalRewardYen: earnedFiveYen ? current.totalRewardYen + 5 : current.totalRewardYen,
     lastRewardEarnedAt: earnedFiveYen ? new Date().toISOString() : current.lastRewardEarnedAt,
   };
 
   saveRewardState(newState);
 
-  if (earnedFiveYen && typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("kanoha-five-yen-earned", { detail: newState }));
+  if (typeof window !== "undefined") {
+    if (earnedFiveYen) {
+      window.dispatchEvent(new CustomEvent("kanoha-five-yen-earned", { detail: newState }));
+    }
+    if (leveledUp) {
+      window.dispatchEvent(
+        new CustomEvent("kanoha-level-up", {
+          detail: { previousLevel, newLevel, totalCorrect: newTotalCorrect },
+        })
+      );
+    }
   }
 
   return {
@@ -76,5 +95,7 @@ export function recordCorrectAnswer(): RecordCorrectResult {
     newState,
     earnedFiveYen,
     newCycleCount: earnedFiveYen ? 10 : nextCycle,
+    leveledUp,
+    newLevel,
   };
 }
