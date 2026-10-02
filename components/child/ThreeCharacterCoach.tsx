@@ -16,11 +16,18 @@ interface ThreeCharacterCoachProps {
   onClick?: () => void;
 }
 
+const CHARACTER_IMAGE_PATHS: Record<string, string> = {
+  happy: "/images/character/kanoha_happy.jpg",
+  think: "/images/character/kanoha_think.jpg",
+  celebrate: "/images/character/kanoha_celebrate.jpg",
+};
+
 /**
  * ThreeCharacterCoach
- * WebGL (Three.js) を使った立体的なアニメの女の子キャラクター「かのはちゃん」。
- * 頭からツインテール、きらめく瞳、制服、プリーツスカート、レースソックス、ローファーまで完全再現。
- * マウス視線追従、ふんわり揺れるツインテール、自然なまばたき、タップジャンプを搭載。
+ * WebGL (Three.js) を使った人間らしい美しいアニメ女の子キャラクター「かのはちゃん」。
+ * 不気味な幾何学像ではなく、京都アニメ調の愛らしいアニメヒロインを
+ * リアルタイム 3D 空間でマウス追従、パースペクティブ立体回転、動的ライティング、
+ * アイドル呼吸、3Dパーティクル、スプリングジャンプで生き生きと描画。
  */
 export function ThreeCharacterCoach({
   mood = "happy",
@@ -33,7 +40,7 @@ export function ThreeCharacterCoach({
 
   // マウス座標（-1〜1）
   const mousePos = useRef({ x: 0, y: 0 });
-  const targetLook = useRef({ x: 0, y: 0 });
+  const targetRotation = useRef({ x: 0, y: 0, z: 0 });
   // タップ・クリック時のバウンス
   const bounceSpring = useRef({ y: 0, velocity: 0 });
 
@@ -67,14 +74,14 @@ export function ThreeCharacterCoach({
       const customEvent = e as CustomEvent<EquippedAccessories>;
       if (customEvent.detail && !propsAccessories) {
         setCurrentAccessories(customEvent.detail);
-        bounceSpring.current.velocity = 0.12;
+        bounceSpring.current.velocity = 0.14;
       }
     };
 
     const handleGrowthChange = () => {
       if (propsLevel === undefined) {
         setCurrentLevel(getCharacterProgress().currentLevel.level);
-        bounceSpring.current.velocity = 0.18;
+        bounceSpring.current.velocity = 0.2;
       }
     };
 
@@ -108,12 +115,12 @@ export function ThreeCharacterCoach({
     const width = container.clientWidth || 200;
     const height = container.clientHeight || 250;
 
-    // 1. Scene & Camera
+    // 1. Scene & 3D Camera (パースペクティブ立体透視)
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
-    camera.position.set(0, 0.28, 4.8);
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 50);
+    camera.position.set(0, 0.05, 4.6);
 
-    // 2. Renderer
+    // 2. WebGL Renderer
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -121,93 +128,23 @@ export function ThreeCharacterCoach({
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
-    // 3. Lighting (柔らかなアニメセル調ライティング)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
+    // 3. Dynamic Lighting (マウスに反応して走るハイライト)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff5eb, 1.25);
-    keyLight.position.set(2.5, 4, 3.5);
-    scene.add(keyLight);
+    const mouseLight = new THREE.PointLight(0xfff1e6, 1.5, 8);
+    mouseLight.position.set(0, 1, 3);
+    scene.add(mouseLight);
 
-    const fillLight = new THREE.DirectionalLight(0xbae6fd, 0.65);
-    fillLight.position.set(-2.5, 1.5, 2.5);
-    scene.add(fillLight);
-
-    const rimLight = new THREE.DirectionalLight(0xfbcfe8, 0.75);
-    rimLight.position.set(0, -2, -2.5);
+    const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.6);
+    rimLight.position.set(-2, 2, -1);
     scene.add(rimLight);
 
-    // 4. Root Character Group
-    const rootGroup = new THREE.Group();
-    scene.add(rootGroup);
+    // 4. Character 3D Root
+    const characterRoot = new THREE.Group();
+    scene.add(characterRoot);
 
-    // ==========================================
-    // マテリアルパレット（高品質アニメ調）
-    // ==========================================
-    const skinMat = new THREE.MeshStandardMaterial({
-      color: 0xffede0,
-      roughness: 0.55,
-      metalness: 0.02,
-    });
-
-    const hairMat = new THREE.MeshStandardMaterial({
-      color: 0x7c4322,
-      roughness: 0.45,
-      metalness: 0.05,
-    });
-
-    const hairHighlightMat = new THREE.MeshBasicMaterial({
-      color: 0xfef08a,
-      transparent: true,
-      opacity: 0.7,
-    });
-
-    const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const eyeIrisMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
-    const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0x081528 });
-    const eyeSparkleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const eyeLineMat = new THREE.MeshBasicMaterial({ color: 0x1a2436 });
-    const cheekMat = new THREE.MeshBasicMaterial({
-      color: 0xff6b8b,
-      transparent: true,
-      opacity: 0.55,
-    });
-    const mouthMat = new THREE.MeshBasicMaterial({ color: 0xbe123c });
-
-    const uniformNavyMat = new THREE.MeshStandardMaterial({
-      color: 0x1a2b47,
-      roughness: 0.5,
-    });
-    const blouseWhiteMat = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
-      roughness: 0.4,
-    });
-    const ribbonRedMat = new THREE.MeshStandardMaterial({
-      color: 0xf43f5e,
-      roughness: 0.35,
-    });
-    const skirtNavyMat = new THREE.MeshStandardMaterial({
-      color: 0x1e3355,
-      roughness: 0.45,
-    });
-    const goldMat = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
-      roughness: 0.25,
-      metalness: 0.65,
-    });
-    const socksWhiteMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.5,
-    });
-    const shoeBrownMat = new THREE.MeshStandardMaterial({
-      color: 0x451e08,
-      roughness: 0.25,
-      metalness: 0.15,
-    });
-
-    // ==========================================
-    // 1. 地面のソフトシャドウ
-    // ==========================================
+    // 5. 3D 地面ソフトシャドウ
     const shadowGeo = new THREE.CylinderGeometry(0.85, 0.85, 0.01, 32);
     const shadowMat = new THREE.MeshBasicMaterial({
       color: 0x0f1c30,
@@ -215,458 +152,124 @@ export function ThreeCharacterCoach({
       opacity: 0.18,
     });
     const groundShadow = new THREE.Mesh(shadowGeo, shadowMat);
-    groundShadow.position.set(0, -1.35, 0);
-    rootGroup.add(groundShadow);
+    groundShadow.position.set(0, -1.6, 0);
+    scene.add(groundShadow);
 
-    // ==========================================
-    // 2. 下半身（脚・ソックス・ローファー）
-    // ==========================================
-    const legsGroup = new THREE.Group();
-    legsGroup.position.set(0, -0.65, 0);
-    rootGroup.add(legsGroup);
+    // 6. 3D キラキラ星屑パーティクル（celebrate / think 時に周囲を立体周回）
+    const particleCount = 20;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleSpeeds: { radius: number; angle: number; y: number; speed: number }[] = [];
 
-    // 左脚 & 右脚
-    [-0.17, 0.17].forEach((xPos) => {
-      // 太もも〜すね
-      const legGeo = new THREE.CylinderGeometry(0.08, 0.065, 0.7, 16);
-      const legMesh = new THREE.Mesh(legGeo, skinMat);
-      legMesh.position.set(xPos, -0.15, 0);
-      legsGroup.add(legMesh);
-
-      // レース付き白クルーソックス
-      const sockGeo = new THREE.CylinderGeometry(0.075, 0.07, 0.38, 16);
-      const sockMesh = new THREE.Mesh(sockGeo, socksWhiteMat);
-      sockMesh.position.set(xPos, -0.32, 0);
-      legsGroup.add(sockMesh);
-
-      // ソックスの折り返しフリル
-      const frillGeo = new THREE.TorusGeometry(0.085, 0.018, 8, 20);
-      const frillMesh = new THREE.Mesh(frillGeo, socksWhiteMat);
-      frillMesh.rotation.x = Math.PI / 2;
-      frillMesh.position.set(xPos, -0.13, 0);
-      legsGroup.add(frillMesh);
-
-      // ブラウンのエナメルローファー
-      const shoeGroup = new THREE.Group();
-      shoeGroup.position.set(xPos, -0.56, 0.04);
-
-      // 靴底
-      const soleGeo = new THREE.BoxGeometry(0.16, 0.05, 0.32);
-      const soleMesh = new THREE.Mesh(soleGeo, new THREE.MeshBasicMaterial({ color: 0x1f2937 }));
-      soleMesh.position.set(0, -0.05, 0);
-      shoeGroup.add(soleMesh);
-
-      // アッパー（甲）
-      const upperGeo = new THREE.SphereGeometry(0.12, 16, 16);
-      const upperMesh = new THREE.Mesh(upperGeo, shoeBrownMat);
-      upperMesh.scale.set(0.9, 0.75, 1.45);
-      upperMesh.position.set(0, 0, 0.02);
-      shoeGroup.add(upperMesh);
-
-      // 甲のストラップ & バックル
-      const strapGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.025, 16);
-      const strapMesh = new THREE.Mesh(strapGeo, shoeBrownMat);
-      strapMesh.rotation.z = Math.PI / 2;
-      strapMesh.position.set(0, 0.05, -0.02);
-      shoeGroup.add(strapMesh);
-
-      const buckleGeo = new THREE.BoxGeometry(0.03, 0.03, 0.02);
-      const buckleMesh = new THREE.Mesh(buckleGeo, goldMat);
-      buckleMesh.position.set(0, 0.06, 0.05);
-      shoeGroup.add(buckleMesh);
-
-      legsGroup.add(shoeGroup);
-    });
-
-    // ==========================================
-    // 3. プリーツスカート
-    // ==========================================
-    const skirtGroup = new THREE.Group();
-    skirtGroup.position.set(0, -0.55, 0);
-    rootGroup.add(skirtGroup);
-
-    // ふんわり広がるAラインスカート本体
-    const skirtGeo = new THREE.CylinderGeometry(0.38, 0.68, 0.52, 28, 1, true);
-    const skirtMesh = new THREE.Mesh(skirtGeo, skirtNavyMat);
-    skirtMesh.position.set(0, 0, 0);
-    skirtGroup.add(skirtMesh);
-
-    // スカート裾のホワイトセーラーライン
-    const hemLineGeo = new THREE.TorusGeometry(0.66, 0.012, 8, 32);
-    const hemLineMesh = new THREE.Mesh(hemLineGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    hemLineMesh.rotation.x = Math.PI / 2;
-    hemLineMesh.position.set(0, -0.24, 0);
-    skirtGroup.add(hemLineMesh);
-
-    // ウエストベルト & バックル
-    const beltGeo = new THREE.CylinderGeometry(0.385, 0.385, 0.06, 24);
-    const beltMesh = new THREE.Mesh(beltGeo, new THREE.MeshBasicMaterial({ color: 0x3d1a08 }));
-    beltMesh.position.set(0, 0.24, 0);
-    skirtGroup.add(beltMesh);
-
-    const beltBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.02), goldMat);
-    beltBuckle.position.set(0, 0.24, 0.39);
-    skirtGroup.add(beltBuckle);
-
-    // ==========================================
-    // 4. 上半身（ブラウス・ネイビーベスト・胸元リボン）
-    // ==========================================
-    const torsoGroup = new THREE.Group();
-    torsoGroup.position.set(0, -0.15, 0);
-    rootGroup.add(torsoGroup);
-
-    // ベスト身頃
-    const vestGeo = new THREE.CylinderGeometry(0.35, 0.38, 0.48, 20);
-    const vestMesh = new THREE.Mesh(vestGeo, uniformNavyMat);
-    vestMesh.scale.set(1.05, 1, 0.85);
-    vestMesh.position.set(0, 0, 0);
-    torsoGroup.add(vestMesh);
-
-    // 丸襟ブラウス（ピーターパンカラー）
-    const collarLeft = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 8, 16, Math.PI), blouseWhiteMat);
-    collarLeft.rotation.set(Math.PI / 3, 0, 0.3);
-    collarLeft.position.set(-0.1, 0.22, 0.22);
-    torsoGroup.add(collarLeft);
-
-    const collarRight = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 8, 16, Math.PI), blouseWhiteMat);
-    collarRight.rotation.set(Math.PI / 3, 0, -0.3);
-    collarRight.position.set(0.1, 0.22, 0.22);
-    torsoGroup.add(collarRight);
-
-    // ベストの金ボタン2つ
-    [0.08, -0.04].forEach((yPos) => {
-      const buttonMesh = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), goldMat);
-      buttonMesh.position.set(0, yPos, 0.34);
-      torsoGroup.add(buttonMesh);
-    });
-
-    // 胸元の大きなコーラルピンクリボンタイ
-    const ribbonGroup = new THREE.Group();
-    ribbonGroup.position.set(0, 0.17, 0.32);
-
-    // 結び目
-    const knotMesh = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), ribbonRedMat);
-    knotMesh.scale.set(1.2, 1, 1);
-    ribbonGroup.add(knotMesh);
-
-    // 左右のふっくらウィング
-    const wingGeo = new THREE.SphereGeometry(0.11, 16, 16);
-    const leftWing = new THREE.Mesh(wingGeo, ribbonRedMat);
-    leftWing.scale.set(1.3, 0.85, 0.45);
-    leftWing.rotation.set(0, 0, 0.25);
-    leftWing.position.set(-0.12, 0, -0.02);
-    ribbonGroup.add(leftWing);
-
-    const rightWing = new THREE.Mesh(wingGeo, ribbonRedMat);
-    rightWing.scale.set(1.3, 0.85, 0.45);
-    rightWing.rotation.set(0, 0, -0.25);
-    rightWing.position.set(0.12, 0, -0.02);
-    ribbonGroup.add(rightWing);
-
-    // 垂れリボン
-    const tailGeo = new THREE.BoxGeometry(0.06, 0.16, 0.015);
-    const leftTail = new THREE.Mesh(tailGeo, ribbonRedMat);
-    leftTail.rotation.z = -0.2;
-    leftTail.position.set(-0.06, -0.11, 0);
-    ribbonGroup.add(leftTail);
-
-    const rightTail = new THREE.Mesh(tailGeo, ribbonRedMat);
-    rightTail.rotation.z = 0.2;
-    rightTail.position.set(0.06, -0.11, 0);
-    ribbonGroup.add(rightTail);
-
-    torsoGroup.add(ribbonGroup);
-
-    // ==========================================
-    // 5. 腕と手（ポーズ別）
-    // ==========================================
-    const armsGroup = new THREE.Group();
-    torsoGroup.add(armsGroup);
-
-    if (mood === "celebrate") {
-      // バンザイポーズ
-      [-1, 1].forEach((side) => {
-        const arm = new THREE.Group();
-        arm.position.set(side * 0.36, 0.15, 0);
-        arm.rotation.z = side * -2.4;
-        arm.rotation.x = -0.3;
-
-        // 袖
-        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.4, 16), blouseWhiteMat);
-        sleeve.position.set(0, 0.18, 0);
-        arm.add(sleeve);
-
-        // 前腕＆手
-        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), skinMat);
-        hand.position.set(0, 0.4, 0);
-        arm.add(hand);
-
-        armsGroup.add(arm);
-      });
-    } else if (mood === "think") {
-      // 考え中ポーズ（右手があご、左手は腰）
-      // 右手
-      const rightArm = new THREE.Group();
-      rightArm.position.set(0.36, 0.12, 0);
-      rightArm.rotation.set(0.8, -0.4, -1.2);
-      const sleeveR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.38, 16), blouseWhiteMat);
-      sleeveR.position.set(0, -0.16, 0);
-      rightArm.add(sleeveR);
-      const handR = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), skinMat);
-      handR.position.set(0, -0.34, 0);
-      rightArm.add(handR);
-      armsGroup.add(rightArm);
-
-      // 左手
-      const leftArm = new THREE.Group();
-      leftArm.position.set(-0.36, 0.12, 0);
-      leftArm.rotation.set(0.3, 0.2, 0.8);
-      const sleeveL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.35, 16), blouseWhiteMat);
-      sleeveL.position.set(0, -0.16, 0);
-      leftArm.add(sleeveL);
-      const handL = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), skinMat);
-      handL.position.set(0, -0.33, 0);
-      leftArm.add(handL);
-      armsGroup.add(leftArm);
-    } else {
-      // 通常ポーズ（胸の前で両手をきゅっと握る愛らしいお行儀ポーズ）
-      [-1, 1].forEach((side) => {
-        const arm = new THREE.Group();
-        arm.position.set(side * 0.35, 0.12, 0);
-        arm.rotation.set(0.65, side * 0.4, side * 0.6);
-
-        // 白いパフスリーブ
-        const puff = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), blouseWhiteMat);
-        puff.position.set(0, 0, 0);
-        arm.add(puff);
-
-        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.065, 0.38, 16), blouseWhiteMat);
-        sleeve.position.set(0, -0.18, 0);
-        arm.add(sleeve);
-
-        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), skinMat);
-        hand.position.set(0, -0.36, 0);
-        arm.add(hand);
-
-        armsGroup.add(arm);
-      });
+    for (let i = 0; i < particleCount; i++) {
+      const radius = 0.8 + Math.random() * 0.8;
+      const angle = Math.random() * Math.PI * 2;
+      const y = -1.2 + Math.random() * 2.4;
+      particlePositions[i * 3] = Math.cos(angle) * radius;
+      particlePositions[i * 3 + 1] = y;
+      particlePositions[i * 3 + 2] = Math.sin(angle) * radius;
+      particleSpeeds.push({ radius, angle, y, speed: 0.8 + Math.random() * 1.2 });
     }
+    particleGeo.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
 
-    // ==========================================
-    // 6. 頭部グループ（顔・目・髪・ツインテール）
-    // ==========================================
-    const headGroup = new THREE.Group();
-    headGroup.position.set(0, 0.45, 0);
-    rootGroup.add(headGroup);
+    // 星屑テクスチャ生成
+    const starCanvas = document.createElement("canvas");
+    starCanvas.width = 64;
+    starCanvas.height = 64;
+    const sCtx = starCanvas.getContext("2d")!;
+    const grad = sCtx.createRadialGradient(32, 32, 0, 32, 32, 30);
+    grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+    grad.addColorStop(0.3, "rgba(254, 240, 138, 0.9)");
+    grad.addColorStop(1, "rgba(254, 240, 138, 0)");
+    sCtx.fillStyle = grad;
+    sCtx.beginPath();
+    sCtx.arc(32, 32, 30, 0, Math.PI * 2);
+    sCtx.fill();
 
-    // 首
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.28, 16), skinMat);
-    neck.position.set(0, -0.22, 0);
-    headGroup.add(neck);
-
-    // 顔ベース（愛らしいアニメ輪郭フェイス）
-    const faceGeo = new THREE.SphereGeometry(0.58, 32, 32);
-    const faceMesh = new THREE.Mesh(faceGeo, skinMat);
-    faceMesh.scale.set(1.02, 1.05, 0.94);
-    faceMesh.position.set(0, 0, 0);
-    headGroup.add(faceMesh);
-
-    // ほんのり桜色チーク
-    [-0.24, 0.24].forEach((xPos) => {
-      const cheekGeo = new THREE.SphereGeometry(0.11, 16, 16);
-      const cheek = new THREE.Mesh(cheekGeo, cheekMat);
-      cheek.scale.set(1.4, 0.8, 0.2);
-      cheek.position.set(xPos, -0.06, 0.52);
-      headGroup.add(cheek);
+    const starTexture = new THREE.CanvasTexture(starCanvas);
+    const particleMat = new THREE.PointsMaterial({
+      size: 0.22,
+      map: starTexture,
+      transparent: true,
+      opacity: mood === "celebrate" ? 0.9 : mood === "think" ? 0.5 : 0.2,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
+    const particleSystem = new THREE.Points(particleGeo, particleMat);
+    scene.add(particleSystem);
 
-    // ちょこんとした鼻
-    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 12), skinMat);
-    nose.position.set(0, -0.03, 0.56);
-    headGroup.add(nose);
+    // 7. 立体アニメキャラクターメッシュの生成（透明背景化した高解像度アニメテクスチャ）
+    let isDisposed = false;
+    const imgPath = CHARACTER_IMAGE_PATHS[mood] || CHARACTER_IMAGE_PATHS.happy;
 
-    // 笑顔のお口
-    const mouthGeo = new THREE.TorusGeometry(0.065, 0.015, 8, 16, Math.PI);
-    const mouth = new THREE.Mesh(mouthGeo, mouthMat);
-    mouth.rotation.set(Math.PI, 0, 0);
-    mouth.position.set(0, -0.16, 0.54);
-    headGroup.add(mouth);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = imgPath;
+    img.onload = () => {
+      if (isDisposed) return;
 
-    // 立体アニメ瞳（エメラルドブルーの澄んだ瞳）
-    const eyesGroup = new THREE.Group();
-    headGroup.add(eyesGroup);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
 
-    const eyeMeshes: THREE.Group[] = [];
+      // 白背景の完全透過アルゴリズム（エッジを滑らかに抜く）
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const brightness = (r + g + b) / 3;
+        if (brightness > 242) {
+          const factor = Math.max(0, (255 - brightness) / 13);
+          data[i + 3] = Math.round(data[i + 3] * factor);
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
 
-    [-0.2, 0.2].forEach((xPos) => {
-      const singleEye = new THREE.Group();
-      singleEye.position.set(xPos, 0.05, 0.48);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
 
-      // 白目
-      const whiteGeo = new THREE.SphereGeometry(0.14, 20, 20);
-      const whiteMesh = new THREE.Mesh(whiteGeo, eyeWhiteMat);
-      whiteMesh.scale.set(0.9, 1.15, 0.35);
-      singleEye.add(whiteMesh);
+      // わずかに円弧状に丸みを帯びた立体シリンダーカーブジオメトリ
+      const planeWidth = 2.4;
+      const planeHeight = 3.2;
+      const curveGeo = new THREE.CylinderGeometry(
+        4.0,
+        4.0,
+        planeHeight,
+        32,
+        1,
+        true,
+        -planeWidth / (2 * 4.0),
+        planeWidth / 4.0
+      );
 
-      // 虹彩（エメラルドブルー）
-      const irisGeo = new THREE.SphereGeometry(0.115, 18, 18);
-      const irisMesh = new THREE.Mesh(irisGeo, eyeIrisMat);
-      irisMesh.scale.set(0.85, 1.05, 0.38);
-      irisMesh.position.set(0, -0.01, 0.02);
-      singleEye.add(irisMesh);
+      // UVマッピング補正
+      const uvs = curveGeo.attributes.uv;
+      for (let i = 0; i < uvs.count; i++) {
+        const u = 1 - uvs.getX(i);
+        uvs.setX(i, u);
+      }
 
-      // 瞳孔
-      const pupilGeo = new THREE.SphereGeometry(0.06, 16, 16);
-      const pupilMesh = new THREE.Mesh(pupilGeo, eyePupilMat);
-      pupilMesh.scale.set(0.85, 1, 0.4);
-      pupilMesh.position.set(0, 0, 0.04);
-      singleEye.add(pupilMesh);
-
-      // キラキラ主光ハイライト（白）
-      const spark1 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 12), eyeSparkleMat);
-      spark1.position.set(-0.03, 0.05, 0.08);
-      singleEye.add(spark1);
-
-      // 星屑サブハイライト
-      const spark2 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 10), eyeSparkleMat);
-      spark2.position.set(0.04, -0.04, 0.08);
-      singleEye.add(spark2);
-
-      // 上アイライン（まつ毛）
-      const lashGeo = new THREE.TorusGeometry(0.13, 0.022, 8, 16, Math.PI * 0.7);
-      const lashMesh = new THREE.Mesh(lashGeo, eyeLineMat);
-      lashMesh.rotation.set(0, 0, xPos < 0 ? 0.3 : -0.3);
-      lashMesh.position.set(0, 0.1, 0.07);
-      singleEye.add(lashMesh);
-
-      eyesGroup.add(singleEye);
-      eyeMeshes.push(singleEye);
-    });
-
-    // 眉毛
-    [-0.2, 0.2].forEach((xPos) => {
-      const browGeo = new THREE.TorusGeometry(0.12, 0.016, 6, 16, Math.PI * 0.5);
-      const brow = new THREE.Mesh(browGeo, new THREE.MeshBasicMaterial({ color: 0x542810 }));
-      brow.rotation.set(0, 0, xPos < 0 ? 0.25 : -0.25);
-      brow.position.set(xPos, 0.23, 0.48);
-      headGroup.add(brow);
-    });
-
-    // ==========================================
-    // 7. 髪型（後頭部・前髪・アホ毛・ツインテール）
-    // ==========================================
-    // 後頭部
-    const backHairGeo = new THREE.SphereGeometry(0.63, 24, 24);
-    const backHair = new THREE.Mesh(backHairGeo, hairMat);
-    backHair.scale.set(1.05, 1.05, 1.05);
-    backHair.position.set(0, 0.04, -0.06);
-    headGroup.add(backHair);
-
-    // 天使の輪（ハイライトリング）
-    const haloGeo = new THREE.TorusGeometry(0.56, 0.028, 8, 32);
-    const haloMesh = new THREE.Mesh(haloGeo, hairHighlightMat);
-    haloMesh.rotation.x = Math.PI / 2.2;
-    haloMesh.position.set(0, 0.34, 0.08);
-    headGroup.add(haloMesh);
-
-    // 前髪（M字バング・毛束）
-    const bangsGroup = new THREE.Group();
-    headGroup.add(bangsGroup);
-
-    [-0.26, -0.12, 0, 0.12, 0.26].forEach((xPos, idx) => {
-      const bangGeo = new THREE.ConeGeometry(0.11, 0.36, 12);
-      const bangMesh = new THREE.Mesh(bangGeo, hairMat);
-      bangMesh.rotation.set(-0.35, 0, (idx - 2) * 0.15);
-      bangMesh.position.set(xPos, 0.28, 0.46);
-      bangsGroup.add(bangMesh);
-    });
-
-    // サイド姫毛
-    [-0.48, 0.48].forEach((xPos, i) => {
-      const sideLockGeo = new THREE.ConeGeometry(0.09, 0.52, 12);
-      const sideLock = new THREE.Mesh(sideLockGeo, hairMat);
-      sideLock.rotation.set(0.1, 0, i === 0 ? 0.3 : -0.3);
-      sideLock.position.set(xPos, -0.05, 0.3);
-      headGroup.add(sideLock);
-    });
-
-    // 頭頂のアホ毛
-    const ahogeGeo = new THREE.TorusGeometry(0.18, 0.024, 8, 16, Math.PI * 0.7);
-    const ahoge = new THREE.Mesh(ahogeGeo, hairMat);
-    ahoge.rotation.set(0.2, 0.3, 0.6);
-    ahoge.position.set(0.06, 0.65, 0.08);
-    headGroup.add(ahoge);
-
-    // ミントグリーンのヘアピン
-    const pinGeo = new THREE.BoxGeometry(0.14, 0.035, 0.02);
-    const pinMat = new THREE.MeshStandardMaterial({ color: 0x2dd4bf, roughness: 0.3 });
-    const hairpin = new THREE.Mesh(pinGeo, pinMat);
-    hairpin.rotation.set(0, 0, -0.4);
-    hairpin.position.set(-0.32, 0.36, 0.49);
-    headGroup.add(hairpin);
-
-    // 左右のふんわり揺れるツインテール
-    const leftTailGroup = new THREE.Group();
-    leftTailGroup.position.set(-0.52, 0.28, -0.05);
-    headGroup.add(leftTailGroup);
-
-    const rightTailGroup = new THREE.Group();
-    rightTailGroup.position.set(0.52, 0.28, -0.05);
-    headGroup.add(rightTailGroup);
-
-    [leftTailGroup, rightTailGroup].forEach((tailGroup, idx) => {
-      const dir = idx === 0 ? -1 : 1;
-
-      // ピンクリボン留め具
-      const tieGeo = new THREE.TorusGeometry(0.09, 0.03, 8, 16);
-      const tieMesh = new THREE.Mesh(tieGeo, ribbonRedMat);
-      tailGroup.add(tieMesh);
-
-      // ふんわりカールした毛束（複数のカーブメッシュで立体感）
-      const strand1 = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.75, 16), hairMat);
-      strand1.rotation.set(0.15, 0, dir * 0.45);
-      strand1.position.set(dir * 0.18, -0.32, 0);
-      tailGroup.add(strand1);
-
-      const strand2 = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.6, 16), hairMat);
-      strand2.rotation.set(-0.2, 0, dir * 0.7);
-      strand2.position.set(dir * 0.28, -0.25, -0.08);
-      tailGroup.add(strand2);
-    });
-
-    // ==========================================
-    // 8. 着せ替えアクセサリー（3D）
-    // ==========================================
-    if (currentAccessories.hat === "hat_beret") {
-      const beretGeo = new THREE.SphereGeometry(0.58, 20, 20);
-      const beretMesh = new THREE.Mesh(beretGeo, new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
-      beretMesh.scale.set(1.15, 0.4, 1.15);
-      beretMesh.rotation.set(-0.2, 0, 0.3);
-      beretMesh.position.set(0.15, 0.6, 0);
-      headGroup.add(beretMesh);
-    } else if (currentAccessories.hat === "hat_crown") {
-      const crownGeo = new THREE.CylinderGeometry(0.24, 0.18, 0.2, 16);
-      const crownMesh = new THREE.Mesh(crownGeo, goldMat);
-      crownMesh.position.set(0, 0.68, 0.05);
-      headGroup.add(crownMesh);
-    }
-
-    if (currentAccessories.glasses === "glasses_round") {
-      const glassFrameMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3 });
-      [-0.2, 0.2].forEach((xPos) => {
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.018, 8, 24), glassFrameMat);
-        rim.position.set(xPos, 0.05, 0.58);
-        headGroup.add(rim);
+      const mat = new THREE.MeshStandardMaterial({
+        map: texture,
+        transparent: true,
+        roughness: 0.35,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
       });
-      const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.18, 8), glassFrameMat);
-      bridge.rotation.z = Math.PI / 2;
-      bridge.position.set(0, 0.05, 0.58);
-      headGroup.add(bridge);
-    }
 
-    // ==========================================
-    // 9. マウスインタラクション & アニメーションループ
-    // ==========================================
+      const characterMesh = new THREE.Mesh(curveGeo, mat);
+      characterMesh.position.set(0, 0.05, 0);
+      characterRoot.add(characterMesh);
+    };
+
+    // 8. マウス追従イベントリスナー
     const handlePointerMove = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -677,67 +280,59 @@ export function ThreeCharacterCoach({
 
     window.addEventListener("mousemove", handlePointerMove);
 
+    // 9. アニメーションループ
     let animationId: number;
     let lastTime = performance.now();
-    const startTime = lastTime;
-    let blinkTimer = 0;
-    let isBlinking = false;
-    let blinkDuration = 0;
+    const startTime = performance.now();
 
-    const animate = () => {
+    const animate = (currentTime: number) => {
       animationId = requestAnimationFrame(animate);
-      const now = performance.now();
-      const delta = Math.min((now - lastTime) * 0.001, 0.1);
-      lastTime = now;
-      const time = (now - startTime) * 0.001;
+      const delta = Math.min(0.1, (currentTime - lastTime) / 1000);
+      lastTime = currentTime;
+      const time = (currentTime - startTime) / 1000;
 
-      // スプリングジャンプの減衰
-      bounceSpring.current.velocity += (0 - bounceSpring.current.y) * 18 * delta;
-      bounceSpring.current.velocity *= 0.88;
+      // スプリングジャンプ減衰
+      bounceSpring.current.velocity += (0 - bounceSpring.current.y) * 22 * delta;
+      bounceSpring.current.velocity *= 0.86;
       bounceSpring.current.y += bounceSpring.current.velocity;
 
-      // 呼吸（Idle Breath）
-      const breath = Math.sin(time * 2.8) * 0.025;
-      rootGroup.position.y = -0.1 + breath + bounceSpring.current.y;
+      // 自然な呼吸アニメーション（Idle Breath）
+      const breath = Math.sin(time * 2.6) * 0.035;
+      characterRoot.position.y = breath + bounceSpring.current.y;
 
-      // マウス追従の滑らかな補間（Lerp）
-      targetLook.current.x += (mousePos.current.x * 0.35 - targetLook.current.x) * 0.1;
-      targetLook.current.y += (mousePos.current.y * 0.25 - targetLook.current.y) * 0.1;
+      // 立体視線追従の滑らかな補間（Lerp）
+      targetRotation.current.y += (mousePos.current.x * 0.4 - targetRotation.current.y) * 0.08;
+      targetRotation.current.x += (-mousePos.current.y * 0.25 - targetRotation.current.x) * 0.08;
+      targetRotation.current.z = -targetRotation.current.y * 0.15;
 
-      headGroup.rotation.y = targetLook.current.x;
-      headGroup.rotation.x = -targetLook.current.y;
+      characterRoot.rotation.y = targetRotation.current.y;
+      characterRoot.rotation.x = targetRotation.current.x;
+      characterRoot.rotation.z = targetRotation.current.z;
 
-      // ツインテールの遅延ふんわり揺れ物理
-      const tailSway = Math.sin(time * 3.2) * 0.08 - targetLook.current.x * 0.35;
-      leftTailGroup.rotation.z = tailSway;
-      rightTailGroup.rotation.z = -tailSway;
+      // マウス位置に連動したライトの移動（表面にリアルタイムに走る光）
+      mouseLight.position.x = mousePos.current.x * 2.5;
+      mouseLight.position.y = 1 + mousePos.current.y * 2.0;
 
-      // 自然なまばたきアニメーション
-      blinkTimer += delta;
-      if (!isBlinking && blinkTimer > 2.8 + Math.random() * 2.5) {
-        isBlinking = true;
-        blinkDuration = 0;
-        blinkTimer = 0;
+      // 3D 地面シャドウのリアルタイム追従
+      const shadowScale = 1 - bounceSpring.current.y * 0.8;
+      groundShadow.scale.set(shadowScale, shadowScale, shadowScale);
+      groundShadow.position.x = targetRotation.current.y * 0.3;
+
+      // 3D 星屑パーティクルの周回アニメーション
+      const positions = particleGeo.attributes.position.array as Float32Array;
+      for (let i = 0; i < particleCount; i++) {
+        const p = particleSpeeds[i];
+        p.angle += p.speed * delta * (mood === "celebrate" ? 2.5 : 1.0);
+        positions[i * 3] = Math.cos(p.angle) * p.radius;
+        positions[i * 3 + 2] = Math.sin(p.angle) * p.radius;
       }
-
-      if (isBlinking) {
-        blinkDuration += delta;
-        const blinkScale = blinkDuration < 0.08 ? 0.08 : 1;
-        eyeMeshes.forEach((eye) => {
-          eye.scale.y = blinkScale;
-        });
-        if (blinkDuration > 0.15) {
-          isBlinking = false;
-          eyeMeshes.forEach((eye) => {
-            eye.scale.y = 1;
-          });
-        }
-      }
+      particleGeo.attributes.position.needsUpdate = true;
+      particleSystem.rotation.y += delta * 0.2;
 
       renderer.render(scene, camera);
     };
 
-    animate();
+    animate(performance.now());
 
     const handleResize = () => {
       if (!container) return;
@@ -751,10 +346,14 @@ export function ThreeCharacterCoach({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      isDisposed = true;
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animationId);
       renderer.dispose();
+      particleGeo.dispose();
+      particleMat.dispose();
+      starTexture.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
@@ -762,7 +361,7 @@ export function ThreeCharacterCoach({
   }, [mood, currentLevel, currentAccessories]);
 
   const handleContainerClick = () => {
-    bounceSpring.current.velocity = 0.22;
+    bounceSpring.current.velocity = 0.24;
     if (onClick) onClick();
   };
 
