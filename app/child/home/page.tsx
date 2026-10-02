@@ -5,6 +5,7 @@ import { CharacterCoach } from "@/components/child/CharacterCoach";
 import { ChildHeader } from "@/components/child/ChildHeader";
 import { RubyAuto } from "@/components/child/RubyText";
 import { SubjectSwitch } from "@/components/child/SubjectSwitch";
+import { CurriculumStageSection } from "@/components/child/CurriculumStageSection";
 import { HOME_TEXT } from "@/components/child/childStrings";
 import styles from "@/components/kanoha.module.css";
 import { getTodayRecommendations } from "@/lib/review/today";
@@ -210,6 +211,12 @@ function RealHome({
             <p className={styles.tiny}>さいきん といたもんだいを ふくしゅうしよう</p>
           </Link>
         </div>
+
+        <CurriculumStageSection
+          currentSubject={currentSubject}
+          childId={selected.id}
+          readingMode={readingMode}
+        />
       </main>
     </div>
   );
@@ -256,6 +263,11 @@ function DemoHome({ currentSubject }: { currentSubject: Subject }) {
             <p className={styles.tiny}>ログインしてがくしゅうをはじめよう</p>
           </Link>
         </div>
+
+        <CurriculumStageSection
+          currentSubject={currentSubject}
+          readingMode="kanji_with_ruby"
+        />
       </main>
     </div>
   );

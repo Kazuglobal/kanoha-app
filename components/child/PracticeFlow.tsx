@@ -36,12 +36,14 @@ export function FinishedScreen({
   unit,
   readingMode,
   resultHref,
+  nextProblemHref,
   onRestart,
 }: {
   score: number;
   unit: string;
   readingMode: ReadingMode;
   resultHref: string;
+  nextProblemHref?: string | null;
   onRestart: () => void;
 }) {
   useEffect(() => {
@@ -64,6 +66,11 @@ export function FinishedScreen({
         {FLOW_TEXT.finishedLeadSuffix}
       </p>
       <div className={styles.hintActions}>
+        {nextProblemHref && (
+          <Link className={styles.nextProblemButton} href={nextProblemHref as Route}>
+            🚀 つぎの もんだいへ すすむ！
+          </Link>
+        )}
         <Link className={styles.primaryButton} href={resultHref as Route}>{FLOW_TEXT.resultLink}</Link>
         <button className={styles.secondaryButton} type="button" onClick={onRestart}>
           {FLOW_TEXT.retryFlow}

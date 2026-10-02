@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
+import type { Route } from "next";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { CharacterCoach } from "./CharacterCoach";
@@ -60,6 +62,7 @@ export function LearningFlow({
       <FinishedScreen
         readingMode={preferences.readingMode}
         resultHref={flow.resultHref}
+        nextProblemHref={flow.nextProblemHref}
         score={flow.score}
         unit={flow.unit}
         onRestart={() => void flow.restartFlow()}
@@ -202,6 +205,17 @@ export function LearningFlow({
                 )}
               </div>
             ) : null}
+
+            {flow.checked?.correct && flow.nextProblemHref && (
+              <div style={{ margin: "14px 0 8px", textAlign: "center" }}>
+                <Link
+                  href={flow.nextProblemHref as Route}
+                  className={styles.nextProblemButton}
+                >
+                  🚀 つぎの もんだいへ すすむ！
+                </Link>
+              </div>
+            )}
 
             <HintStepper
               revealed={flow.revealedHints}

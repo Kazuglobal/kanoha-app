@@ -1,4 +1,5 @@
 import { buildProblemExplanation } from "./buildProblemRecords";
+import { CURRICULUM_PROBLEMS, getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
 import type { AiProvider } from "./provider";
 import type {
   Hints,
@@ -103,6 +104,30 @@ export const DEMO_JAPANESE_PROBLEM_ID = "kanji-1";
 
 /** デモ問題を DB 行と同じ形で返す(/api/problems/[id]/hint の Supabase 未設定経路)。 */
 export const demoProblemById = (id: string) => {
+  const bankProblem = getCurriculumProblemById(id);
+  if (bankProblem) {
+    const parsed: ParsedProblem = {
+      correctAnswer: bankProblem.correctAnswer,
+      difficulty: "standard",
+      grade: 2,
+      hints: bankProblem.hints,
+      problemText: bankProblem.problemText,
+      recommendedVisualTemplate: bankProblem.recommendedVisualTemplate ?? null,
+      rubyTextRequired: true,
+      similarProblemCount: 5,
+      subUnit: bankProblem.subUnit,
+      subject: bankProblem.subject,
+      unit: bankProblem.unit,
+    };
+    return {
+      correct_answer: bankProblem.correctAnswer,
+      explanation_json: buildProblemExplanation(parsed),
+      problem_text: bankProblem.problemText,
+      subject: bankProblem.subject,
+      unit: bankProblem.unit,
+    };
+  }
+
   if (id === DEMO_PROBLEM_ID) {
     const problem = mockProblems[0];
     return {
@@ -183,6 +208,12 @@ const JAPANESE_MOCK_HINTS: Hints = {
 export const mockAiProvider: AiProvider = {
   analyzeProblems: async () => [...mockProblems],
   generateHints: async (prompt) => {
+    const bankMatch = CURRICULUM_PROBLEMS.find(
+      (p) => p.problemText && prompt.includes(p.problemText.slice(0, 8)),
+    );
+    if (bankMatch) {
+      return bankMatch.hints;
+    }
     if (prompt.includes("こくご") || prompt.includes("漢字") || prompt.includes("青空")) {
       return JAPANESE_MOCK_HINTS;
     }
@@ -192,6 +223,12 @@ export const mockAiProvider: AiProvider = {
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),
   name: "mock",
   recognizeHandwriting: async (_images, problemText = "", subject = "math") => {
+    const bankMatch = CURRICULUM_PROBLEMS.find(
+      (p) => problemText && (p.problemText.includes(problemText.slice(0, 8)) || problemText.includes(p.problemText.slice(0, 8))),
+    );
+    if (bankMatch) {
+      return { answer: bankMatch.correctAnswer };
+    }
     if (
       subject === "japanese" ||
       problemText.includes("漢字") ||

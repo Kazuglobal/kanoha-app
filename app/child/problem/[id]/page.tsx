@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
 import { demoProblemById } from "@/lib/ai/mock";
+import { getCurriculumStageProgress } from "@/lib/curriculum/curriculumBank";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -31,11 +32,15 @@ export default async function ProblemPage({
     question: demo.problem_text,
     unit: demo.unit,
     subject: demo.subject,
+    correctAnswer: demo.correct_answer,
   } : undefined);
+
+  const stageProgress = getCurriculumStageProgress(id);
+  const progressLabel = stageProgress ? stageProgress.label : "1 / 1";
 
   return (
     <div className={styles.childShell}>
-      <ChildHeader progress="1 / 1" />
+      <ChildHeader progress={progressLabel} />
       <main className={styles.learningStage}>
         <LearningFlow persisted={persisted} preferences={loaded?.preferences} />
       </main>

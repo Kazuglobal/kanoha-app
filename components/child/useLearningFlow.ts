@@ -37,15 +37,20 @@ import {
   startLearningSession,
   type DailyLimitInfo,
 } from "./learningApi";
+import {
+  getCurriculumProblemById,
+  getNextCurriculumProblem,
+} from "@/lib/curriculum/curriculumBank";
 import type { SimilarAnswerResult, SimilarProblem } from "./SimilarProblemCard";
 
-/** サーバーから渡される問題情報。答えとヒントは含まない(A2)。 */
+/** サーバーから渡される問題情報。答えとヒントは含まない(A2)。デモ時は正解検証用フォールバックを受け取れる。 */
 export interface PersistedProblem {
   childId: string;
   problemId: string;
   question: string;
   unit: string;
   subject?: string;
+  correctAnswer?: string;
 }
 
 export interface PersistedSimilarProblem extends SimilarProblem {
@@ -84,15 +89,19 @@ const toStoredSimilar = (
  * - タブが隠れる/閉じるときは keepalive PATCH で利用時間を記録する。
  */
 export function useLearningFlow(persisted?: PersistedProblem) {
+  const bankProblem = getCurriculumProblemById(persisted?.problemId ?? "");
   const isJapanese =
     persisted?.subject === "japanese" ||
+    bankProblem?.subject === "japanese" ||
     persisted?.problemId === DEMO_JAPANESE_PROBLEM_ID ||
     persisted?.unit === "漢字" ||
     persisted?.unit === "お話の読解" ||
-    persisted?.unit === "ことばのきまり";
-  const defaultQuestion = isJapanese ? DEMO_JAPANESE_QUESTION : DEMO_QUESTION;
-  const defaultUnit = isJapanese ? DEMO_JAPANESE_UNIT : DEMO_UNIT;
-  const defaultAnswer = isJapanese ? DEMO_JAPANESE_ANSWER : DEMO_ANSWER;
+    persisted?.unit === "ことばのきまり" ||
+    persisted?.unit === "文の組み立て" ||
+    persisted?.unit === "説明文の読解";
+  const defaultQuestion = bankProblem?.problemText ?? (isJapanese ? DEMO_JAPANESE_QUESTION : DEMO_QUESTION);
+  const defaultUnit = bankProblem?.unit ?? (isJapanese ? DEMO_JAPANESE_UNIT : DEMO_UNIT);
+  const defaultAnswer = persisted?.correctAnswer ?? bankProblem?.correctAnswer ?? (isJapanese ? DEMO_JAPANESE_ANSWER : DEMO_ANSWER);
   const defaultSimilar = isJapanese ? DEMO_JAPANESE_SIMILAR_PROBLEMS : DEMO_SIMILAR_PROBLEMS;
 
   const isDemo =
@@ -100,7 +109,8 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     persisted.childId === "demo" ||
     !/^[0-9a-f-]{36}$/i.test(persisted.childId) ||
     persisted.problemId === DEMO_PROBLEM_ID ||
-    persisted.problemId === DEMO_JAPANESE_PROBLEM_ID;
+    persisted.problemId === DEMO_JAPANESE_PROBLEM_ID ||
+    Boolean(bankProblem);
 
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState<{ correct: boolean } | null>(null);
@@ -121,12 +131,19 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   const finishedRef = useRef(false);
   const originalSavedRef = useRef(false);
 
+  const activeProblemId = persisted?.problemId ?? (isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID);
+  const nextProblem = getNextCurriculumProblem(activeProblemId);
+  const nextProblemHref = nextProblem
+    ? `/child/problem/${nextProblem.id}${persisted?.childId ? `?childId=${persisted.childId}` : ""}`
+    : null;
+
   const finished = practiceIndex !== null && practiceIndex >= similarProblems.length;
   const question = persisted?.question ?? defaultQuestion;
   const unit = persisted?.unit ?? defaultUnit;
+  const nextParam = nextProblem ? `&nextProblemId=${nextProblem.id}` : "";
   const resultHref = persisted
-    ? `/child/result?score=${score}&unit=${encodeURIComponent(unit)}&problemId=${persisted.problemId}&childId=${persisted.childId}`
-    : `/child/result?score=${score}&unit=${encodeURIComponent(unit)}`;
+    ? `/child/result?score=${score}&unit=${encodeURIComponent(unit)}&problemId=${persisted.problemId}&childId=${persisted.childId}${nextParam}`
+    : `/child/result?score=${score}&unit=${encodeURIComponent(unit)}${nextParam}`;
 
   async function startNewSession(target: PersistedProblem) {
     if (isDemo) {
@@ -442,6 +459,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     answer, setAnswer, checked, revealedHints, practiceIndex, score, sessionId,
     similarProblems, pending, simplifying, visualPending, visualUrl,
     saveMessage, retryAction, dailyLimit, finished, question, unit, resultHref,
+    nextProblemHref,
     requestNextHint, checkOriginalAnswer, startPractice, simplifyHints,
     showVisualHint, answerSimilar, completeSimilar, restartFlow,
   };

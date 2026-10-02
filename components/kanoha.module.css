@@ -2923,5 +2923,172 @@
   transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Next Problem Celebratory Button */
+.nextProblemButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: clamp(18px, 2.5vw, 22px);
+  font-weight: 900;
+  padding: 16px 32px;
+  border-radius: 99px;
+  border: 3px solid #34d399;
+  box-shadow:
+    0 8px 0 #047857,
+    0 16px 28px rgba(16, 185, 129, 0.4);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  animation: pulseScale 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseScale {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.nextProblemButton:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow:
+    0 10px 0 #047857,
+    0 20px 32px rgba(16, 185, 129, 0.45);
+}
+
+.nextProblemButton:active {
+  transform: translateY(6px);
+  box-shadow: 0 2px 0 #047857;
+}
+
+/* Stage Map Section on Child Home */
+.stageMapSection {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stageMapHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stageMapTitle {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.stageMapSubtitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748b;
+  margin: 0;
+}
+
+.stageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.stageCard {
+  background: white;
+  border: 3px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 6px 0 #cbd5e1;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stageCard:hover {
+  border-color: #38bdf8;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 0 #0284c7, 0 12px 24px rgba(56, 189, 248, 0.2);
+}
+
+.stageCard:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #0284c7;
+}
+
+.stageCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stageCardEmoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.stageCardBadge {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid #e2e8f0;
+}
+
+.stageCardTitle {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--navy);
+  margin: 0;
+}
+
+.stageCardDesc {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.stageCardAction {
+  margin-top: 6px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 2px solid #bbf7d0;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 14px;
+  box-shadow: 0 3px 0 #86efac;
+}
+
+.stageCard:hover .stageCardAction {
+  background: #16a34a;
+  color: white;
+  border-color: #15803d;
+  box-shadow: 0 3px 0 #14532d;
+}
+
+
 
 
