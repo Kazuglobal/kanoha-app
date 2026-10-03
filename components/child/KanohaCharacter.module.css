@@ -13,18 +13,36 @@
   cursor: pointer;
 }
 
-.sprite {
+.characterContainer {
+  position: relative;
   display: block;
   width: auto;
   height: 100%;
   max-width: 100%;
-  object-fit: contain;
+  aspect-ratio: 1024 / 1536;
   filter: drop-shadow(0 12px 14px rgb(157 93 104 / 12%));
   animation: float 3.6s ease-in-out infinite;
 }
 
-.celebrate .sprite {
+.celebrate .characterContainer {
   animation: cheer 0.8s ease-in-out infinite;
+}
+
+.sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.overlaySprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 @keyframes float {

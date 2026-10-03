@@ -39,10 +39,9 @@ const SPRITES = {
 export function getKanohaSprite(
   mood: Mood,
   accessories: EquippedAccessories,
-  previewCategory?: AccessoryCategory,
+  _previewCategory?: AccessoryCategory,
 ): string {
-  const clothes = () => {
-    switch (accessories.clothes) {
+  switch (accessories.clothes) {
     case "clothes_school":
       return SPRITES.school;
     case "clothes_safari":
@@ -55,58 +54,50 @@ export function getKanohaSprite(
       return SPRITES.hero;
     default:
       return SPRITES[mood];
-    }
-  };
-  const hat = () => {
-    switch (accessories.hat) {
-      case "hat_safari": return SPRITES.safari;
-      case "hat_beret": return SPRITES.beret;
-      case "hat_ribbon": return SPRITES.happy;
-      case "hat_wizard": return SPRITES.wizard;
-      case "hat_crown": return SPRITES.hero;
-      default: return clothes();
-    }
-  };
-  const glasses = () => {
-    switch (accessories.glasses) {
-      case "glasses_round": return SPRITES.glassesRound;
-      case "glasses_star": return SPRITES.glassesStar;
-      default: return clothes();
-    }
-  };
-  const gloves = () => {
-    switch (accessories.gloves) {
-      case "gloves_mitten": return SPRITES.mittens;
-      case "gloves_gold": return SPRITES.glovesGold;
-      default: return clothes();
-    }
-  };
-
-  switch (previewCategory) {
-    case "hat": return hat();
-    case "glasses": return glasses();
-    case "gloves": return gloves();
-    case "clothes": return clothes();
   }
-  return clothes();
 }
 
-export function KanohaCharacter({ mood = "happy", accessories, previewCategory, onClick }: KanohaCharacterProps) {
+export function KanohaCharacter({ mood = "happy", accessories, onClick }: KanohaCharacterProps) {
   const [storedAccessories, setStoredAccessories] = useState<EquippedAccessories>(DEFAULT_EQUIPPED);
-  const [storedCategory, setStoredCategory] = useState<AccessoryCategory>("clothes");
 
   useEffect(() => {
     setStoredAccessories(getEquippedAccessories());
-    setStoredCategory(getLastEquippedCategory());
     const update = () => {
       setStoredAccessories(getEquippedAccessories());
-      setStoredCategory(getLastEquippedCategory());
     };
     window.addEventListener("kanoha-accessory-update", update);
     return () => window.removeEventListener("kanoha-accessory-update", update);
   }, []);
 
-  const src = getKanohaSprite(mood, accessories ?? storedAccessories, previewCategory ?? storedCategory);
+  const activeAccessories = accessories ?? storedAccessories;
+
+  // 1. ベース衣装
+  const baseSrc = getKanohaSprite(mood, activeAccessories);
+
+  // 2. メガネレイヤー
+  let glassesSrc: string | null = null;
+  if (activeAccessories.glasses === "glasses_round") {
+    glassesSrc = SPRITES.glassesRound;
+  } else if (activeAccessories.glasses === "glasses_star") {
+    glassesSrc = SPRITES.glassesStar;
+  }
+
+  // 3. 手袋レイヤー
+  let glovesSrc: string | null = null;
+  if (activeAccessories.gloves === "gloves_mitten") {
+    glovesSrc = SPRITES.mittens;
+  } else if (activeAccessories.gloves === "gloves_gold") {
+    glovesSrc = SPRITES.glovesGold;
+  }
+
+  // 4. 帽子レイヤー (服がサファリのときは既に帽子を被っているのでベレー帽のみ別重ね)
+  let hatSrc: string | null = null;
+  if (activeAccessories.hat === "hat_beret") {
+    hatSrc = SPRITES.beret;
+  } else if (activeAccessories.hat === "hat_safari" && activeAccessories.clothes !== "clothes_safari") {
+    hatSrc = SPRITES.safari;
+  }
+
   return (
     <div
       className={`${styles.stage} ${mood === "celebrate" ? styles.celebrate : ""}`}
@@ -121,16 +112,65 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
         }
       }}
     >
-      <Image
-        key={src}
-        className={styles.sprite}
-        src={src}
-        width={1024}
-        height={1536}
-        alt=""
-        draggable={false}
-        unoptimized
-      />
+      <div className={styles.characterContainer}>
+        {/* レイヤー1: ベース全身衣装 */}
+        <Image
+          key={`base-${baseSrc}`}
+          className={styles.sprite}
+          src={baseSrc}
+          width={1024}
+          height={1536}
+          alt=""
+          draggable={false}
+          unoptimized
+        />
+
+        {/* レイヤー2: 手袋オーバーレイ */}
+        {glovesSrc && (
+          <Image
+            key={`gloves-${glovesSrc}`}
+            className={styles.overlaySprite}
+            src={glovesSrc}
+            width={1024}
+            height={1536}
+            alt=""
+            draggable={false}
+            unoptimized
+            style={{ clipPath: "polygon(14% 31%, 43% 31%, 43% 54%, 14% 54%)" }}
+          />
+        )}
+
+        {/* レイヤー3: メガネオーバーレイ */}
+        {glassesSrc && (
+          <Image
+            key={`glasses-${glassesSrc}`}
+            className={styles.overlaySprite}
+            src={glassesSrc}
+            width={1024}
+            height={1536}
+            alt=""
+            draggable={false}
+            unoptimized
+            style={{ clipPath: "polygon(34% 21%, 73% 21%, 73% 36%, 34% 36%)" }}
+          />
+        )}
+
+        {/* レイヤー4: 帽子オーバーレイ */}
+        {hatSrc && (
+          <Image
+            key={`hat-${hatSrc}`}
+            className={styles.overlaySprite}
+            src={hatSrc}
+            width={1024}
+            height={1536}
+            alt=""
+            draggable={false}
+            unoptimized
+            style={{ clipPath: "polygon(20% 0%, 82% 0%, 82% 22%, 20% 22%)" }}
+          />
+        )}
+      </div>
     </div>
   );
 }
+

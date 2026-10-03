@@ -7,7 +7,7 @@
 export interface GeminiTtsOptions {
   text: string;
   mood?: "happy" | "celebrate" | "think";
-  voiceName?: "Aoede" | "Kore" | "Puck" | "Fenrir" | "Charon";
+  voiceName?: "Aoede" | "Autonoe" | "Laomedeia" | "Kore" | "Puck" | "Fenrir" | "Charon";
 }
 
 export interface GeminiTtsResult {
@@ -64,22 +64,26 @@ export async function generateGeminiSpeech({
     };
   }
 
-  // 声のトーンやキャラクター指示（温かく可愛い小学生の学習コーチ）
-  const moodPrompt =
+  // 小学校2年生の女の子キャラクター「かのはちゃん」専用の演出指示
+  const moodInstruction =
     mood === "celebrate"
-      ? "大正解を思いっきり喜んで、元気いっぱいに飛び跳ねるように褒めてあげてください。"
+      ? "大正解を思いっきり喜んで、ぴょんぴょん飛び跳ねるように『やったー！』という満面の笑顔が伝わる最高に明るい声で褒めてください。"
       : mood === "think"
-      ? "優しく安心させるように、ゆっくり優しく語りかけてあげてください。"
-      : "明るく親しみやすく、笑顔でいっしょに頑張ろうと励ましてください。";
+      ? "『大丈夫だよ、いっしょに考えよう』と安心させるように、優しく寄り添うトーンで語りかけてください。"
+      : "親友といっしょに勉強しているように、笑顔でいっしょに頑張ろうと明るく励ましてください。";
 
-  const systemInstruction = `あなたは小学生の自立学習を応援する愛されマスコット「かのは」です。
-子どもが安心できるよう、温かく可愛らしい声で、以下のセリフだけをそのまま元気に読み上げてください。
-余計な前置きや説明は一切含めず、セリフのみを発声してください。
-【演出指示】: ${moodPrompt}`;
+  const systemInstruction = `あなたは小学2年生の自立学習をやさしく楽しく応援する女の子キャラクター「かのはちゃん」です。
+【キャラクター設定と声色の指示】:
+- 年齢: 小学2年生くらいの元気で純粋な女の子。
+- 声質: 少し高めのピッチで、透明感と愛嬌のある、アニメのヒロインのようなとっても可愛らしい少女の声。
+- トーン: 人工的な機械声やアナウンサーのような堅苦しさを完全に排除し、人間味とあたたかさにあふれた自然な話し言葉。
+- 演出: ${moodInstruction}
+- 注意事項: セリフ以外の解説や挨拶は一切追加せず、指定されたセリフ「」の中身だけをそのまま情感豊かに発声してください。`;
 
   try {
+    const ttsModel = process.env.GEMINI_TTS_MODEL || "gemini-2.0-flash";
     const endpoint =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(ttsModel)}:generateContent`;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -99,13 +103,14 @@ export async function generateGeminiSpeech({
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName, // Aoede: 優しく澄んだ女性声
+                voiceName, // Aoede / Autonoe: 明るく澄んだ愛らしい少女声
               },
             },
           },
         },
       }),
     });
+
 
     if (!response.ok) {
       const errText = await response.text();
