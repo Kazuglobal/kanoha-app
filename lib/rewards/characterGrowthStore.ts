@@ -119,11 +119,11 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
   // ふく (Clothes)
   {
     id: "clothes_tshirt",
-    name: "いつものTシャツ",
+    name: "いつものくまパーカー",
     category: "clothes",
-    icon: "👕",
+    icon: "🧸",
     unlockLevel: 1,
-    description: "げんきいっぱいの えりつきTシャツ",
+    description: "くまのワッペンと ピンクのスカート",
   },
   {
     id: "clothes_school",
@@ -175,9 +175,9 @@ export interface EquippedAccessories {
 }
 
 export const DEFAULT_EQUIPPED: EquippedAccessories = {
-  hat: "hat_safari",
+  hat: "hat_none",
   glasses: "glasses_none",
-  gloves: "gloves_mitten",
+  gloves: "gloves_none",
   clothes: "clothes_tshirt",
 };
 
@@ -234,6 +234,7 @@ export const GROWTH_LEVELS: readonly GrowthLevelInfo[] = [
 ] as const;
 
 const ACCESSORY_STORAGE_KEY = "kanoha_child_equipped_accessories_v1";
+const ACCESSORY_FOCUS_KEY = "kanoha_child_accessory_focus_v1";
 
 export function getCharacterLevel(totalCorrect: number): GrowthLevelInfo {
   for (let i = GROWTH_LEVELS.length - 1; i >= 0; i--) {
@@ -261,7 +262,7 @@ export function getCharacterProgress(): CharacterProgress {
       ? GROWTH_LEVELS[currentLevel.level] // 次のindex
       : null;
 
-  let currentLevelCorrect = totalCorrectCount - currentLevel.minCorrect;
+  const currentLevelCorrect = totalCorrectCount - currentLevel.minCorrect;
   let neededForNextLevel = 0;
   let progressPercent = 100;
 
@@ -310,6 +311,17 @@ export function saveEquippedAccessories(accessories: EquippedAccessories): void 
   }
 }
 
+export function getLastEquippedCategory(): AccessoryCategory {
+  if (typeof window === "undefined") return "clothes";
+  try {
+    const category = localStorage.getItem(ACCESSORY_FOCUS_KEY);
+    if (category === "hat" || category === "glasses" || category === "gloves") return category;
+  } catch {
+    // ignore
+  }
+  return "clothes";
+}
+
 export function equipAccessory(
   category: AccessoryCategory,
   itemId: string
@@ -319,6 +331,11 @@ export function equipAccessory(
     ...current,
     [category]: itemId,
   };
+  try {
+    localStorage.setItem(ACCESSORY_FOCUS_KEY, category);
+  } catch {
+    // ignore
+  }
   saveEquippedAccessories(updated);
   return updated;
 }

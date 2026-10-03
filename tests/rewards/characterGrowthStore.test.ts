@@ -3,10 +3,9 @@ import {
   ACCESSORY_CATALOG,
   equipAccessory,
   getCharacterLevel,
-  getCharacterProgress,
   getEquippedAccessories,
+  getLastEquippedCategory,
   isAccessoryUnlocked,
-  saveEquippedAccessories,
 } from "@/lib/rewards/characterGrowthStore";
 import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 
@@ -68,9 +67,9 @@ describe("characterGrowthStore", () => {
   describe("equipAccessory & getEquippedAccessories", () => {
     it("returns default accessories initially", () => {
       const equipped = getEquippedAccessories();
-      expect(equipped.hat).toBe("hat_safari");
+      expect(equipped.hat).toBe("hat_none");
       expect(equipped.glasses).toBe("glasses_none");
-      expect(equipped.gloves).toBe("gloves_mitten");
+      expect(equipped.gloves).toBe("gloves_none");
       expect(equipped.clothes).toBe("clothes_tshirt");
     });
 
@@ -80,10 +79,12 @@ describe("characterGrowthStore", () => {
 
       expect(updated.hat).toBe("hat_beret");
       expect(getEquippedAccessories().hat).toBe("hat_beret");
+      expect(getLastEquippedCategory()).toBe("hat");
 
       const updatedClothes = equipAccessory("clothes", "clothes_school");
       expect(updatedClothes.clothes).toBe("clothes_school");
       expect(getEquippedAccessories().clothes).toBe("clothes_school");
+      expect(getLastEquippedCategory()).toBe("clothes");
 
       expect(dispatchSpy).toHaveBeenCalledWith(
         expect.objectContaining({ type: "kanoha-accessory-update" })

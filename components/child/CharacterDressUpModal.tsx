@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, Lock, Shirt } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
-import { ThreeCharacterCoach } from "./ThreeCharacterCoach";
+import { KanohaCharacter } from "./KanohaCharacter";
 import {
   ACCESSORY_CATALOG,
   getCharacterProgress,
@@ -37,7 +37,6 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
 
   if (!isOpen) return null;
 
-  const currentLevel = progress?.currentLevel.level ?? 1;
   const totalCorrect = progress?.totalCorrect ?? 0;
 
   const filteredItems = ACCESSORY_CATALOG.filter((item) => item.category === activeTab);
@@ -80,13 +79,13 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
           </div>
 
           <div className={styles.dressUpMainGrid}>
-            {/* Left: 3D Realtime Preview Stage */}
+            {/* Full-body illustrated preview */}
             <div className={styles.dressUpPreviewStage}>
               <div className={styles.dressUp3DContainer}>
-                <ThreeCharacterCoach
+                <KanohaCharacter
                   mood="happy"
-                  level={currentLevel}
                   accessories={equipped}
+                  previewCategory={activeTab}
                 />
               </div>
 
@@ -227,8 +226,8 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
 }
 
 const DEFAULT_EQUIPPED_FALLBACK: EquippedAccessories = {
-  hat: "hat_safari",
+  hat: "hat_none",
   glasses: "glasses_none",
-  gloves: "gloves_mitten",
+  gloves: "gloves_none",
   clothes: "clothes_tshirt",
 };
