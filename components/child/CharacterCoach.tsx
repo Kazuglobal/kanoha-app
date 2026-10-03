@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
-import { LovableKanohaCharacter } from "./LovableKanohaCharacter";
+import { KanohaCharacter } from "./KanohaCharacter";
 import { speakCoachVoice } from "@/lib/audio/coachSpeech";
 import {
-  getCharacterProgress,
   getEquippedAccessories,
   DEFAULT_EQUIPPED,
   type EquippedAccessories,
@@ -26,7 +25,6 @@ export function CharacterCoach({
   message: string;
   mood?: "happy" | "think" | "celebrate";
 }) {
-  const [level, setLevel] = useState(1);
   const [tapMessage, setTapMessage] = useState<string | null>(null);
   const [tapMood, setTapMood] = useState<"happy" | "think" | "celebrate" | null>(null);
   const [isJumping, setIsJumping] = useState(false);
@@ -38,7 +36,6 @@ export function CharacterCoach({
   });
 
   useEffect(() => {
-    setLevel(getCharacterProgress().currentLevel.level);
     setAccessories(getEquippedAccessories());
 
     const handleAccessoryChange = (e: Event) => {
@@ -46,10 +43,6 @@ export function CharacterCoach({
       if (customEvent.detail) {
         setAccessories(customEvent.detail);
       }
-    };
-
-    const handleGrowthChange = () => {
-      setLevel(getCharacterProgress().currentLevel.level);
     };
 
     const handleProblemSolved = (e: Event) => {
@@ -70,14 +63,10 @@ export function CharacterCoach({
     };
 
     window.addEventListener("kanoha-accessory-update", handleAccessoryChange);
-    window.addEventListener("kanoha-reward-update", handleGrowthChange);
-    window.addEventListener("kanoha-level-up", handleGrowthChange);
     window.addEventListener("kanoha-problem-solved", handleProblemSolved);
 
     return () => {
       window.removeEventListener("kanoha-accessory-update", handleAccessoryChange);
-      window.removeEventListener("kanoha-reward-update", handleGrowthChange);
-      window.removeEventListener("kanoha-level-up", handleGrowthChange);
       window.removeEventListener("kanoha-problem-solved", handleProblemSolved);
     };
   }, []);
@@ -141,12 +130,9 @@ export function CharacterCoach({
           </div>
         )}
 
-        {/* 誰からも愛される自然なマスコット「かのはちゃん」 */}
-        <LovableKanohaCharacter
+        <KanohaCharacter
           mood={activeMood}
-          level={level}
           accessories={accessories}
-          celebrating={activeMood === "celebrate"}
         />
       </div>
     </aside>
