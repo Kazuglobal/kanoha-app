@@ -299,8 +299,8 @@
 
 .coachAvatarWrapper {
   position: relative;
-  width: 240px;
-  height: 230px;
+  width: min(280px, 100%);
+  height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
