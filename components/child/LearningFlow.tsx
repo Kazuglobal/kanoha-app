@@ -111,7 +111,7 @@ export function LearningFlow({
         <section className={styles.learningProblemCard}>
           <div>
             <div className={styles.learningHeaderRow}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div className={styles.badgeGroup}>
                 <span
                   className={
                     isJapanese ? styles.subjectBadgeJapanese : styles.subjectBadgeMath

@@ -164,7 +164,7 @@ function RealHome({
     <div className={styles.childShell}>
       <ChildHeader />
       <main className={styles.main}>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+        <div className={styles.homeToolbar}>
           <section className={styles.profileTabs}>
             {profiles.map((profile) => (
               <Link
@@ -177,7 +177,11 @@ function RealHome({
             ))}
           </section>
 
-          <SubjectSwitch currentSubject={currentSubject} childId={selected.id} />
+          <SubjectSwitch
+            currentSubject={currentSubject}
+            childId={selected.id}
+            className={styles.subjectSwitch}
+          />
         </div>
 
         <section className={`${styles.card} ${styles.heroCard}`}>
@@ -188,27 +192,29 @@ function RealHome({
             <p className={styles.lead}>
               <RubyAuto text={subjectGreeting} readingMode={readingMode} />
             </p>
+            <Link href={startHref} className={styles.heroCta}>
+              <BookOpen size={36} aria-hidden="true" />
+              <span className={styles.heroCtaText}>
+                <strong>
+                  <RubyAuto text="きょうの おすすめを はじめる" readingMode={readingMode} />
+                </strong>
+                <small>{first ? `いまのおすすめ: ${first.unit}` : defaultDemoNote}</small>
+              </span>
+              <span aria-hidden="true">▶</span>
+            </Link>
           </div>
           <CharacterCoach mood="happy" message="じゅんびは いいかな？" />
         </section>
 
-        <div className={styles.grid2}>
-          <Link href={startHref} className={`${styles.card} ${styles.actionCard} ${styles.primaryCard}`}>
-            <BookOpen size={48} className={styles.actionIcon} />
-            <h2 className={styles.cardTitle}>
-              <RubyAuto text="きょうの おすすめを はじめる" readingMode={readingMode} />
-            </h2>
-            <p className={styles.tiny}>
-              {first ? `いまのおすすめ: ${first.unit}` : defaultDemoNote}
-            </p>
-          </Link>
-
-          <Link href={againHref} className={`${styles.card} ${styles.actionCard}`}>
-            <RotateCcw size={48} className={styles.actionIcon} />
-            <h2 className={styles.cardTitle}>
-              <RubyAuto text="もういちど やる" readingMode={readingMode} />
-            </h2>
-            <p className={styles.tiny}>さいきん といたもんだいを ふくしゅうしよう</p>
+        <div className={styles.quickRow}>
+          <Link href={againHref} className={styles.quickTile}>
+            <RotateCcw size={32} className={styles.actionIcon} />
+            <span>
+              <strong>
+                <RubyAuto text="もういちど やる" readingMode={readingMode} />
+              </strong>
+              <small>さいきん といたもんだいを ふくしゅうしよう</small>
+            </span>
           </Link>
         </div>
 
@@ -234,8 +240,9 @@ function DemoHome({ currentSubject }: { currentSubject: Subject }) {
     <div className={styles.childShell}>
       <ChildHeader />
       <main className={styles.main}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
-          <SubjectSwitch currentSubject={currentSubject} />
+        <div className={styles.homeToolbar}>
+          <span />
+          <SubjectSwitch currentSubject={currentSubject} className={styles.subjectSwitch} />
         </div>
 
         <section className={`${styles.card} ${styles.heroCard}`}>
@@ -244,23 +251,27 @@ function DemoHome({ currentSubject }: { currentSubject: Subject }) {
             <p className={styles.lead}>
               <RubyAuto text={heroSubtitle} readingMode="kanji_with_ruby" />
             </p>
+            <Link href={demoProblemHref} className={styles.heroCta}>
+              <BookOpen size={36} aria-hidden="true" />
+              <span className={styles.heroCtaText}>
+                <strong>
+                  <RubyAuto text="きょうの おすすめを はじめる" readingMode="kanji_with_ruby" />
+                </strong>
+                <small>{demoSubtitle}</small>
+              </span>
+              <span aria-hidden="true">▶</span>
+            </Link>
           </div>
           <CharacterCoach mood="happy" message="こんにちは！いっしょに べんきょうしよう！" />
         </section>
 
-        <div className={styles.grid2}>
-          <Link href={demoProblemHref} className={`${styles.card} ${styles.actionCard} ${styles.primaryCard}`}>
-            <BookOpen size={48} className={styles.actionIcon} />
-            <h2 className={styles.cardTitle}>
-              <RubyAuto text="きょうの おすすめを はじめる" readingMode="kanji_with_ruby" />
-            </h2>
-            <p className={styles.tiny}>{demoSubtitle}</p>
-          </Link>
-
-          <Link href="/login" className={`${styles.card} ${styles.actionCard}`}>
-            <History size={48} className={styles.actionIcon} />
-            <h2 className={styles.cardTitle}>ほごしゃメニュー</h2>
-            <p className={styles.tiny}>ログインしてがくしゅうをはじめよう</p>
+        <div className={styles.quickRow}>
+          <Link href="/login" className={styles.quickTile}>
+            <History size={32} className={styles.actionIcon} />
+            <span>
+              <strong>ほごしゃメニュー</strong>
+              <small>ログインしてがくしゅうをはじめよう</small>
+            </span>
           </Link>
         </div>
 

@@ -13,9 +13,15 @@ export default function HomePage() {
           <RubyAuto text={LANDING_TEXT.titleLine2} readingMode="kanji_with_ruby" />
         </h1>
         <p>{LANDING_TEXT.lead}</p>
+        <ul className="landing-points" aria-label="かのはの とくちょう">
+          <li><span aria-hidden="true">🧮</span>{LANDING_TEXT.pointMath}</li>
+          <li><span aria-hidden="true">💡</span>{LANDING_TEXT.pointHint}</li>
+          <li><span aria-hidden="true">⏱️</span>{LANDING_TEXT.pointTime}</li>
+        </ul>
         <div className="landing-actions">
           <Link className="primary-link" href="/child/home">
             <RubyAuto text={LANDING_TEXT.childMode} readingMode="kanji_with_ruby" />
+            <span className="link-arrow" aria-hidden="true">▶</span>
           </Link>
           <Link className="secondary-link" href="/login">
             <RubyAuto text={LANDING_TEXT.parentLink} readingMode="kanji_with_ruby" />
