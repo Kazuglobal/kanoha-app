@@ -45,16 +45,15 @@ export function CharacterCoach({
       }
     };
 
-    const handleProblemSolved = (e: Event) => {
-      const customEvent = e as CustomEvent<{ correct?: boolean }>;
-      const isCorrect = customEvent.detail?.correct ?? true;
-      if (isCorrect) {
-        const cheerMsg = "やったぁーーっ！！だいせいかい！！すごいっ✨";
-        setTapMessage(cheerMsg);
-        setTapMood("celebrate");
-        setIsJumping(true);
-        void speakCoachVoice(cheerMsg, "celebrate");
-        setTimeout(() => setIsJumping(false), 1200);
+    const handleCoachPraise = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string; mood?: "celebrate" | "think" }>;
+      if (customEvent.detail?.message) {
+        setTapMessage(customEvent.detail.message);
+        setTapMood(customEvent.detail.mood ?? "celebrate");
+        if (customEvent.detail.mood !== "think") {
+          setIsJumping(true);
+          setTimeout(() => setIsJumping(false), 1200);
+        }
         setTimeout(() => {
           setTapMessage(null);
           setTapMood(null);
@@ -62,12 +61,23 @@ export function CharacterCoach({
       }
     };
 
+    const handleProblemSolved = (e: Event) => {
+      const customEvent = e as CustomEvent<{ correct?: boolean }>;
+      const isCorrect = customEvent.detail?.correct ?? true;
+      if (isCorrect) {
+        setIsJumping(true);
+        setTimeout(() => setIsJumping(false), 1200);
+      }
+    };
+
     window.addEventListener("kanoha-accessory-update", handleAccessoryChange);
     window.addEventListener("kanoha-problem-solved", handleProblemSolved);
+    window.addEventListener("kanoha-coach-praise", handleCoachPraise);
 
     return () => {
       window.removeEventListener("kanoha-accessory-update", handleAccessoryChange);
       window.removeEventListener("kanoha-problem-solved", handleProblemSolved);
+      window.removeEventListener("kanoha-coach-praise", handleCoachPraise);
     };
   }, []);
 

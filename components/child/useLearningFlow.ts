@@ -14,6 +14,11 @@ import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
 import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import { soundManager } from "@/lib/audio/soundSystem";
 import {
+  playPraiseVoice,
+  playEncourageVoice,
+  preloadCoachVoices,
+} from "@/lib/audio/coachSpeech";
+import {
   DEMO_PROBLEM_ID,
   DEMO_QUESTION,
   DEMO_SIMILAR_PROBLEMS,
@@ -267,6 +272,10 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     return true;
   }
 
+  useEffect(() => {
+    preloadCoachVoices();
+  }, []);
+
   /** 元問題の正誤はサーバー(/api/attempts)が判定する。デモだけはクライアントで照合する。 */
   async function checkOriginalAnswer(overrideAnswer?: string) {
     const candidateAnswer = (overrideAnswer ?? answer).trim();
@@ -280,8 +289,10 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       if (isCorrect) {
         soundManager.playCorrect();
         recordCorrectAnswer();
+        void playPraiseVoice();
       } else {
         soundManager.playWrong();
+        void playEncourageVoice();
       }
       return;
     }
@@ -306,8 +317,10 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     if (result.correct) {
       soundManager.playCorrect();
       recordCorrectAnswer();
+      void playPraiseVoice();
     } else {
       soundManager.playWrong();
+      void playEncourageVoice();
     }
   }
 

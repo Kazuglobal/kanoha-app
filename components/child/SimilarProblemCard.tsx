@@ -4,6 +4,7 @@ import { useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { answersMatch } from "@/lib/utils/answers";
 import { soundManager } from "@/lib/audio/soundSystem";
+import { playPraiseVoice, playEncourageVoice } from "@/lib/audio/coachSpeech";
 import { RubyAuto } from "./RubyText";
 
 export type SimilarProblem = {
@@ -56,8 +57,13 @@ export function SimilarProblemCard({
     setLastAttempt(answer);
     if (problem.answer !== undefined) {
       const isCorrect = answersMatch(answer, problem.answer);
-      if (isCorrect) soundManager.playCorrect();
-      else soundManager.playWrong();
+      if (isCorrect) {
+        soundManager.playCorrect();
+        void playPraiseVoice();
+      } else {
+        soundManager.playWrong();
+        void playEncourageVoice();
+      }
       setResult({ correct: isCorrect, explanation: problem.explanation });
       return;
     }
@@ -69,8 +75,13 @@ export function SimilarProblemCard({
       setMessage(RETRY_MESSAGE);
       return;
     }
-    if (judged.correct) soundManager.playCorrect();
-    else soundManager.playWrong();
+    if (judged.correct) {
+      soundManager.playCorrect();
+      void playPraiseVoice();
+    } else {
+      soundManager.playWrong();
+      void playEncourageVoice();
+    }
     setResult(judged);
   }
 
