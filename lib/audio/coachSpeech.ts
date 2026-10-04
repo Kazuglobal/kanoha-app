@@ -41,6 +41,7 @@ function setSpeaking(speaking: boolean) {
 function playAudio(audioUrl: string): Promise<void> {
   return new Promise((resolve) => {
     const audio = new Audio(audioUrl);
+    audio.volume = 1.0;
     activeAudio = audio;
 
     audio.onplay = () => {

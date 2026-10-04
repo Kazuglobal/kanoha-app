@@ -24,11 +24,44 @@ class SoundManager {
   private bgmStep = 0;
   private bgmTimer: number | null = null;
   private isBgmPlaying = false;
+  private isDucked = false;
+  private readonly baseBgmVolume = 0.038;
+  private readonly duckedBgmVolume = 0.010;
   private settings: SoundSettings = { bgmEnabled: true, seEnabled: true };
 
   constructor() {
     if (typeof window !== "undefined") {
       this.loadSettings();
+      window.addEventListener("kanoha-coach-speaking-start", () => this.duckBgm());
+      window.addEventListener("kanoha-coach-speaking-end", () => this.unduckBgm());
+    }
+  }
+
+  /** かのはコーチ発話時のBGMダッキング（音量を自動的に下げて声を際立たせる） */
+  public duckBgm() {
+    this.isDucked = true;
+    if (this.bgmGain && this.ctx) {
+      try {
+        const now = this.ctx.currentTime;
+        this.bgmGain.gain.cancelScheduledValues(now);
+        this.bgmGain.gain.linearRampToValueAtTime(this.duckedBgmVolume, now + 0.15);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  /** かのはコーチ発話終了時のBGM復帰 */
+  public unduckBgm() {
+    this.isDucked = false;
+    if (this.bgmGain && this.ctx && this.isBgmPlaying && this.settings.bgmEnabled) {
+      try {
+        const now = this.ctx.currentTime;
+        this.bgmGain.gain.cancelScheduledValues(now);
+        this.bgmGain.gain.linearRampToValueAtTime(this.baseBgmVolume, now + 0.3);
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -273,7 +306,8 @@ class SoundManager {
 
     // マスターBGMゲイン
     this.bgmGain = ctx.createGain();
-    this.bgmGain.gain.setValueAtTime(0.038, ctx.currentTime); // 勉強を邪魔しない優しい音量
+    const initialVol = this.isDucked ? this.duckedBgmVolume : this.baseBgmVolume;
+    this.bgmGain.gain.setValueAtTime(initialVol, ctx.currentTime);
     this.bgmGain.connect(ctx.destination);
 
     // 算数用メロディパターン (8ステップループ: ド・レ・ミ・ソ・ラ)
