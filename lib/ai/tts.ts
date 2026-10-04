@@ -77,88 +77,98 @@ export async function generateGeminiSpeech({
 余計な前置きや説明は一切含めず、セリフのみを発声してください。
 【演出指示】: ${moodPrompt}`;
 
-  try {
-    const endpoint =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  const candidateModels = Array.from(
+    new Set(
+      [
+        process.env.GEMINI_TTS_MODEL,
+        "gemini-2.5-flash-preview-tts",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash-exp",
+        "gemini-2.0-flash",
+      ].filter((m): m is string => Boolean(m))
+    )
+  );
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `${systemInstruction}\n\n読み上げるセリフ：「${text}」` }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName, // Aoede: 優しく澄んだ女性声
+  let lastError = "No models attempted";
+
+  for (const model of candidateModels) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `${systemInstruction}\n\n読み上げるセリフ：「${text}」` }],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName, // Aoede: 優しく澄んだ女性声
+                },
               },
             },
           },
-        },
-      }),
-    });
+        }),
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.warn(`[Gemini TTS] API error: ${response.status} ${errText}`);
-      return {
-        success: false,
-        fallback: true,
-        error: `Gemini API returned ${response.status}`,
-      };
-    }
-
-    const data = await response.json();
-    const candidatePart = data.candidates?.[0]?.content?.parts?.[0];
-    const inlineAudio = candidatePart?.inlineData;
-
-    if (!inlineAudio || !inlineAudio.data) {
-      console.warn("[Gemini TTS] No audio inlineData found in response");
-      return {
-        success: false,
-        fallback: true,
-        error: "No audio data in response",
-      };
-    }
-
-    const mimeType = inlineAudio.mimeType || "audio/wav";
-    const rawBuffer = Buffer.from(inlineAudio.data, "base64");
-
-    // PCM 形式の場合は WAV ヘッダーを付与してブラウザで即再生可能にする
-    if (mimeType.includes("pcm")) {
-      // 例: audio/pcm;rate=24000
-      let rate = 24000;
-      const rateMatch = mimeType.match(/rate=(\d+)/);
-      if (rateMatch) {
-        rate = parseInt(rateMatch[1], 10);
+      if (!response.ok) {
+        const errText = await response.text();
+        console.warn(`[Gemini TTS] Model ${model} returned ${response.status}: ${errText}`);
+        lastError = `Gemini API (${model}) returned ${response.status}: ${errText}`;
+        continue;
       }
-      const wavBuffer = pcmToWav(rawBuffer, rate);
+
+      const data = await response.json();
+      const candidatePart = data.candidates?.[0]?.content?.parts?.[0];
+      const inlineAudio = candidatePart?.inlineData;
+
+      if (!inlineAudio || !inlineAudio.data) {
+        console.warn(`[Gemini TTS] Model ${model} returned no audio data`);
+        lastError = `No audio data in response from ${model}`;
+        continue;
+      }
+
+      const mimeType = inlineAudio.mimeType || "audio/wav";
+      const rawBuffer = Buffer.from(inlineAudio.data, "base64");
+
+      // PCM 形式の場合は WAV ヘッダーを付与してブラウザで即再生可能にする
+      if (mimeType.includes("pcm")) {
+        let rate = 24000;
+        const rateMatch = mimeType.match(/rate=(\d+)/);
+        if (rateMatch) {
+          rate = parseInt(rateMatch[1], 10);
+        }
+        const wavBuffer = pcmToWav(rawBuffer, rate);
+        return {
+          success: true,
+          audioDataUrl: `data:audio/wav;base64,${wavBuffer.toString("base64")}`,
+        };
+      }
+
+      // 既に wav や mp3 の場合
       return {
         success: true,
-        audioDataUrl: `data:audio/wav;base64,${wavBuffer.toString("base64")}`,
+        audioDataUrl: `data:${mimeType};base64,${inlineAudio.data}`,
       };
+    } catch (err) {
+      console.warn(`[Gemini TTS] Model ${model} fetch failed:`, err);
+      lastError = err instanceof Error ? err.message : String(err);
     }
-
-    // 既に wav や mp3 の場合
-    return {
-      success: true,
-      audioDataUrl: `data:${mimeType};base64,${inlineAudio.data}`,
-    };
-  } catch (error) {
-    console.error("[Gemini TTS] Fetch failed:", error);
-    return {
-      success: false,
-      fallback: true,
-      error: error instanceof Error ? error.message : "TTS request failed",
-    };
   }
+
+  return {
+    success: false,
+    fallback: true,
+    error: lastError,
+  };
 }

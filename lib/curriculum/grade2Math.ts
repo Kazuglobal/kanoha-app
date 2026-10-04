@@ -6,6 +6,12 @@ export const GRADE_2_MATH_CURRICULUM = [
     visualTemplate: "tables-and-graphs",
   },
   {
+    id: "organizing",
+    unit: "整理する力",
+    subUnits: ["なかまわけ", "整理してかぞえる", "表や図にあらわす"],
+    visualTemplate: "organizing",
+  },
+  {
     id: "time",
     unit: "時こくと時間",
     subUnits: ["時こく", "時間", "午前と午後"],
@@ -124,7 +130,10 @@ export function resolveVisualTemplate(unit: string): string | null {
   if (trimmed.includes("形") || trimmed.includes("しかく") || trimmed.includes("さんかく") || trimmed.includes("直角") || trimmed.includes("長方形") || trimmed.includes("正方形")) {
     return "shapes";
   }
-  if (trimmed.includes("分") || trimmed.includes("ぶんすう") || trimmed.includes("分数")) {
+  if (trimmed.includes("整理") || trimmed.includes("なかまわけ") || trimmed.includes("分類")) {
+    return "organizing";
+  }
+  if (trimmed.includes("分数") || trimmed.includes("分の") || trimmed.includes("ぶんすう")) {
     return "fractions";
   }
   if (trimmed.includes("グラフ") || trimmed.includes("表") || trimmed.includes("ひょう")) {

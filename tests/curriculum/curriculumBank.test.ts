@@ -67,7 +67,7 @@ describe("Curriculum Bank", () => {
 
   it("returns stage cards for math and japanese", () => {
     const mathStages = getCurriculumStages("math");
-    expect(mathStages.length).toBe(11);
+    expect(mathStages.length).toBe(12);
     expect(mathStages[0].firstProblemId).toBeDefined();
 
     const japaneseStages = getCurriculumStages("japanese");

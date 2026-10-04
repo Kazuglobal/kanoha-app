@@ -1,11 +1,14 @@
 "use client";
 
 /**
- * かのはコーチ 音声再生マネージャー (Gemini TTS + Web Speech API ハイブリッド)
- * - Gemini API キー設定時: Gemini 2.0 Flash の高品質ネイティブオーディオをストリーミング再生
- * - 未設定・オフライン時: ブラウザの Web Speech API (キュートな日本語ピッチ) で即時再生
+ * かのはコーチ 音声再生マネージャー (Gemini TTS 専用エンジン)
+ * - Google Gemini TTS による自然で愛らしい小学2年生女の子ボイス (Aoede) で再生
+ * - Web Speech API (機械的な合成音声) は使用せず、高品質な Gemini 音声を一貫して使用
+ * - キャッシュ機能により、定型セリフや褒め言葉はゼロ遅延で即時再生
  * - 発話中は「リップシンク（口パク）」イベントを発行し、キャラクターが生き生きとお喋り！
  */
+
+const ttsAudioCache = new Map<string, string>();
 
 let activeAudio: HTMLAudioElement | null = null;
 let isSpeakingState = false;
@@ -20,9 +23,6 @@ export function stopCoachVoice(): void {
     activeAudio.currentTime = 0;
     activeAudio = null;
   }
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-  }
   setSpeaking(false);
 }
 
@@ -36,56 +36,42 @@ function setSpeaking(speaking: boolean) {
 }
 
 /**
- * Web Speech API を用いた高速フォールバック音声
+ * オーディオ要素を再生する共通ヘルパー
  */
-function speakWithWebSpeech(text: string, mood: "happy" | "celebrate" | "think" = "happy"): Promise<void> {
+function playAudio(audioUrl: string): Promise<void> {
   return new Promise((resolve) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setSpeaking(false);
-      resolve();
-      return;
-    }
+    const audio = new Audio(audioUrl);
+    activeAudio = audio;
 
-    window.speechSynthesis.cancel();
-    const cleanText = text.replace(/[✦★✨💖♪]/g, ""); // 記号除去
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-
-    // 日本語の明るい可愛い声に設定
-    utterance.lang = "ja-JP";
-    utterance.pitch = mood === "celebrate" ? 1.35 : mood === "think" ? 1.15 : 1.25;
-    utterance.rate = mood === "celebrate" ? 1.1 : 1.0;
-    utterance.volume = 1.0;
-
-    // 音声一覧から女性の日本語ボイスを優先選択
-    const voices = window.speechSynthesis.getVoices();
-    const jaVoice =
-      voices.find((v) => v.lang === "ja-JP" && (v.name.includes("Kyoko") || v.name.includes("Nanami") || v.name.includes("Otoya") || v.name.includes("Natural") || v.name.includes("Female"))) ||
-      voices.find((v) => v.lang === "ja-JP") ||
-      null;
-    if (jaVoice) {
-      utterance.voice = jaVoice;
-    }
-
-    utterance.onstart = () => {
+    audio.onplay = () => {
       setSpeaking(true);
     };
 
-    utterance.onend = () => {
+    audio.onended = () => {
       setSpeaking(false);
+      activeAudio = null;
       resolve();
     };
 
-    utterance.onerror = () => {
+    audio.onerror = (err) => {
+      console.warn("[CoachVoice] Audio playback error:", err);
       setSpeaking(false);
+      activeAudio = null;
       resolve();
     };
 
-    window.speechSynthesis.speak(utterance);
+    audio.play().catch((err) => {
+      console.warn("[CoachVoice] Audio autoplay prevented:", err);
+      setSpeaking(false);
+      activeAudio = null;
+      resolve();
+    });
   });
 }
 
 /**
- * かのはちゃんの応援ボイスを再生するメイン関数
+ * かのはちゃんの応援ボイスを Gemini TTS で再生するメイン関数
+ * ※ 機械音声（Web Speech API）は使用せず、Gemini TTS の高品質ボイスのみを使用します。
  */
 export async function speakCoachVoice(
   text: string,
@@ -95,49 +81,37 @@ export async function speakCoachVoice(
 
   if (!text || typeof window === "undefined") return;
 
-  // 1. まず Gemini TTS API エンドポイントを試行
+  const cacheKey = `${mood}:${text}`;
+  const cachedUrl = ttsAudioCache.get(cacheKey);
+  if (cachedUrl) {
+    return playAudio(cachedUrl);
+  }
+
   try {
     const res = await fetch("/api/ai/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, mood }),
+      body: JSON.stringify({ text, mood, voiceName: "Aoede" }),
     });
 
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.audioDataUrl) {
-        // Gemini TTS オーディオの再生
-        return new Promise((resolve) => {
-          const audio = new Audio(data.audioDataUrl);
-          activeAudio = audio;
-
-          audio.onplay = () => {
-            setSpeaking(true);
-          };
-
-          audio.onended = () => {
-            setSpeaking(false);
-            activeAudio = null;
-            resolve();
-          };
-
-          audio.onerror = () => {
-            console.warn("[CoachVoice] Audio playback failed, falling back to Web Speech");
-            activeAudio = null;
-            speakWithWebSpeech(text, mood).then(resolve);
-          };
-
-          audio.play().catch((err) => {
-            console.warn("[CoachVoice] Autoplay blocked, falling back to Web Speech:", err);
-            speakWithWebSpeech(text, mood).then(resolve);
-          });
-        });
+        ttsAudioCache.set(cacheKey, data.audioDataUrl);
+        return playAudio(data.audioDataUrl);
       }
+      console.warn("[CoachVoice] TTS API returned non-success:", data.error);
+    } else {
+      console.warn("[CoachVoice] TTS endpoint HTTP status:", res.status);
     }
   } catch (err) {
-    console.warn("[CoachVoice] Fetch error, using Web Speech fallback:", err);
+    console.warn("[CoachVoice] TTS fetch failed:", err);
   }
 
-  // 2. Gemini TTS が未設定 / 失敗時は即座に Web Speech API で発声
-  return speakWithWebSpeech(text, mood);
+  // 音声通信が万一不通の場合でも、ロボット機械音声は鳴らさず、
+  // リップシンク（口パクアニメーション）のみを短時間自然に行います
+  setSpeaking(true);
+  setTimeout(() => {
+    setSpeaking(false);
+  }, 1200);
 }

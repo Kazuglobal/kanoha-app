@@ -435,6 +435,59 @@ export const CURRICULUM_PROBLEMS: readonly CurriculumProblem[] = [
     recommendedVisualTemplate: "tables-and-graphs",
   },
 
+  // 12. 整理する力 (organizing)
+  {
+    id: "organizing-1",
+    subject: "math",
+    unitId: "organizing",
+    unit: "整理する力",
+    subUnit: "なかまわけ",
+    problemText: "まる、しかく、さんかくの カードが あります。まるの カードは ぜんぶで なんこ ありますか。（●: 4こ、■: 3こ、▲: 2こ）",
+    correctAnswer: "4こ",
+    hints: {
+      hint1: "まずは かたちごとに なかまわけを してみよう。",
+      hint2: "●（まる）の かたちだけを ゆびで さしながら かぞえてみよう。",
+      praise: "なかまわけして 正しく かぞえられたね！",
+      solution: "まるの かたちの カードを かぞえると、ぜんぶで 4こ あります。",
+      answer: "4こ",
+    },
+    recommendedVisualTemplate: "organizing",
+  },
+  {
+    id: "organizing-2",
+    subject: "math",
+    unitId: "organizing",
+    unit: "整理する力",
+    subUnit: "整理してかぞえる",
+    problemText: "くだものが あります。りんごが 5こ、みかんが 3こ、バナナが 4こ あります。くだものは ぜんぶで なんこ ありますか。",
+    correctAnswer: "12こ",
+    hints: {
+      hint1: "種類ごとに 整理された かずを たし算してみよう。",
+      hint2: "5 + 3 + 4 を じゅんばんに けいさんしてみよう。",
+      praise: "整理した数を あわせて ぜんぶの数を けいさんできたね！",
+      solution: "5 + 3 = 8、8 + 4 = 12 なので、ぜんぶで 12こ です。",
+      answer: "12こ",
+    },
+    recommendedVisualTemplate: "organizing",
+  },
+  {
+    id: "organizing-3",
+    subject: "math",
+    unitId: "organizing",
+    unit: "整理する力",
+    subUnit: "表や図にあらわす",
+    problemText: "すきな あそびの しらべものです。サッカーが 6人、ドッジボールが 8人、なわとびが 4人 いました。いちばん 人数が 多い あそびは 何ですか。",
+    correctAnswer: "ドッジボール",
+    hints: {
+      hint1: "それぞれの 人数を くらべてみよう。",
+      hint2: "6人、8人、4人の 中で、いちばん 大きい すうじは どれかな。",
+      praise: "表から データを 読みとる力が ついているね！",
+      solution: "8人が いちばん 大きいので、いちばん 人数が多いのは ドッジボール です。",
+      answer: "ドッジボール",
+    },
+    recommendedVisualTemplate: "organizing",
+  },
+
   // ==========================================
   // 国語 (Grade 2 Japanese)
   // ==========================================
@@ -701,6 +754,7 @@ export function getCurriculumStages(subject: Subject): CurriculumStage[] {
         "分数": "🍰",
         "はこの形": "📦",
         "表とグラフ": "📊",
+        "整理する力": "📁",
       };
 
       return {
