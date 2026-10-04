@@ -18,6 +18,95 @@ export interface GeminiTtsResult {
 }
 
 /**
+ * 16-bit PCM バイト列の音圧を安全にブースト（ピーク正規化）するヘルパー
+ * Google Gemini API の native audio は会話基準（約 -18 dBFS）で合成されるため、
+ * スマホやタブレット、ノートPC等の小型スピーカーでもハッキリ聞こえるよう音量を最適化します。
+ */
+export function boostPcmVolume(
+  pcmBuffer: Buffer,
+  targetPeak: number = 28000,
+  maxGain: number = 2.5
+): Buffer {
+  if (pcmBuffer.length < 2) return pcmBuffer;
+
+  const sampleCount = Math.floor(pcmBuffer.length / 2);
+  let maxSample = 0;
+
+  // 1. 最大絶対値（ピーク値）を検出
+  for (let i = 0; i < sampleCount; i++) {
+    const val = Math.abs(pcmBuffer.readInt16LE(i * 2));
+    if (val > maxSample) {
+      maxSample = val;
+    }
+  }
+
+  if (maxSample === 0) return pcmBuffer;
+
+  // 2. 最適なゲインを計算（目標ピーク / 最大値、ただし最大増幅率 maxGain でクランプ）
+  let gain = targetPeak / maxSample;
+  if (gain > maxGain) gain = maxGain;
+  if (gain < 1.0) gain = 1.0;
+
+  // 既に十分な音圧がある場合はそのまま返す
+  if (gain <= 1.05) return pcmBuffer;
+
+  const boostedBuffer = Buffer.alloc(pcmBuffer.length);
+
+  // 3. 各サンプルにゲインを適用し、クリッピング（-32768〜32767）を防止
+  for (let i = 0; i < sampleCount; i++) {
+    const rawVal = pcmBuffer.readInt16LE(i * 2);
+    let newVal = Math.round(rawVal * gain);
+    if (newVal > 32767) newVal = 32767;
+    else if (newVal < -32768) newVal = -32768;
+    boostedBuffer.writeInt16LE(newVal, i * 2);
+  }
+
+  // 奇数バイトの余りがあれば末尾をコピー
+  if (pcmBuffer.length % 2 !== 0) {
+    boostedBuffer[pcmBuffer.length - 1] = pcmBuffer[pcmBuffer.length - 1];
+  }
+
+  return boostedBuffer;
+}
+
+/**
+ * WAV または PCM バイト列の音声データをブーストするヘルパー
+ */
+export function boostWavOrPcm(
+  buffer: Buffer,
+  targetPeak: number = 28000,
+  maxGain: number = 2.5
+): Buffer {
+  if (
+    buffer.length > 44 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WAVE"
+  ) {
+    let offset = 12;
+    while (offset < buffer.length - 8) {
+      const chunkId = buffer.toString("ascii", offset, offset + 4);
+      const chunkSize = buffer.readUInt32LE(offset + 4);
+      if (chunkId === "data") {
+        const pcmStart = offset + 8;
+        const pcmEnd = Math.min(pcmStart + chunkSize, buffer.length);
+        const pcmSlice = buffer.subarray(pcmStart, pcmEnd);
+        const boosted = boostPcmVolume(Buffer.from(pcmSlice), targetPeak, maxGain);
+        const result = Buffer.alloc(buffer.length);
+        buffer.copy(result, 0, 0, pcmStart);
+        boosted.copy(result, pcmStart);
+        if (pcmEnd < buffer.length) {
+          buffer.copy(result, pcmEnd, pcmEnd);
+        }
+        return result;
+      }
+      offset += 8 + chunkSize;
+    }
+  }
+
+  return boostPcmVolume(buffer, targetPeak, maxGain);
+}
+
+/**
  * 16-bit PCM バイト列に標準 44バイトの RIFF WAV ヘッダーを付与するヘルパー
  * Gemini の audio/pcm;rate=24000 形式をブラウザの <audio> で直接再生可能にします。
  */
@@ -67,13 +156,14 @@ export async function generateGeminiSpeech({
   // 声のトーンやキャラクター指示（温かく可愛い小学生の学習コーチ）
   const moodPrompt =
     mood === "celebrate"
-      ? "大正解を思いっきり喜んで、元気いっぱいに飛び跳ねるように褒めてあげてください。"
+      ? "大正解を思いっきり喜んで、元気いっぱいに飛び跳ねるように褒めてあげてください。明るく大きな声ではっきりと発声してください。"
       : mood === "think"
-      ? "優しく安心させるように、ゆっくり優しく語りかけてあげてください。"
-      : "明るく親しみやすく、笑顔でいっしょに頑張ろうと励ましてください。";
+      ? "優しく安心させるように、ゆっくり丁寧に語りかけてあげてください。子どもの耳にはっきりと届く声量で発声してください。"
+      : "明るく親しみやすく、笑顔でいっしょに頑張ろうと励ましてください。元気いっぱいに、はっきりと聞き取りやすい声量で発声してください。";
 
   const systemInstruction = `あなたは小学生の自立学習を応援する愛されマスコット「かのは」です。
-子どもが安心できるよう、温かく可愛らしい声で、以下のセリフだけをそのまま元気に読み上げてください。
+子どもが安心できるよう、温かく可愛らしい小学2年生の女の子の声で、以下のセリフだけを元気にハキハキと読み上げてください。
+タブレットやスマホのスピーカーでも子どもの耳にはっきりと届くよう、大きめのしっかりした声量で発声してください。
 余計な前置きや説明は一切含めず、セリフのみを発声してください。
 【演出指示】: ${moodPrompt}`;
 
@@ -141,14 +231,15 @@ export async function generateGeminiSpeech({
       const mimeType = inlineAudio.mimeType || "audio/wav";
       const rawBuffer = Buffer.from(inlineAudio.data, "base64");
 
-      // PCM 形式の場合は WAV ヘッダーを付与してブラウザで即再生可能にする
+      // PCM 形式の場合は音圧ブーストを行ってから WAV ヘッダーを付与してブラウザで即再生可能にする
       if (mimeType.includes("pcm")) {
         let rate = 24000;
         const rateMatch = mimeType.match(/rate=(\d+)/);
         if (rateMatch) {
           rate = parseInt(rateMatch[1], 10);
         }
-        const wavBuffer = pcmToWav(rawBuffer, rate);
+        const boostedPcm = boostPcmVolume(rawBuffer);
+        const wavBuffer = pcmToWav(boostedPcm, rate);
         return {
           success: true,
           audioDataUrl: `data:audio/wav;base64,${wavBuffer.toString("base64")}`,
@@ -156,9 +247,10 @@ export async function generateGeminiSpeech({
       }
 
       // 既に wav や mp3 の場合
+      const finalBuffer = mimeType.includes("wav") ? boostWavOrPcm(rawBuffer) : rawBuffer;
       return {
         success: true,
-        audioDataUrl: `data:${mimeType};base64,${inlineAudio.data}`,
+        audioDataUrl: `data:${mimeType};base64,${finalBuffer.toString("base64")}`,
       };
     } catch (err) {
       console.warn(`[Gemini TTS] Model ${model} fetch failed:`, err);
