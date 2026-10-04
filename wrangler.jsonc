@@ -38,7 +38,8 @@
     "AI_RECOGNIZE_COST_USD": "0.005",
     "AI_SIMILAR_COST_USD": "0.005",
     "AI_HINTS_COST_USD": "0.002",
-    "AI_IMAGE_COST_USD": "0.01"
+    "AI_IMAGE_COST_USD": "0.01",
+    "GEMINI_TTS_MODEL": "gemini-2.5-flash-preview-tts"
   },
   "previews": {
     "vars": {
@@ -57,7 +58,8 @@
       "AI_RECOGNIZE_COST_USD": "0.005",
       "AI_SIMILAR_COST_USD": "0.005",
       "AI_HINTS_COST_USD": "0.002",
-      "AI_IMAGE_COST_USD": "0.01"
+      "AI_IMAGE_COST_USD": "0.01",
+      "GEMINI_TTS_MODEL": "gemini-2.5-flash-preview-tts"
     },
     "d1_databases": [
       {
