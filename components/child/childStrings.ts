@@ -114,6 +114,9 @@ export const LANDING_TEXT = Object.freeze({
   childMode: "子どもモードではじめる",
   parentLink: "おうちの方はこちら",
   orbLabel: "いっしょにやろう",
+  pointMath: "さんすう・こくご",
+  pointHint: "ヒントつき",
+  pointTime: "1にち 15ふん",
 });
 
 /** ルビ辞書カバレッジテストの対象になる、子ども画面の固定文言ぜんぶ。 */

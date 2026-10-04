@@ -2,7 +2,7 @@
 
 import { Home, Lock } from "lucide-react";
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { RewardMeter } from "@/components/child/RewardMeter";
 import { SoundToggleButton } from "@/components/child/SoundToggleButton";
@@ -39,70 +39,88 @@ export function ChildHeader({ progress }: { progress?: string }) {
     setPending(false);
   }
 
+  // Esc で PIN ポップオーバーを閉じる(キーボード操作でも迷わない)
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  const progressPercent = (() => {
+    if (!progress) return 0;
+    const parts = progress.split("/").map((s) => parseFloat(s.trim()));
+    return parts.length === 2 && parts[1] > 0
+      ? Math.min(100, Math.round((parts[0] / parts[1]) * 100))
+      : 100;
+  })();
+
   return (
     <header className={styles.topbar}>
-      <Link className={styles.brand} href="/child/home">
+      <Link className={styles.brand} href="/child/home" aria-label="かのは ホームへ">
         <span className={styles.brandMark}>か</span>
-        かのは
+        <span className={styles.brandText}>かのは</span>
       </Link>
-      <div className={styles.topActions}>
-        {progress ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div className={styles.gameProgressBarTrack} title={`進捗: ${progress}`}>
-              {(() => {
-                const parts = progress.split("/").map((s) => parseFloat(s.trim()));
-                const percent =
-                  parts.length === 2 && parts[1] > 0
-                    ? Math.min(100, Math.round((parts[0] / parts[1]) * 100))
-                    : 100;
-                return (
-                  <div
-                    className={styles.gameProgressBarFill}
-                    style={{ width: `${percent}%` }}
-                  />
-                );
-              })()}
-            </div>
-            <span style={{ fontSize: "14px", fontWeight: 900, color: "var(--teal-dark)" }}>
-              {progress}
-            </span>
+      {progress ? (
+        <div className={styles.topProgress}>
+          <div className={styles.gameProgressBarTrack} title={`進捗: ${progress}`}>
+            <div className={styles.gameProgressBarFill} style={{ width: `${progressPercent}%` }} />
           </div>
-        ) : null}
+          <span className={styles.topProgressText}>{progress}</span>
+        </div>
+      ) : null}
+      <div className={styles.topActions}>
         <RewardMeter />
         <SoundToggleButton />
-        <Link className={styles.ghostButton} href="/child/home" aria-label="ホーム">
+        <Link
+          className={`${styles.ghostButton} ${styles.topIconButton} ${styles.topHomeButton}`}
+          href="/child/home"
+          aria-label="ホーム"
+        >
           <Home size={20} />
         </Link>
         <button
           aria-expanded={open}
           aria-label="おうちのかた"
-          className={styles.ghostButton}
+          className={`${styles.ghostButton} ${styles.topIconButton}`}
           type="button"
           onClick={() => setOpen((value) => !value)}
         >
           <Lock size={20} />
         </button>
-        {open ? (
-          <form aria-label="おうちのかた用 PIN" className={styles.answerRow} onSubmit={(event) => void unlock(event)}>
-            <input
-              aria-label="PIN"
-              autoComplete="off"
-              className={styles.answerInput}
-              inputMode="numeric"
-              maxLength={4}
-              pattern="\d{4}"
-              placeholder="PIN"
-              type="password"
-              value={pin}
-              onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
-            />
-            <button className={styles.primaryButton} disabled={pending || pin.length !== 4} type="submit">
-              かいじょ
-            </button>
-            {message ? <span className={styles.tiny} role="alert">{message}</span> : null}
-          </form>
-        ) : null}
       </div>
+      {open ? (
+        <form
+          aria-label="おうちのかた用 PIN"
+          className={styles.pinPopover}
+          onSubmit={(event) => void unlock(event)}
+        >
+          <input
+            aria-label="PIN"
+            autoComplete="off"
+            autoFocus
+            className={styles.answerInput}
+            inputMode="numeric"
+            maxLength={4}
+            pattern="\d{4}"
+            placeholder="PIN"
+            type="password"
+            value={pin}
+            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+          />
+          <button className={styles.primaryButton} disabled={pending || pin.length !== 4} type="submit">
+            かいじょ
+          </button>
+          {message ? (
+            <span className={styles.tiny} role="alert">
+              {message}
+            </span>
+          ) : null}
+        </form>
+      ) : null}
     </header>
   );
 }
+

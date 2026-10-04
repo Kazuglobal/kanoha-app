@@ -41,33 +41,22 @@ export function SoundToggleButton() {
     <button
       type="button"
       onClick={toggleSound}
-      className={styles.ghostButton}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "6px",
-        fontSize: "13px",
-        fontWeight: 700,
-        padding: "6px 12px",
-        borderRadius: "99px",
-        background: isMuted ? "#f3f4f6" : "#f0fdf4",
-        color: isMuted ? "#6b7280" : "#15803d",
-        border: `1px solid ${isMuted ? "#e5e7eb" : "#bbf7d0"}`,
-        cursor: "pointer",
-        transition: "all 0.2s ease",
-      }}
+      className={`${styles.ghostButton} ${styles.soundToggle} ${
+        isMuted ? styles.soundToggleOff : styles.soundToggleOn
+      }`}
       title={isMuted ? "おとを ならす" : "おとを けす"}
       aria-label={isMuted ? "おとを ならす" : "おとを けす"}
+      aria-pressed={!isMuted}
     >
       {isMuted ? (
         <>
-          <VolumeX size={16} />
-          <span>おと：OFF</span>
+          <VolumeX size={18} aria-hidden="true" />
+          <span className={styles.soundToggleLabel}>おと：OFF</span>
         </>
       ) : (
         <>
-          <Music size={16} />
-          <span>おと：ON</span>
+          <Music size={18} aria-hidden="true" />
+          <span className={styles.soundToggleLabel}>おと：ON</span>
         </>
       )}
     </button>

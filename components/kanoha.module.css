@@ -3092,3 +3092,326 @@
 
 
 
+
+
+/* ==========================================================================
+   UX / Responsive overhaul
+   ========================================================================== */
+
+.topbar {
+  flex-wrap: wrap;
+  row-gap: 8px;
+  padding-top: max(20px, env(safe-area-inset-top));
+}
+
+.brand {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.brandText {
+  white-space: nowrap;
+}
+
+.topActions {
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.topProgress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 160px;
+  max-width: 360px;
+  min-width: 0;
+}
+
+.topProgress .gameProgressBarTrack {
+  flex: 1;
+  width: auto;
+}
+
+.topProgressText {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--teal-dark);
+  white-space: nowrap;
+}
+
+.topIconButton {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pinPopover {
+  position: absolute;
+  right: clamp(12px, 4vw, 40px);
+  top: 100%;
+  z-index: 30;
+  width: min(340px, calc(100vw - 24px));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.soundToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.soundToggleOn {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.soundToggleOff {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.soundToggleLabel {
+  white-space: nowrap;
+}
+
+.homeToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.learningHeaderRow {
+  flex-wrap: wrap;
+}
+
+.learningHeaderRow > * {
+  white-space: nowrap;
+}
+
+.stageCardDesc {
+  font-size: 13px;
+}
+
+.main,
+.narrow {
+  padding-bottom: max(64px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 640px) {
+  .topHomeButton,
+  .rewardMiniTrack,
+  .rewardCountdown,
+  .rewardYenLabel,
+  .dressUpLevelTag,
+  .soundToggleLabel {
+    display: none;
+  }
+
+  .topProgress {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .brand {
+    font-size: 19px;
+  }
+
+  .soundToggle {
+    padding: 0;
+    width: 44px;
+    justify-content: center;
+  }
+
+  .learningActionBtns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .learningActionBtns > :only-child,
+  .learningActionBtns > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .toyKeypad {
+    max-width: none;
+  }
+
+  .keypadKey {
+    min-height: 56px;
+  }
+
+  .stageGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .brandText,
+  .dressUpButtonTextCol {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .learningGrid > * {
+    min-width: 0;
+  }
+}
+
+/* --- Home: hero CTA / quick row --- */
+.badgeGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.heroCta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px 20px;
+  min-height: 72px;
+  border-radius: 24px;
+  color: #fff;
+  background: linear-gradient(135deg, #ff8a6b 0%, #ff6b57 100%);
+  box-shadow: 0 6px 0 #d94f3d, 0 12px 24px rgba(255, 107, 87, 0.3);
+  text-decoration: none;
+  max-width: 520px;
+}
+
+.heroCta:active {
+  transform: translateY(3px);
+  box-shadow: 0 3px 0 #d94f3d;
+}
+
+.heroCtaText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-wrap: balance;
+}
+
+.heroCtaText strong {
+  font-size: clamp(18px, 4.6vw, 24px);
+  font-weight: 900;
+}
+
+.heroCtaText small {
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.quickRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.quickTile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 80px;
+  padding: 14px 18px;
+  border-radius: 22px;
+  background: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.06);
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.quickTile span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quickTile strong {
+  font-size: 18px;
+}
+
+.quickTile small {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.heroCard .coach {
+  min-height: 0;
+}
+
+.heroCard .coachAvatarWrapper {
+  height: clamp(180px, 24vw, 260px);
+}
+
+@media (max-width: 640px) {
+  .subjectSwitch {
+    width: 100%;
+  }
+
+  .subjectSwitch > * {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .heroCard {
+    padding: 18px;
+    gap: 8px;
+  }
+
+  .heroCard .coachAvatarWrapper {
+    height: 180px;
+  }
+
+  .heroCta {
+    padding: 14px 16px;
+  }
+}
+
+.heroCtaText strong,
+.heroCard .lead,
+.speechBubble {
+  word-break: auto-phrase;
+  overflow-wrap: anywhere;
+  line-break: strict;
+}
+
+@media (max-width: 640px) {
+  .heroCard .lead {
+    font-size: 16px;
+  }
+}
