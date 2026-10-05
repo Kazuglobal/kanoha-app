@@ -1,8 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { GRADE_2_ALL_UNITS } from "@/lib/curriculum/subjects";
-import { ALL_MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { GRADE_2_JAPANESE_UNITS } from "@/lib/curriculum/grade2Japanese";
+import { GRADE_2_MATH_UNITS } from "@/lib/curriculum/grade2Math";
+import { JAPANESE_MISTAKE_TYPES, MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+
+// 0013 時点の単元・間違えタイプ(英語は 0014: english-curriculum-migration.test.ts)
+const GRADE_2_ALL_UNITS = [...GRADE_2_MATH_UNITS, ...GRADE_2_JAPANESE_UNITS];
+const ALL_MISTAKE_TYPE_IDS = [...MISTAKE_TYPE_IDS, ...JAPANESE_MISTAKE_TYPES.map(({ id }) => id)];
 
 const migration = readFileSync("supabase/migrations/0013_japanese_curriculum.sql", "utf8");
 

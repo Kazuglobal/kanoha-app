@@ -10,7 +10,7 @@ import { HOME_TEXT } from "@/components/child/childStrings";
 import styles from "@/components/kanoha.module.css";
 import { getTodayRecommendations } from "@/lib/review/today";
 import { getServerSession } from "@/lib/auth/session";
-import { isSubject, type Subject } from "@/lib/curriculum/subjects";
+import { SUBJECT_CONFIG, isSubject, type Subject } from "@/lib/curriculum/subjects";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
@@ -59,9 +59,10 @@ export default async function ChildHomePage({
 
   const readingMode: ReadingMode =
     selected.reading_mode === "hiragana" ? "hiragana" : "kanji_with_ruby";
-  const [recommendation, recentProblemId] = await Promise.all([
+  const [recommendation, recentProblemId, solvedIds] = await Promise.all([
     getTodayRecommendations(selected.id, new Date(), db, currentSubject),
     loadRecentProblemId(selected.id, currentSubject, db),
+    loadSolvedCurriculumIds(selected.id, db),
   ]);
 
   return (
@@ -72,8 +73,26 @@ export default async function ChildHomePage({
       recentProblemId={recentProblemId}
       selected={selected}
       currentSubject={currentSubject}
+      solvedIds={solvedIds}
     />
   );
+}
+
+/** ステージマップの進み具合: いちどでも正解した問題バンクの id。 */
+async function loadSolvedCurriculumIds(childId: string, db = getDb()): Promise<readonly string[]> {
+  const rows = await db
+    .selectDistinct({ id: schema.problems.curriculumProblemId })
+    .from(schema.attempts)
+    .innerJoin(schema.problems, eq(schema.attempts.problemId, schema.problems.id))
+    .where(
+      and(
+        eq(schema.attempts.childId, childId),
+        eq(schema.attempts.isCorrect, 1),
+        isNotNull(schema.problems.curriculumProblemId),
+      ),
+    )
+    .all();
+  return rows.flatMap(({ id }) => (id ? [id] : []));
 }
 
 /** 「もういちど」タイル用: いちばん最近といた問題の id(attempts から)。 */
@@ -134,6 +153,7 @@ function RealHome({
   recentProblemId,
   selected,
   currentSubject,
+  solvedIds,
 }: {
   profiles: ChildProfile[];
   problems: RecommendedProblem[];
@@ -141,9 +161,10 @@ function RealHome({
   recentProblemId: string | null;
   selected: ChildProfile;
   currentSubject: Subject;
+  solvedIds: readonly string[];
 }) {
-  const isJapanese = currentSubject === "japanese";
-  const defaultProblemId = isJapanese ? "kanji-1" : "volume-1";
+  const config = SUBJECT_CONFIG[currentSubject];
+  const defaultProblemId = config.defaultProblemId;
   const first = problems[0];
   const startHref = first
     ? (`/child/problem/${first.id}?childId=${selected.id}` as const)
@@ -152,13 +173,8 @@ function RealHome({
     ? (`/child/problem/${recentProblemId}?childId=${selected.id}` as const)
     : startHref;
 
-  const subjectGreeting = isJapanese
-    ? "きょうも たのしく こくごを やろう！"
-    : "きょうも たのしく さんすうを やろう！";
-
-  const defaultDemoNote = isJapanese
-    ? "まずは デモもんだい（漢字の書き取り）から はじめよう！"
-    : "まずは デモもんだい（水のかさ）から はじめよう！";
+  const subjectGreeting = `きょうも たのしく ${config.child}を やろう！`;
+  const defaultDemoNote = `まずは「${config.demoLabel}」から はじめよう！`;
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
@@ -222,6 +238,7 @@ function RealHome({
           currentSubject={currentSubject}
           childId={selected.id}
           readingMode={readingMode}
+          solvedIds={solvedIds}
         />
       </main>
     </div>
@@ -229,12 +246,10 @@ function RealHome({
 }
 
 function DemoHome({ currentSubject }: { currentSubject: Subject }) {
-  const isJapanese = currentSubject === "japanese";
-  const demoProblemHref = isJapanese ? "/child/problem/kanji-1" : "/child/problem/volume-1";
-  const demoSubtitle = isJapanese ? "デモもんだい: 漢字の書き取り" : "デモもんだい: 水のかさ(LとmL)";
-  const heroSubtitle = isJapanese
-    ? "まいにち 15ふん、たのしく こくご！"
-    : "まいにち 15ふん、たのしく さんすう！";
+  const config = SUBJECT_CONFIG[currentSubject];
+  const demoProblemHref = `/child/problem/${config.defaultProblemId}` as const;
+  const demoSubtitle = `デモもんだい: ${config.demoLabel}`;
+  const heroSubtitle = `まいにち 15ふん、たのしく ${config.child}！`;
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>

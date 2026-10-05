@@ -27,5 +27,31 @@ describe("buildDashboard", () => {
     expect(report.todayAttempts[0].question).toBe("1Lは何mL？");
     expect(report.dueReview?.label).toBe("かさ · LとmL");
   });
-});
 
+  it("lists only units the child is actually struggling with as weaknesses", () => {
+    const weakness = (unit: string, accuracy_rate: number, mistake_count: number, mastery_level = "reviewing") => ({
+      accuracy_rate,
+      mastery_level,
+      mistake_count,
+      sub_unit: "",
+      unit,
+    });
+    const report = buildDashboard({
+      now: new Date("2026-06-13T12:00:00+09:00"),
+      attempts: [],
+      problems: [],
+      similarProblems: [],
+      sessions: [],
+      reviews: [],
+      weaknesses: [
+        weakness("たし算", 1, 0), // 100% — not a weakness
+        weakness("ひき算", 0.8, 1), // at the mastery bar — not a weakness
+        weakness("かけ算", 0.25, 3, "mastered"), // mastered — not a weakness
+        weakness("長さ", 0.5, 2),
+        weakness("時こくと時間", 0, 1, "learning"),
+      ],
+    });
+
+    expect(report.weaknesses.map(({ unit }) => unit)).toEqual(["時こくと時間", "長さ"]);
+  });
+});

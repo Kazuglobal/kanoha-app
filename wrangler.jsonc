@@ -25,7 +25,7 @@
   "vars": {
     "BETTER_AUTH_URL": "https://kanoha-app.globalbunny.workers.dev",
     "NEXT_PUBLIC_APP_URL": "https://kanoha-app.globalbunny.workers.dev",
-    "AI_PROVIDER_TEXT": "mock",
+    "AI_PROVIDER_TEXT": "auto",
     "GEMINI_TEXT_MODEL": "gemini-2.5-flash",
     "GEMINI_VISION_MODEL": "gemini-2.5-flash",
     "GEMINI_STRUCTURED_MODEL": "gemini-2.5-flash",
@@ -45,7 +45,7 @@
     "vars": {
       "BETTER_AUTH_URL": "https://kanoha-app.globalbunny.workers.dev",
       "NEXT_PUBLIC_APP_URL": "https://kanoha-app.globalbunny.workers.dev",
-      "AI_PROVIDER_TEXT": "mock",
+      "AI_PROVIDER_TEXT": "auto",
       "GEMINI_TEXT_MODEL": "gemini-2.5-flash",
       "GEMINI_VISION_MODEL": "gemini-2.5-flash",
       "GEMINI_STRUCTURED_MODEL": "gemini-2.5-flash",

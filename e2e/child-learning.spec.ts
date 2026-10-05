@@ -13,10 +13,17 @@ const expectHidden = async (page: Page, ...texts: string[]) => {
   }
 };
 
+// せいかいが たまると出る「レベルアップ」モーダルは、出たら閉じて学習を続ける。
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(page.getByRole("button", { name: "べんきょうを つづける" }), async (button) => {
+    await button.click();
+  });
+});
+
 test("child completes the learning loop with server-side staged answer reveal", async ({ page }) => {
   await page.goto("/child/home");
   await page.getByRole("link", { name: /きょうの おすすめを はじめる/ }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("なんmL");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("mLですか");
 
   // 初期表示: 答えもヒントも HTML に含まれない。
   await expectHidden(page, ANSWER, HINT_1, HINT_2, SOLUTION);
@@ -85,6 +92,10 @@ test("ruby is rendered and えで おしえて appears only after two hints", as
 
 test("もういちど やる resets the practice flow (doc §6.1)", async ({ page }) => {
   await page.goto("/child/problem/volume-1");
+  // れんしゅうは、元の問題に正解してから(または答えのヒントまで見てから)出る
+  await expect(page.getByRole("button", { name: "れんしゅう 5もんへ" })).toHaveCount(0);
+  await page.getByLabel("こたえ").fill("1000");
+  await page.getByRole("button", { name: "こたえる", exact: true }).click();
   await page.getByRole("button", { name: "れんしゅう 5もんへ" }).click();
   for (const answer of ["2000mL", "3L", "1500mL", "4000mL", "5L"]) {
     await page.getByRole("button", { name: answer, exact: true }).click();
@@ -100,4 +111,19 @@ test("もういちど やる resets the practice flow (doc §6.1)", async ({ pag
   await page.goto("/child/result?score=5&unit=かさ");
   await page.getByRole("link", { name: "もういちど やる" }).click();
   await expect(page).toHaveURL(/\/child\/problem\/volume-1/);
+});
+
+test("えいご: the child hears the word and answers by tapping a choice", async ({ page }) => {
+  await page.goto("/child/home?subject=english");
+  await expect(page.getByRole("link", { name: "えいご", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: /きょうの おすすめを はじめる/ }).click();
+  await expect(page).toHaveURL(/\/child\/problem\/english-alphabet-1/);
+  await expect(page.getByLabel("数字キーパッド")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "e", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("おしい");
+  await page.getByRole("button", { name: "a", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("せいかい");
+  await page.getByRole("button", { name: "れんしゅう 5もんへ" }).click();
+  await expect(page.getByText(/れんしゅう 1 \/ 5/)).toBeVisible();
 });

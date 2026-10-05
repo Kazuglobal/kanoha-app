@@ -59,7 +59,15 @@ const createGeminiProvider = (env: Record<string, string | undefined>): AiProvid
   };
 };
 
+const hasGeminiKey = (env: Record<string, string | undefined>): boolean =>
+  Boolean((env.GEMINI_API_KEY ?? env.GOOGLE_AI_API_KEY ?? "").trim());
+
+/**
+ * "auto" は Gemini のキー(シークレット)があれば gemini、無ければ mock。
+ * 本番はキーを `wrangler secret put GEMINI_API_KEY` で入れるだけで切り替わる。
+ */
 const resolveProviderName = (env: Record<string, string | undefined>): string => {
+  if (env.AI_PROVIDER_TEXT === "auto") return hasGeminiKey(env) ? "gemini" : "mock";
   if (env.AI_PROVIDER_TEXT) return env.AI_PROVIDER_TEXT;
   if (env.NODE_ENV === "production") {
     throw new Error("AI_PROVIDER_TEXT is required in production");

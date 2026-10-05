@@ -111,9 +111,30 @@ export const JAPANESE_MISTAKE_TYPES = [
 
 export type JapaneseMistakeType = (typeof JAPANESE_MISTAKE_TYPES)[number]["id"];
 
+export const ENGLISH_MISTAKE_TYPES = [
+  {
+    id: "alphabet_error",
+    label: "アルファベットのまちがい",
+    description: "大文字・小文字や、にている文字を取りちがえた",
+  },
+  {
+    id: "english_listening_error",
+    label: "聞き取りのまちがい",
+    description: "英語の音を聞きちがえた",
+  },
+  {
+    id: "english_word_error",
+    label: "英語のことばのまちがい",
+    description: "英語のことばと意味の組み合わせを取りちがえた",
+  },
+] as const;
+
+export type EnglishMistakeType = (typeof ENGLISH_MISTAKE_TYPES)[number]["id"];
+
 export const ALL_MISTAKE_TYPES = [
   ...MISTAKE_TYPES,
   ...JAPANESE_MISTAKE_TYPES,
+  ...ENGLISH_MISTAKE_TYPES,
 ] as const;
 
 export type AllMistakeType = (typeof ALL_MISTAKE_TYPES)[number]["id"];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CHILD_FIXED_STRINGS } from "@/components/child/childStrings";
 import { mockAiProvider, mockProblems } from "@/lib/ai/mock";
+import { DEMO_PRACTICE_STRINGS } from "@/lib/curriculum/demoCheck";
 import { GRADE_2_MATH_CURRICULUM } from "@/lib/curriculum/grade2Math";
 import { toRubyParts } from "@/lib/curriculum/toRubyParts";
 
@@ -19,6 +20,7 @@ describe("ruby dictionary coverage (W6)", () => {
   it("covers every kanji in the fixed child-facing strings", () => {
     expect(CHILD_FIXED_STRINGS.length).toBeGreaterThan(30);
     for (const text of CHILD_FIXED_STRINGS) expectCovered(text);
+    for (const text of DEMO_PRACTICE_STRINGS) expectCovered(text);
   });
 
   it("covers curriculum unit and sub-unit names", () => {

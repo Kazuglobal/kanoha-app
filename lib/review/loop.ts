@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { mistakeTypeSchema, type MistakeTypeId } from "@/lib/ai/schemas";
 import { getDb } from "@/lib/db";
 import { recomputeWeakness as dbRecomputeWeakness } from "@/lib/db/operations";

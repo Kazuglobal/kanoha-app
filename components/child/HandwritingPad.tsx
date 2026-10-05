@@ -3,14 +3,27 @@
 import { BookOpen, Eraser, PenLine, RotateCcw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import styles from "@/components/kanoha.module.css";
+import type { Subject } from "@/lib/curriculum/subjects";
 
 interface HandwritingPadProps {
   childId: string;
   onAnswer: (answer: string) => void;
   onSubmitAnswer?: (answer: string) => void;
   problemId: string;
-  subject?: "math" | "japanese";
+  subject?: Subject;
 }
+
+const READ_FAILED_MESSAGE: Readonly<Record<Subject, string>> = {
+  math: "うまく よみとれなかったよ。すうじで にゅうりょくしてね。",
+  japanese: "うまく よみとれなかったよ。もういちど かくか、キーボードで にゅうりょくしてね。",
+  english: "うまく よみとれなかったよ。もういちど ゆっくり かいてね。",
+};
+
+const PAD_TITLE: Readonly<Record<Subject, string>> = {
+  math: "てがきノート（ひろびろ）",
+  japanese: "漢字・ことば てがきノート",
+  english: "アルファベット てがきノート",
+};
 
 interface Point {
   x: number;
@@ -40,9 +53,7 @@ export function HandwritingPad({
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState("");
   const [penWidth, setPenWidth] = useState<number>(7);
-  const [gridMode, setGridMode] = useState<"single" | "double" | "none">(
-    subject === "japanese" ? "single" : "single",
-  );
+  const [gridMode, setGridMode] = useState<"single" | "double" | "none">("single");
 
   const penColor = "#112233";
 
@@ -166,11 +177,7 @@ export function HandwritingPad({
     });
     const body = await response.json().catch(() => null);
     if (!response.ok || !body?.success) {
-      setStatus(
-        subject === "japanese"
-          ? "うまく よみとれなかったよ。もういちど かくか、キーボードで にゅうりょくしてね。"
-          : "うまく よみとれなかったよ。すうじで にゅうりょくしてね。",
-      );
+      setStatus(READ_FAILED_MESSAGE[subject]);
       setPending(false);
       return;
     }
@@ -216,7 +223,7 @@ export function HandwritingPad({
         <div className={styles.handwritingHeader}>
           <h4 className={styles.handwritingTitle}>
             <BookOpen aria-hidden="true" size={20} />
-            {subject === "japanese" ? "漢字・ことば てがきノート" : "てがきノート（ひろびろ）"}
+            {PAD_TITLE[subject]}
           </h4>
           <div className={styles.handwritingModeSwitch}>
             <button

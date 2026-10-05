@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Shirt, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
+import { Coins, Shirt } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { getRewardState, type RewardState } from "@/lib/rewards/rewardStore";
 import {
@@ -13,6 +13,7 @@ import {
 import { FiveYenRewardModal } from "./FiveYenRewardModal";
 import { CharacterDressUpModal } from "./CharacterDressUpModal";
 import { LevelUpModal } from "./LevelUpModal";
+import { CELEBRATION_GATE_EVENT, areCelebrationsDeferred } from "@/lib/rewards/celebrationGate";
 
 export function RewardMeter() {
   const [reward, setReward] = useState<RewardState>({
@@ -25,10 +26,18 @@ export function RewardMeter() {
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [showDressUpModal, setShowDressUpModal] = useState(false);
   const [levelUpInfo, setLevelUpInfo] = useState<GrowthLevelInfo | null>(null);
+  const [fiveYenPending, setFiveYenPending] = useState(false);
+  // 問題を解いている途中は、お祝いモーダルを出さずに待たせる(celebrationGate)
+  const [gateClosed, setGateClosed] = useState(false);
 
   useEffect(() => {
     setReward(getRewardState());
     setProgress(getCharacterProgress());
+    setGateClosed(areCelebrationsDeferred());
+
+    const handleGate = (event: Event) => {
+      setGateClosed(Boolean((event as CustomEvent<boolean>).detail));
+    };
 
     const handleRewardUpdate = (event: Event) => {
       const customEvent = event as CustomEvent<RewardState>;
@@ -41,7 +50,7 @@ export function RewardMeter() {
     };
 
     const handleFiveYenEarned = () => {
-      setShowRewardModal(true);
+      setFiveYenPending(true);
     };
 
     const handleLevelUp = (event: Event) => {
@@ -54,8 +63,10 @@ export function RewardMeter() {
     window.addEventListener("kanoha-reward-update", handleRewardUpdate);
     window.addEventListener("kanoha-five-yen-earned", handleFiveYenEarned);
     window.addEventListener("kanoha-level-up", handleLevelUp);
+    window.addEventListener(CELEBRATION_GATE_EVENT, handleGate);
 
     return () => {
+      window.removeEventListener(CELEBRATION_GATE_EVENT, handleGate);
       window.removeEventListener("kanoha-reward-update", handleRewardUpdate);
       window.removeEventListener("kanoha-five-yen-earned", handleFiveYenEarned);
       window.removeEventListener("kanoha-level-up", handleLevelUp);
@@ -133,8 +144,11 @@ export function RewardMeter() {
 
       {/* 5円獲得セレブレーションモーダル */}
       <FiveYenRewardModal
-        isOpen={showRewardModal}
-        onClose={() => setShowRewardModal(false)}
+        isOpen={showRewardModal || (fiveYenPending && !gateClosed)}
+        onClose={() => {
+          setShowRewardModal(false);
+          setFiveYenPending(false);
+        }}
       />
 
       {/* きがえクローゼットモーダル */}
@@ -144,7 +158,7 @@ export function RewardMeter() {
       />
 
       {/* レベルアップお祝いモーダル */}
-      {levelUpInfo && (
+      {levelUpInfo && !gateClosed && (
         <LevelUpModal
           isOpen={Boolean(levelUpInfo)}
           newLevel={levelUpInfo}

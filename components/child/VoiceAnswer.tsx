@@ -11,7 +11,14 @@ type SpeechRecognitionConstructor = new () => {
   onerror: () => void;
 };
 
-export function VoiceAnswer({ onAnswer }: { onAnswer: (answer: string) => void }) {
+export function VoiceAnswer({
+  onAnswer,
+  lang = "ja-JP",
+}: {
+  onAnswer: (answer: string) => void;
+  /** 認識する言語(英語の問題では en-US) */
+  lang?: "ja-JP" | "en-US";
+}) {
   const [label, setLabel] = useState("こえで こたえる");
   const [supported, setSupported] = useState(false);
 
@@ -30,17 +37,17 @@ export function VoiceAnswer({ onAnswer }: { onAnswer: (answer: string) => void }
     };
     const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!Recognition) {
-      setLabel("すうじで こたえてね");
+      setLabel("てで こたえてね");
       return;
     }
     const recognition = new Recognition();
-    recognition.lang = "ja-JP";
+    recognition.lang = lang;
     recognition.onresult = (event) => {
       const answer = event.results[0][0].transcript;
       onAnswer(answer);
       setLabel("きこえたよ");
     };
-    recognition.onerror = () => setLabel("すうじで こたえてね");
+    recognition.onerror = () => setLabel("もういちど はなしてね");
     recognition.start();
     setLabel("きいているよ");
   }

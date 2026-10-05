@@ -10,6 +10,7 @@ const storedSimilarSchema = z.object({
   id: z.string().min(1),
   question: z.string(),
   choices: z.array(z.string()).nullable(),
+  listenText: z.string().max(200).optional(),
 });
 
 const progressSchema = z.object({

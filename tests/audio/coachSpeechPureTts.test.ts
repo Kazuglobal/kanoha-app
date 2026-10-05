@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { speakCoachVoice, stopCoachVoice, isCoachSpeaking } from "@/lib/audio/coachSpeech";
+import { speakCoachVoice, stopCoachVoice } from "@/lib/audio/coachSpeech";
 
 describe("coachSpeech with pure Gemini TTS", () => {
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe("coachSpeech with pure Gemini TTS", () => {
   });
 
   it("calls /api/ai/tts and plays audio when available", async () => {
-    const mockAudioPlay = vi.fn().mockImplementation(function (this: any) {
+    const mockAudioPlay = vi.fn().mockImplementation(function (this: { onended?: () => void }) {
       setTimeout(() => this.onended?.(), 5);
       return Promise.resolve();
     });
@@ -24,7 +24,7 @@ describe("coachSpeech with pure Gemini TTS", () => {
       currentTime = 0;
       onplay: (() => void) | null = null;
       onended: (() => void) | null = null;
-      onerror: ((err: any) => void) | null = null;
+      onerror: ((err: unknown) => void) | null = null;
       src: string;
       constructor(src?: string) {
         this.src = src || "";

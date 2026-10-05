@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { getServerSession } from "@/lib/auth/session";
-import { getDb, type Database } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
 export interface ApiResponse<T> {

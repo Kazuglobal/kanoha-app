@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addDaysJst, nowJstIso, todayKeyJst } from "@/lib/utils/date";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
-import * as loopModule from "@/lib/review/loop";
+import { eq, and } from "drizzle-orm";
 
 const CHILD = "11111111-1111-4111-8111-111111111111";
 const SESSION = "22222222-2222-4222-8222-222222222222";

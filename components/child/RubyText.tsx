@@ -35,7 +35,31 @@ export function RubyText({ parts }: { parts: readonly RubyPart[] }) {
             <rp>)</rp>
           </ruby>
         ) : (
-          <span key={`${part.text}-${index}`}>{part.text}</span>
+          <span key={`${part.text}-${index}`}>
+            <LangAwareText text={part.text} />
+          </span>
+        ),
+      )}
+    </>
+  );
+}
+
+/** 英単語・英文(2文字以上の英字のかたまり)。単位の mL などもふくむが、lang="en" で害はない。 */
+const ENGLISH_RUN = /([A-Za-z][A-Za-z'.,!? ]*[A-Za-z.!?])/;
+
+/** 英語の部分だけ lang="en" にして、読み上げ・スクリーンリーダーが英語で発音できるようにする。 */
+function LangAwareText({ text }: { text: string }) {
+  const pieces = text.split(ENGLISH_RUN);
+  if (pieces.length === 1) return <>{text}</>;
+  return (
+    <>
+      {pieces.map((piece, index) =>
+        index % 2 === 1 ? (
+          <span key={index} lang="en">
+            {piece}
+          </span>
+        ) : (
+          piece
         ),
       )}
     </>

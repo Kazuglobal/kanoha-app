@@ -7,7 +7,7 @@ import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { uuid } from "@/lib/utils/schemas";
-import type { Subject } from "@/lib/curriculum/subjects";
+import { resolveSubject, type Subject } from "@/lib/curriculum/subjects";
 
 const MAX_IMAGE_DATA_CHARS = 2_000_000;
 
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   if (isDemo) {
     const demo = demoProblemById(parsed.data.problemId);
     const problemText = demo?.problem_text ?? "手書き文字を読み取ってください";
-    const subject: Subject = demo?.subject === "japanese" ? "japanese" : "math";
+    const subject: Subject = resolveSubject(demo?.subject, demo?.unit);
 
     const provider = getAiProvider();
     if (provider.name === "mock") {
@@ -69,8 +69,7 @@ export async function POST(request: Request) {
       );
       return apiSuccess(result);
     } catch {
-      const fallbackResult = subject === "japanese" ? { answer: "あおぞら" } : { answer: "1000mL" };
-      return apiSuccess(fallbackResult);
+      return apiError("てがきを よみとれなかったよ。もういちど かいてみてね。", 502);
     }
   }
 
@@ -86,7 +85,7 @@ export async function POST(request: Request) {
   if (!problem) return apiError("Problem not found", 404);
 
   const provider = getAiProvider();
-  const subject: Subject = problem.subject === "japanese" ? "japanese" : "math";
+  const subject: Subject = resolveSubject(problem.subject, problem.unit);
   if (provider.name === "mock") {
     const result = await provider.recognizeHandwriting([], problem.problemText, subject);
     return apiSuccess(result);

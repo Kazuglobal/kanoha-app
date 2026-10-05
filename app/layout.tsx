@@ -3,8 +3,8 @@ import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistr
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "かのは | いっしょに算数",
-  description: "小学校2年生のための、やさしい個別算数学習アプリ",
+  title: "かのは | いっしょに べんきょう",
+  description: "小学校2年生のための、やさしい個別学習アプリ(算数・国語・英語)",
   manifest: "/manifest.json",
 };
 

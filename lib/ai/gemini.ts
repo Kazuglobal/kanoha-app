@@ -80,6 +80,7 @@ export const createGeminiClient = ({
     run ??
     createRestRunner(
       env.GEMINI_API_KEY ??
+        env.GOOGLE_AI_API_KEY ??
         (() => {
           throw new Error("GEMINI_API_KEY is required");
         })(),

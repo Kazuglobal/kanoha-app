@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getCloudflareBindings } from "@/lib/cloudflare/context";
 
 /**
  * Cloudflare R2 ストレージクライアント
@@ -33,20 +34,15 @@ export const uploadToR2 = async (
   contentType: string,
 ): Promise<{ url: string; key: string }> => {
   // 1. Cloudflare Workers バインディングがある場合
-  try {
-    const { getCloudflareContext } = require("@opennextjs/cloudflare");
-    const ctx = getCloudflareContext();
-    if (ctx?.env?.STORAGE) {
-      await ctx.env.STORAGE.put(key, buffer, {
-        httpMetadata: { contentType },
-      });
-      const publicUrl = process.env.R2_PUBLIC_URL
-        ? `${process.env.R2_PUBLIC_URL}/${key}`
-        : `/api/materials/file?key=${encodeURIComponent(key)}`;
-      return { url: publicUrl, key };
-    }
-  } catch {
-    // Node.js 環境へフォールバック
+  const storage = getCloudflareBindings()?.STORAGE;
+  if (storage) {
+    await storage.put(key, buffer, {
+      httpMetadata: { contentType },
+    });
+    const publicUrl = process.env.R2_PUBLIC_URL
+      ? `${process.env.R2_PUBLIC_URL}/${key}`
+      : `/api/materials/file?key=${encodeURIComponent(key)}`;
+    return { url: publicUrl, key };
   }
 
   // 2. S3 クライアント（環境変数設定時）
@@ -75,15 +71,10 @@ export const uploadToR2 = async (
 };
 
 export const deleteFromR2 = async (key: string): Promise<boolean> => {
-  try {
-    const { getCloudflareContext } = require("@opennextjs/cloudflare");
-    const ctx = getCloudflareContext();
-    if (ctx?.env?.STORAGE) {
-      await ctx.env.STORAGE.delete(key);
-      return true;
-    }
-  } catch {
-    // fallback
+  const storage = getCloudflareBindings()?.STORAGE;
+  if (storage) {
+    await storage.delete(key);
+    return true;
   }
 
   const s3 = getS3Client();
@@ -104,20 +95,15 @@ export const deleteFromR2 = async (key: string): Promise<boolean> => {
 export const getFromR2 = async (
   key: string,
 ): Promise<{ buffer: Buffer; contentType: string } | null> => {
-  try {
-    const { getCloudflareContext } = require("@opennextjs/cloudflare");
-    const ctx = getCloudflareContext();
-    if (ctx?.env?.STORAGE) {
-      const obj = await ctx.env.STORAGE.get(key);
-      if (!obj) return null;
-      const arrayBuffer = await obj.arrayBuffer();
-      return {
-        buffer: Buffer.from(arrayBuffer),
-        contentType: obj.httpMetadata?.contentType || "application/octet-stream",
-      };
-    }
-  } catch {
-    // fallback
+  const storage = getCloudflareBindings()?.STORAGE;
+  if (storage) {
+    const obj = await storage.get(key);
+    if (!obj) return null;
+    const arrayBuffer = await obj.arrayBuffer();
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      contentType: obj.httpMetadata?.contentType || "application/octet-stream",
+    };
   }
 
   const s3 = getS3Client();
