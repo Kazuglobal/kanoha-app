@@ -8,6 +8,10 @@
  * - 発話中は「リップシンク（口パク）」イベントを発行し、キャラクターが生き生きとお喋り！
  */
 
+import { getSharedAudioContext, installAudioUnlock } from "./audioUnlock";
+
+installAudioUnlock();
+
 const ttsAudioCache = new Map<string, string>();
 
 let activeAudio: HTMLAudioElement | null = null;
@@ -78,24 +82,6 @@ export const ENCOURAGE_PHRASES = [
   "だいじょうぶ！ゆっくり かんがえてみてね！",
   "あきらめないで、もういちど チャレンジしよう！",
 ] as const;
-
-let sharedAudioContext: AudioContext | null = null;
-
-function getSharedAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!sharedAudioContext) {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx) {
-      sharedAudioContext = new AudioCtx();
-    }
-  }
-  if (sharedAudioContext && sharedAudioContext.state === "suspended") {
-    void sharedAudioContext.resume();
-  }
-  return sharedAudioContext;
-}
 
 /**
  * Web Audio API を用いた音声データ再生（ブラウザの autoplay 制限を確実に突破するフォールバック）
