@@ -65,6 +65,19 @@ describe("Demo and Curriculum Bank support in AI endpoints", () => {
     expect(data.data.url).toContain("/visuals/volume.svg");
   });
 
+  it("returns 404 instead of a math picture for a demo kokugo problem", async () => {
+    const req = new Request("http://localhost/api/ai/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ childId: "demo", problemId: "kanji-1", requestedByChild: true }),
+    });
+
+    const res = await generateImagePost(req);
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+  });
+
   it("returns 404 for unknown demo problem id in generate-hints", async () => {
     const req = new Request("http://localhost/api/ai/generate-hints", {
       method: "POST",

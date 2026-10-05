@@ -50,4 +50,21 @@ describe("LearningFlow visual hint", () => {
       method: "POST",
     }));
   });
+
+  it("does not offer えで おしえて for a demo kokugo problem (no math picture)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ level: 1, text: "ヒント" }));
+    const user = userEvent.setup();
+    render(<LearningFlow persisted={{
+      childId: "demo",
+      problemId: "kanji-1",
+      question: "「あおぞら」を 漢字で 書きましょう。",
+      unit: "漢字",
+      subject: "japanese",
+    }} />);
+
+    await user.click(await screen.findByRole("button", { name: "ヒントを みる" }));
+    await user.click(await screen.findByRole("button", { name: /つぎの ヒント 2/ }));
+    await screen.findAllByText("ヒント");
+    expect(screen.queryByRole("button", { name: "えで おしえて" })).not.toBeInTheDocument();
+  });
 });

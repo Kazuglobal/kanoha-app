@@ -1,10 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="かけざん">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="かけざんの いみ">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">かけざん</text>
-  <g fill="#d3a5f0">
-    <circle cx="120" cy="110" r="16"/><circle cx="170" cy="110" r="16"/><circle cx="220" cy="110" r="16"/><circle cx="270" cy="110" r="16"/>
-    <circle cx="120" cy="160" r="16"/><circle cx="170" cy="160" r="16"/><circle cx="220" cy="160" r="16"/><circle cx="270" cy="160" r="16"/>
-    <circle cx="120" cy="210" r="16"/><circle cx="170" cy="210" r="16"/><circle cx="220" cy="210" r="16"/><circle cx="270" cy="210" r="16"/>
-  </g>
-  <text x="200" y="266" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">4こずつ 3れつで 4×3</text>
+  <text x="200" y="36" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="700" fill="#17324d">かけざん</text>
+  <text x="200" y="62" text-anchor="middle" font-size="17" font-family="sans-serif" font-weight="700" fill="#7c3aed">1つぶんの かず × いくつぶん</text>
+  <ellipse cx="70" cy="150" rx="38" ry="24" fill="#ffffff" stroke="#17324d" stroke-width="3"/>
+  <circle cx="54" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="70" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="86" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <text x="70" y="200" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#17324d">1さらめ</text>
+  <ellipse cx="157" cy="150" rx="38" ry="24" fill="#ffffff" stroke="#17324d" stroke-width="3"/>
+  <circle cx="141" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="157" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="173" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <text x="157" y="200" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#17324d">2さらめ</text>
+  <ellipse cx="244" cy="150" rx="38" ry="24" fill="#ffffff" stroke="#17324d" stroke-width="3"/>
+  <circle cx="228" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="244" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="260" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <text x="244" y="200" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#17324d">3さらめ</text>
+  <ellipse cx="331" cy="150" rx="38" ry="24" fill="#ffffff" stroke="#17324d" stroke-width="3"/>
+  <circle cx="315" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="331" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <circle cx="347" cy="146" r="8" fill="#d3a5f0" stroke="#17324d" stroke-width="1.5"/>
+  <text x="331" y="200" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#17324d">4さらめ</text>
+  <text x="200" y="240" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">3こずつ 4さら ぶん</text>
+  <text x="200" y="272" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#7c3aed">3 × 4</text>
 </svg>

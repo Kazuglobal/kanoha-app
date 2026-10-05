@@ -1,13 +1,69 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="ながさ">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ながさ(cm・mm)</text>
-  <rect x="60" y="130" width="280" height="60" rx="8" fill="#ffe9a8" stroke="#17324d" stroke-width="4"/>
-  <g stroke="#17324d" stroke-width="3">
-    <line x1="88" y1="130" x2="88" y2="155"/><line x1="116" y1="130" x2="116" y2="148"/>
-    <line x1="144" y1="130" x2="144" y2="155"/><line x1="172" y1="130" x2="172" y2="148"/>
-    <line x1="200" y1="130" x2="200" y2="155"/><line x1="228" y1="130" x2="228" y2="148"/>
-    <line x1="256" y1="130" x2="256" y2="155"/><line x1="284" y1="130" x2="284" y2="148"/>
-    <line x1="312" y1="130" x2="312" y2="155"/>
-  </g>
-  <text x="200" y="255" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">1cmは 10mm だよ</text>
+  <text x="200" y="40" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="700" fill="#17324d">ながさ(cm・mm)</text>
+  <rect x="40" y="120" width="320" height="64" rx="6" fill="#ffe9a8" stroke="#17324d" stroke-width="3"/>
+  <line x1="50.0" y1="120" x2="50.0" y2="150" stroke="#17324d" stroke-width="2.5"/>
+  <line x1="56.0" y1="120" x2="56.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="62.0" y1="120" x2="62.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="68.0" y1="120" x2="68.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="74.0" y1="120" x2="74.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="80.0" y1="120" x2="80.0" y2="140" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="86.0" y1="120" x2="86.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="92.0" y1="120" x2="92.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="98.0" y1="120" x2="98.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="104.0" y1="120" x2="104.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="110.0" y1="120" x2="110.0" y2="150" stroke="#17324d" stroke-width="2.5"/>
+  <line x1="116.0" y1="120" x2="116.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="122.0" y1="120" x2="122.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="128.0" y1="120" x2="128.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="134.0" y1="120" x2="134.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="140.0" y1="120" x2="140.0" y2="140" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="146.0" y1="120" x2="146.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="152.0" y1="120" x2="152.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="158.0" y1="120" x2="158.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="164.0" y1="120" x2="164.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="170.0" y1="120" x2="170.0" y2="150" stroke="#17324d" stroke-width="2.5"/>
+  <line x1="176.0" y1="120" x2="176.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="182.0" y1="120" x2="182.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="188.0" y1="120" x2="188.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="194.0" y1="120" x2="194.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="200.0" y1="120" x2="200.0" y2="140" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="206.0" y1="120" x2="206.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="212.0" y1="120" x2="212.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="218.0" y1="120" x2="218.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="224.0" y1="120" x2="224.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="230.0" y1="120" x2="230.0" y2="150" stroke="#17324d" stroke-width="2.5"/>
+  <line x1="236.0" y1="120" x2="236.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="242.0" y1="120" x2="242.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="248.0" y1="120" x2="248.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="254.0" y1="120" x2="254.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="260.0" y1="120" x2="260.0" y2="140" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="266.0" y1="120" x2="266.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="272.0" y1="120" x2="272.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="278.0" y1="120" x2="278.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="284.0" y1="120" x2="284.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="290.0" y1="120" x2="290.0" y2="150" stroke="#17324d" stroke-width="2.5"/>
+  <line x1="296.0" y1="120" x2="296.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="302.0" y1="120" x2="302.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="308.0" y1="120" x2="308.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="314.0" y1="120" x2="314.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="320.0" y1="120" x2="320.0" y2="140" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="326.0" y1="120" x2="326.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="332.0" y1="120" x2="332.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="338.0" y1="120" x2="338.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="344.0" y1="120" x2="344.0" y2="132" stroke="#17324d" stroke-width="1.2"/>
+  <line x1="350.0" y1="120" x2="350.0" y2="150" stroke="#17324d" stroke-width="2.5"/>
+  <text x="50" y="172" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#17324d">0</text>
+  <text x="110" y="172" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#17324d">1</text>
+  <text x="170" y="172" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#17324d">2</text>
+  <text x="230" y="172" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#17324d">3</text>
+  <text x="290" y="172" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#17324d">4</text>
+  <text x="350" y="172" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#17324d">5</text>
+  <path d="M50 110 v-10 h60 v10" fill="none" stroke="#e2607e" stroke-width="3"/>
+  <text x="80.0" y="94" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#d0435f">1cm</text>
+  <rect x="110.5" y="118" width="5" height="16" fill="#177bb0" opacity="0.35"/>
+  <line x1="113" y1="190" x2="113" y2="136" stroke="#177bb0" stroke-width="2"/>
+  <text x="118" y="208" text-anchor="start" font-size="15" font-family="sans-serif" font-weight="700" fill="#177bb0">←この 1めもりが 1mm</text>
+  <text x="200" y="252" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">1cmを 10こに わけた 1つぶんが 1mm</text>
+  <text x="200" y="278" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">100cm で 1m</text>
 </svg>

@@ -26,7 +26,7 @@ export default async function ResultPage({
     : "/child/problem/volume-1";
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
-      <ChildHeader />
+      <ChildHeader childId={childId} />
       <main className={styles.narrow}>
         <section className={`${styles.card} ${styles.resultHero}`}>
           <CharacterCoach

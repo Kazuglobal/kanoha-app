@@ -18,6 +18,7 @@ import { uuid } from "@/lib/utils/schemas";
 import { answersMatch } from "@/lib/utils/answers";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { nowJstIso } from "@/lib/utils/date";
+import { recordCorrectReward } from "@/lib/rewards/serverRewards";
 
 /**
  * hint_level_used はクライアントから受け取らず problem_hint_views(サーバー記録)から読む(A2)。
@@ -122,6 +123,12 @@ export async function POST(request: Request) {
       : { action: "none" as const };
     if (review.action === "error") return internalError();
 
+    // ごほうびは元問題の正解だけで増える。記録はもう保存ずみなので、失敗しても回答は失敗扱いにしない。
+    const reward =
+      isCorrect && input.problemId
+        ? await recordCorrectReward(auth.db, input.childId).catch(() => null)
+        : null;
+
     return apiSuccess(
       {
         id: data.id,
@@ -133,6 +140,7 @@ export async function POST(request: Request) {
         accuracy_rate: weakness.accuracyRate,
         review,
         explanation: !isCorrect && target.similarExplanation ? target.similarExplanation : null,
+        reward,
       },
       201,
     );

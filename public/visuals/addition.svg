@@ -1,10 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="たしざん">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="たしざんの くりあがり">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">たしざん</text>
-  <g fill="#7fc8f8"><circle cx="80" cy="140" r="18"/><circle cx="125" cy="140" r="18"/><circle cx="80" cy="185" r="18"/></g>
-  <text x="170" y="175" text-anchor="middle" font-size="44" font-family="sans-serif" font-weight="700" fill="#17324d">+</text>
-  <g fill="#f8a97f"><circle cx="220" cy="140" r="18"/><circle cx="265" cy="140" r="18"/></g>
-  <text x="310" y="175" text-anchor="middle" font-size="44" font-family="sans-serif" font-weight="700" fill="#17324d">=</text>
-  <text x="355" y="175" text-anchor="middle" font-size="44" font-family="sans-serif" font-weight="700" fill="#0d9f8c">?</text>
-  <text x="200" y="262" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">あわせて いくつかな</text>
+  <text x="200" y="34" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="700" fill="#17324d">たしざん(くりあがり)</text>
+  <text x="200" y="56" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">れい: 28 + 15</text>
+  <rect x="40" y="62" width="320" height="148" rx="10" fill="#ffffff" stroke="#17324d" stroke-width="2"/>
+  <line x1="200" y1="62" x2="200" y2="210" stroke="#17324d" stroke-width="2"/>
+  <line x1="40" y1="90" x2="360" y2="90" stroke="#17324d" stroke-width="1.5"/>
+  <line x1="40" y1="150" x2="360" y2="150" stroke="#17324d" stroke-width="1.5"/>
+  <text x="120" y="81" text-anchor="middle" font-size="14" font-family="sans-serif" font-weight="700" fill="#17324d">じゅうの くらい</text>
+  <text x="280" y="81" text-anchor="middle" font-size="14" font-family="sans-serif" font-weight="700" fill="#17324d">いちの くらい</text>
+  <rect x="100" y="95" width="12" height="50" rx="2" fill="#7fc8f8" stroke="#17324d" stroke-width="1.5"/>
+  <line x1="100" y1="100" x2="112" y2="100" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="105" x2="112" y2="105" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="110" x2="112" y2="110" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="115" x2="112" y2="115" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="120" x2="112" y2="120" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="125" x2="112" y2="125" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="130" x2="112" y2="130" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="135" x2="112" y2="135" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="100" y1="140" x2="112" y2="140" stroke="#17324d" stroke-width="0.8"/>
+  <rect x="118" y="95" width="12" height="50" rx="2" fill="#7fc8f8" stroke="#17324d" stroke-width="1.5"/>
+  <line x1="118" y1="100" x2="130" y2="100" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="105" x2="130" y2="105" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="110" x2="130" y2="110" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="115" x2="130" y2="115" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="120" x2="130" y2="120" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="125" x2="130" y2="125" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="130" x2="130" y2="130" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="135" x2="130" y2="135" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="118" y1="140" x2="130" y2="140" stroke="#17324d" stroke-width="0.8"/>
+  <rect x="245" y="103" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="259" y="103" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="273" y="103" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="287" y="103" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="301" y="103" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="245" y="117" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="259" y="117" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="273" y="117" width="11" height="11" rx="1.5" fill="#f8a97f" stroke="#17324d" stroke-width="1.2"/>
+  <text x="26" y="188" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">+</text>
+  <rect x="109" y="155" width="12" height="50" rx="2" fill="#a3de83" stroke="#17324d" stroke-width="1.5"/>
+  <line x1="109" y1="160" x2="121" y2="160" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="165" x2="121" y2="165" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="170" x2="121" y2="170" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="175" x2="121" y2="175" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="180" x2="121" y2="180" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="185" x2="121" y2="185" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="190" x2="121" y2="190" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="195" x2="121" y2="195" stroke="#17324d" stroke-width="0.8"/>
+  <line x1="109" y1="200" x2="121" y2="200" stroke="#17324d" stroke-width="0.8"/>
+  <rect x="245" y="163" width="11" height="11" rx="1.5" fill="#ffd36e" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="259" y="163" width="11" height="11" rx="1.5" fill="#ffd36e" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="273" y="163" width="11" height="11" rx="1.5" fill="#ffd36e" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="287" y="163" width="11" height="11" rx="1.5" fill="#ffd36e" stroke="#17324d" stroke-width="1.2"/>
+  <rect x="301" y="163" width="11" height="11" rx="1.5" fill="#ffd36e" stroke="#17324d" stroke-width="1.2"/>
+  <path d="M290 222 C 260 246, 160 246, 130 222" fill="none" stroke="#e2607e" stroke-width="3"/>
+  <polygon points="130,222 142,226 136,234" fill="#e2607e"/>
+  <text x="210" y="262" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">いちの くらいが 10こ そろったら</text>
+  <text x="200" y="284" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#d0435f">じゅうの くらいへ 1 くりあがり</text>
 </svg>

@@ -1,36 +1,31 @@
 "use client";
 
-import { getCharacterLevel, type GrowthLevelInfo } from "./characterGrowthStore";
+import type { GrowthLevelInfo } from "./catalog";
+import {
+  DEFAULT_REWARD_STATE,
+  applyCorrectAnswer,
+  describeRewardChange,
+  normalizeRewardState,
+  previousOfCorrectAnswer,
+  type RewardChange,
+  type RewardState,
+} from "./rewardLogic";
 
-export interface RewardState {
-  currentCycleCount: number; // 0 - 10 (10問で1サイクル)
-  totalCorrectCount: number;
-  totalRewardYen: number; // 累計獲得金額(円)
-  lastRewardEarnedAt?: string;
-}
+export type { RewardState } from "./rewardLogic";
 
+/**
+ * ごほうびの端末キャッシュ。ログイン中の正は DB(child_rewards)で、
+ * ここには「いま表示している子ども」の値を置く。未ログインのデモだけはここで数える。
+ */
 const STORAGE_KEY = "kanoha_child_rewards_v1";
 
-const DEFAULT_STATE: RewardState = {
-  currentCycleCount: 0,
-  totalCorrectCount: 0,
-  totalRewardYen: 0,
-};
-
 export function getRewardState(): RewardState {
-  if (typeof window === "undefined") return DEFAULT_STATE;
+  if (typeof window === "undefined") return DEFAULT_REWARD_STATE;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_STATE;
-    const parsed = JSON.parse(raw) as Partial<RewardState>;
-    return {
-      currentCycleCount: Number(parsed.currentCycleCount ?? 0) % 10,
-      totalCorrectCount: Number(parsed.totalCorrectCount ?? 0),
-      totalRewardYen: Number(parsed.totalRewardYen ?? 0),
-      lastRewardEarnedAt: parsed.lastRewardEarnedAt,
-    };
+    return raw ? normalizeRewardState(JSON.parse(raw)) : DEFAULT_REWARD_STATE;
   } catch {
-    return DEFAULT_STATE;
+    return DEFAULT_REWARD_STATE;
   }
 }
 
@@ -38,10 +33,10 @@ export function saveRewardState(state: RewardState): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    window.dispatchEvent(new CustomEvent("kanoha-reward-update", { detail: state }));
   } catch {
-    // ignore
+    // 保存できなくても表示は続ける
   }
+  window.dispatchEvent(new CustomEvent("kanoha-reward-update", { detail: state }));
 }
 
 export interface RecordCorrectResult {
@@ -53,50 +48,45 @@ export interface RecordCorrectResult {
   newLevel: GrowthLevelInfo;
 }
 
+function announce(change: RewardChange): RecordCorrectResult {
+  saveRewardState(change.newState);
+  window.dispatchEvent(new CustomEvent("kanoha-problem-solved", { detail: { correct: true } }));
+  if (change.earnedFiveYen) {
+    window.dispatchEvent(new CustomEvent("kanoha-five-yen-earned", { detail: change.newState }));
+  }
+  if (change.leveledUp) {
+    window.dispatchEvent(
+      new CustomEvent("kanoha-level-up", {
+        detail: {
+          previousLevel: change.previousLevel,
+          newLevel: change.newLevel,
+          totalCorrect: change.newState.totalCorrectCount,
+        },
+      }),
+    );
+  }
+  return {
+    previousState: change.previousState,
+    newState: change.newState,
+    earnedFiveYen: change.earnedFiveYen,
+    newCycleCount: change.newCycleCount,
+    leveledUp: change.leveledUp,
+    newLevel: change.newLevel,
+  };
+}
+
 /**
- * 1問正解を記録する。
- * 10問正解ごとに5円獲得！
- * 正解数に応じてキャラクターレベルもアップ！
+ * 未ログイン(デモ)の1問正解を端末だけで記録する。
+ * 10問正解ごとに5円、正解数に応じてキャラクターレベルもアップ。
  */
 export function recordCorrectAnswer(): RecordCorrectResult {
   const current = getRewardState();
-  const nextCycle = current.currentCycleCount + 1;
-  const earnedFiveYen = nextCycle >= 10;
+  return announce(describeRewardChange(current, applyCorrectAnswer(current, new Date().toISOString())));
+}
 
-  const previousLevel = getCharacterLevel(current.totalCorrectCount);
-  const newTotalCorrect = current.totalCorrectCount + 1;
-  const newLevel = getCharacterLevel(newTotalCorrect);
-  const leveledUp = newLevel.level > previousLevel.level;
-
-  const newState: RewardState = {
-    currentCycleCount: earnedFiveYen ? 0 : nextCycle,
-    totalCorrectCount: newTotalCorrect,
-    totalRewardYen: earnedFiveYen ? current.totalRewardYen + 5 : current.totalRewardYen,
-    lastRewardEarnedAt: earnedFiveYen ? new Date().toISOString() : current.lastRewardEarnedAt,
-  };
-
-  saveRewardState(newState);
-
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("kanoha-problem-solved", { detail: { correct: true } }));
-    if (earnedFiveYen) {
-      window.dispatchEvent(new CustomEvent("kanoha-five-yen-earned", { detail: newState }));
-    }
-    if (leveledUp) {
-      window.dispatchEvent(
-        new CustomEvent("kanoha-level-up", {
-          detail: { previousLevel, newLevel, totalCorrect: newTotalCorrect },
-        })
-      );
-    }
-  }
-
-  return {
-    previousState: current,
-    newState,
-    earnedFiveYen,
-    newCycleCount: earnedFiveYen ? 10 : nextCycle,
-    leveledUp,
-    newLevel,
-  };
+/** ログイン中: /api/attempts がサーバーで記録した正解後の値を表示に反映する。 */
+export function applyServerReward(raw: unknown): RecordCorrectResult | null {
+  if (!raw || typeof raw !== "object") return null;
+  const next = normalizeRewardState(raw as Partial<Record<keyof RewardState, unknown>>);
+  return announce(describeRewardChange(previousOfCorrectAnswer(next), next));
 }

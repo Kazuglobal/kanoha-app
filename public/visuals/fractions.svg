@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="ぶんすう">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ぶんすう</text>
-  <circle cx="130" cy="165" r="70" fill="#ffffff" stroke="#17324d" stroke-width="4"/>
-  <path d="M130 95 A70 70 0 0 1 130 235 Z" fill="#f8a97f"/>
-  <line x1="130" y1="95" x2="130" y2="235" stroke="#17324d" stroke-width="4"/>
-  <text x="280" y="150" text-anchor="middle" font-size="30" font-family="sans-serif" font-weight="700" fill="#17324d">2ぶんの1</text>
-  <text x="280" y="195" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">はんぶんに わけたよ</text>
+  <text x="200" y="40" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ぶんすう</text>
+  <circle cx="115" cy="165" r="72" fill="#ffffff" stroke="#17324d" stroke-width="4"/>
+  <path d="M115 93 A72 72 0 0 1 115 237 Z" fill="#f8a97f"/>
+  <line x1="115" y1="93" x2="115" y2="237" stroke="#17324d" stroke-width="4"/>
+  <text x="285" y="128" text-anchor="middle" font-size="34" font-family="sans-serif" font-weight="700" fill="#17324d">1</text>
+  <line x1="262" y1="140" x2="308" y2="140" stroke="#17324d" stroke-width="4"/>
+  <text x="285" y="176" text-anchor="middle" font-size="34" font-family="sans-serif" font-weight="700" fill="#17324d">2</text>
+  <text x="285" y="210" text-anchor="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#17324d">2ぶんの1</text>
+  <text x="200" y="268" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">おなじ おおきさに 2つに わけた 1つぶん</text>
 </svg>
