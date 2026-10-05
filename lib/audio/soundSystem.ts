@@ -15,6 +15,8 @@ export interface SoundSettings {
   seEnabled: boolean;
 }
 
+import { getSharedAudioContext, installAudioUnlock } from "./audioUnlock";
+
 const STORAGE_KEY = "kanoha_sound_settings_v1";
 
 class SoundManager {
@@ -32,6 +34,7 @@ class SoundManager {
   constructor() {
     if (typeof window !== "undefined") {
       this.loadSettings();
+      installAudioUnlock();
       window.addEventListener("kanoha-coach-speaking-start", () => this.duckBgm());
       window.addEventListener("kanoha-coach-speaking-end", () => this.unduckBgm());
     }
@@ -112,16 +115,7 @@ class SoundManager {
   }
 
   private getAudioContext(): AudioContext | null {
-    if (typeof window === "undefined") return null;
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
-    }
-    if (this.ctx && this.ctx.state === "suspended") {
-      void this.ctx.resume();
-    }
+    this.ctx = getSharedAudioContext();
     return this.ctx;
   }
 
