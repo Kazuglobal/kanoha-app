@@ -126,7 +126,7 @@ export function LearningFlow({
           <div className={styles.problemScroll}>
             <div className={styles.learningHeaderRow}>
               <div className={styles.badgeGroup}>
-                <span className={SUBJECT_BADGE_CLASS[subject]}>
+                <span className={`${styles.subjectBadge} ${SUBJECT_BADGE_CLASS[subject]}`}>
                   {subjectConfig.emoji} {subjectConfig.child}
                 </span>
                 <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
@@ -276,7 +276,7 @@ function TypedAnswer({
           className={styles.learningDisplayInput}
           // テンキーがあるときは端末のキーボードを出さない(画面のテンキーと重ならないように)
           inputMode={numeric ? "none" : "text"}
-          placeholder={numeric ? "こたえ" : "こたえを かこう"}
+          placeholder={numeric ? "こたえ" : "ここに こたえを かいてね"}
           value={flow.answer}
           onChange={(event) => flow.setAnswer(event.target.value)}
         />

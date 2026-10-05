@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { answersMatch } from "@/lib/utils/answers";
+import { answersMatch, toReading } from "@/lib/utils/answers";
+import { getCurriculumProblemsBySubject } from "@/lib/curriculum/curriculumBank";
 
 describe("answersMatch", () => {
   it("normalizes full-width characters and whitespace", () => {
@@ -46,5 +47,31 @@ describe("answersMatch", () => {
     expect(answersMatch("3l7dl", "3L7dL")).toBe(true);
     expect(answersMatch("3時45分", "3じ45ふん")).toBe(true);
     expect(answersMatch("3:45", "3時45分")).toBe(true);
+  });
+
+  it("accepts hiragana for kanji words with okurigana (国語)", () => {
+    expect(answersMatch("ひくい", "低い")).toBe(true);
+    expect(answersMatch("低い", "ひくい")).toBe(true);
+    expect(answersMatch("ともだち", "友だち")).toBe(true);
+    expect(answersMatch("たかい", "低い")).toBe(false);
+  });
+
+  it("ignores surrounding brackets and punctuation", () => {
+    expect(answersMatch("「ひくい」", "低い")).toBe(true);
+    expect(answersMatch("ひくい。", "低い")).toBe(true);
+  });
+
+  it("accepts either form when the expected answer carries a reading in parentheses", () => {
+    expect(answersMatch("ひくい", "低い（ひくい）")).toBe(true);
+    expect(answersMatch("低い", "低い(ひくい)")).toBe(true);
+    expect(answersMatch("たかい", "低い（ひくい）")).toBe(false);
+  });
+
+  it("every 国語 bank answer written in kanji can also be answered in hiragana", () => {
+    for (const problem of getCurriculumProblemsBySubject("japanese")) {
+      const reading = toReading(problem.correctAnswer);
+      expect(reading, problem.id).not.toMatch(/[\u4e00-\u9fff]/);
+      expect(answersMatch(reading, problem.correctAnswer), problem.id).toBe(true);
+    }
   });
 });

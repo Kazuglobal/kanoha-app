@@ -112,9 +112,49 @@ function normalizeUnitsInString(str: string): string {
   return res;
 }
 
+const RUBY_KEYS_BY_LENGTH = Object.keys(RUBY_DICTIONARY).sort((a, b) => b.length - a.length);
+
+/** 答えの前後につけがちな かっこ・句読点(「ひくい」/ ひくい。)を落とす */
+function stripPunctuation(str: string): string {
+  return str.replace(/[「」『』()（）［］\[\]【】。、,.!?！？・〜~"'“”‘’]/g, "");
+}
+
+/** 漢字を辞書の読みに最長一致で置き換えて、ひらがなに揃える(低い → ひくい) */
+export function toReading(str: string): string {
+  let out = "";
+  let i = 0;
+  while (i < str.length) {
+    const key = RUBY_KEYS_BY_LENGTH.find((k) => str.startsWith(k, i));
+    out += key ? RUBY_DICTIONARY[key] : str[i];
+    i += key ? key.length : 1;
+  }
+  return toHiragana(out);
+}
+
+/** 「低い（ひくい）」のように読みが添えてある正解は、どちらの書き方も正解にする */
+function expectedVariants(expected: string): string[] {
+  const match = expected.normalize("NFKC").match(/^(.+?)\((.+?)\)$/);
+  return match ? [expected, match[1], match[2]] : [expected];
+}
+
 export function answersMatch(submitted: string, expected: string): boolean {
   if (!submitted || !expected) return false;
+  return expectedVariants(expected).some((variant) => matchesSingle(submitted, variant));
+}
 
+function matchesSingle(submitted: string, expected: string): boolean {
+  if (strictMatch(submitted, expected)) return true;
+
+  const cleanSub = stripPunctuation(normalizeAnswer(submitted));
+  const cleanExp = stripPunctuation(normalizeAnswer(expected));
+  if (!cleanSub || !cleanExp) return false;
+  if (strictMatch(cleanSub, cleanExp)) return true;
+
+  // 5. 送りがな つきの漢字も読みで照合(低い ⇔ ひくい、友だち ⇔ ともだち)
+  return toReading(cleanSub) === toReading(cleanExp);
+}
+
+function strictMatch(submitted: string, expected: string): boolean {
   const normSub = normalizeAnswer(submitted);
   const normExp = normalizeAnswer(expected);
   if (normSub === normExp) return true;
