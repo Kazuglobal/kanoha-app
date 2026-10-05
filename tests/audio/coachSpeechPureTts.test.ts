@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { speakCoachVoice, stopCoachVoice, isCoachSpeaking } from "@/lib/audio/coachSpeech";
+import { speakCoachVoice, stopCoachVoice } from "@/lib/audio/coachSpeech";
 
 describe("coachSpeech with pure Gemini TTS", () => {
   beforeEach(() => {

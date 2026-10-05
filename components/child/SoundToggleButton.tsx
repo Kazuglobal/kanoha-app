@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Volume2, VolumeX, Music } from "lucide-react";
+import { VolumeX, Music } from "lucide-react";
 import { soundManager, type SoundSettings } from "@/lib/audio/soundSystem";
 import styles from "@/components/kanoha.module.css";
 

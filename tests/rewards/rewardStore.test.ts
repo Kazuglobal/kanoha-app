@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getRewardState, recordCorrectAnswer, saveRewardState } from "@/lib/rewards/rewardStore";
+import { getRewardState, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 
 describe("rewardStore", () => {
   beforeEach(() => {

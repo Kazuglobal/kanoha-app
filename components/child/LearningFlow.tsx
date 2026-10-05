@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
+import { setCelebrationsDeferred } from "@/lib/rewards/celebrationGate";
 import { SUBJECT_CONFIG, type Subject } from "@/lib/curriculum/subjects";
 import { CharacterCoach } from "./CharacterCoach";
 import { HandwritingPad } from "./HandwritingPad";
@@ -49,6 +50,12 @@ export function LearningFlow({
   const subjectConfig = SUBJECT_CONFIG[subject];
   // 答えを考えたあと(正解 or 答えのヒントまで見た)に、れんしゅうへ すすめる
   const canPractice = Boolean(flow.checked?.correct) || flow.revealedHints.length >= 4;
+
+  // 解いている途中はお祝いモーダルを待たせ、5問が終わったら出す
+  useEffect(() => {
+    setCelebrationsDeferred(!flow.finished);
+    return () => setCelebrationsDeferred(false);
+  }, [flow.finished]);
 
   // 教科に応じた BGM の自動開始 & 終了
   useEffect(() => {

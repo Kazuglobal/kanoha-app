@@ -59,9 +59,10 @@ export default async function ChildHomePage({
 
   const readingMode: ReadingMode =
     selected.reading_mode === "hiragana" ? "hiragana" : "kanji_with_ruby";
-  const [recommendation, recentProblemId] = await Promise.all([
+  const [recommendation, recentProblemId, solvedIds] = await Promise.all([
     getTodayRecommendations(selected.id, new Date(), db, currentSubject),
     loadRecentProblemId(selected.id, currentSubject, db),
+    loadSolvedCurriculumIds(selected.id, db),
   ]);
 
   return (
@@ -72,8 +73,26 @@ export default async function ChildHomePage({
       recentProblemId={recentProblemId}
       selected={selected}
       currentSubject={currentSubject}
+      solvedIds={solvedIds}
     />
   );
+}
+
+/** ステージマップの進み具合: いちどでも正解した問題バンクの id。 */
+async function loadSolvedCurriculumIds(childId: string, db = getDb()): Promise<readonly string[]> {
+  const rows = await db
+    .selectDistinct({ id: schema.problems.curriculumProblemId })
+    .from(schema.attempts)
+    .innerJoin(schema.problems, eq(schema.attempts.problemId, schema.problems.id))
+    .where(
+      and(
+        eq(schema.attempts.childId, childId),
+        eq(schema.attempts.isCorrect, 1),
+        isNotNull(schema.problems.curriculumProblemId),
+      ),
+    )
+    .all();
+  return rows.flatMap(({ id }) => (id ? [id] : []));
 }
 
 /** 「もういちど」タイル用: いちばん最近といた問題の id(attempts から)。 */
@@ -134,6 +153,7 @@ function RealHome({
   recentProblemId,
   selected,
   currentSubject,
+  solvedIds,
 }: {
   profiles: ChildProfile[];
   problems: RecommendedProblem[];
@@ -141,6 +161,7 @@ function RealHome({
   recentProblemId: string | null;
   selected: ChildProfile;
   currentSubject: Subject;
+  solvedIds: readonly string[];
 }) {
   const config = SUBJECT_CONFIG[currentSubject];
   const defaultProblemId = config.defaultProblemId;
@@ -217,6 +238,7 @@ function RealHome({
           currentSubject={currentSubject}
           childId={selected.id}
           readingMode={readingMode}
+          solvedIds={solvedIds}
         />
       </main>
     </div>

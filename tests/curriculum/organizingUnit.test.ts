@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   GRADE_2_MATH_CURRICULUM,
-  GRADE_2_MATH_UNITS,
   isGrade2MathUnit,
   resolveVisualTemplate,
 } from "@/lib/curriculum/grade2Math";
 import {
-  CURRICULUM_PROBLEMS,
   getCurriculumProblemById,
   getCurriculumProblemsByUnit,
   getCurriculumStages,

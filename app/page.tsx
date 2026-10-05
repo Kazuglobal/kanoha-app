@@ -4,7 +4,7 @@ import { LANDING_TEXT } from "@/components/child/childStrings";
 import styles from "./landing.module.css";
 
 const POINTS = [
-  { icon: "🧮", label: LANDING_TEXT.pointMath, tone: styles.pointCoral },
+  { icon: "📚", label: LANDING_TEXT.pointMath, tone: styles.pointCoral },
   { icon: "💡", label: LANDING_TEXT.pointHint, tone: styles.pointSun },
   { icon: "🎁", label: LANDING_TEXT.pointReward, tone: styles.pointMint },
 ] as const;

@@ -20,8 +20,12 @@ const newMemoryDb = (): DatabaseSync =>
 /**
  * node:sqlite を使用したローカル/テスト用の D1 エミュレータ
  */
-let localDbSync: DatabaseSync | null = null;
-let localD1Instance: D1Database | null = null;
+/**
+ * ローカル用 in-memory D1 はプロセスで 1 つだけにする。
+ * Next はページ(RSC)と Route Handler を別々にバンドルするため、モジュール変数だと
+ * DB が 2 つに分かれ、API で作ったセッションや行がページから見えなくなる。
+ */
+const localStore = globalThis as typeof globalThis & { __kanohaLocalD1?: D1Database };
 
 export const createLocalD1 = (dbSync: DatabaseSync = newMemoryDb()): D1Database => {
   return {
@@ -95,12 +99,12 @@ export const getD1Database = (): D1Database => {
   if (bindings?.DB) return bindings.DB;
 
   // 2. ローカル / テスト用エミュレータ
-  if (!localD1Instance) {
-    localDbSync = newMemoryDb();
-    applyLocalMigrations(localDbSync);
-    localD1Instance = createLocalD1(localDbSync);
+  if (!localStore.__kanohaLocalD1) {
+    const db = newMemoryDb();
+    applyLocalMigrations(db);
+    localStore.__kanohaLocalD1 = createLocalD1(db);
   }
-  return localD1Instance;
+  return localStore.__kanohaLocalD1;
 };
 
 /**

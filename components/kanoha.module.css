@@ -3097,6 +3097,22 @@
   border: 1px solid #e2e8f0;
 }
 
+.stageCardBadgeCleared {
+  background: #fff7d6;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid #fcd34d;
+}
+
+/* ぜんぶ正解した単元は金色のふちで「クリア」を見せる */
+.stageCardCleared {
+  border-color: #fcd34d;
+  background: linear-gradient(180deg, #fffdf2 0%, #ffffff 60%);
+}
+
 .stageCardTitle {
   font-size: 18px;
   font-weight: 900;
@@ -3732,7 +3748,8 @@
     font-size: 24px;
   }
 
-  .appScreen .stageCardBadge {
+  .appScreen .stageCardBadge,
+  .appScreen .stageCardBadgeCleared {
     font-size: 11px;
     padding: 2px 8px;
   }

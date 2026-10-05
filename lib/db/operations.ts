@@ -1,8 +1,8 @@
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getDb } from "./index";
 import * as schema from "./schema";
 import { todayKeyJst, nowJstIso } from "@/lib/utils/date";
-import { updateWeakness, type MasteryLevel } from "@/lib/review/weakness";
+import { type MasteryLevel } from "@/lib/review/weakness";
 
 /**
  * AI利用量のアトミック予約 (旧 increment_ai_usage RPC)

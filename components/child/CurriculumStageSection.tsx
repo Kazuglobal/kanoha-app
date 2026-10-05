@@ -11,14 +11,18 @@ interface CurriculumStageSectionProps {
   currentSubject: Subject;
   childId?: string;
   readingMode?: "kanji_with_ruby" | "hiragana";
+  /** いちどでも正解した問題バンクの id(ログイン中のみ) */
+  solvedIds?: readonly string[];
 }
 
 export function CurriculumStageSection({
   currentSubject,
   childId,
   readingMode = "kanji_with_ruby",
+  solvedIds = [],
 }: CurriculumStageSectionProps) {
   const stages = getCurriculumStages(currentSubject);
+  const solved = new Set(solvedIds);
 
   return (
     <section className={styles.stageMapSection} aria-label="カリキュラムステージ">
@@ -36,22 +40,29 @@ export function CurriculumStageSection({
 
       <div className={styles.stageGrid}>
         {stages.map((stage) => {
-          const href = `/child/problem/${stage.firstProblemId}${
-            childId ? `?childId=${childId}` : ""
-          }`;
+          const solvedCount = stage.problemIds.filter((id) => solved.has(id)).length;
+          const cleared = solvedCount === stage.problemCount;
+          // つづきから: まだ正解していない最初の問題へ
+          const nextId = stage.problemIds.find((id) => !solved.has(id)) ?? stage.firstProblemId;
+          const href = `/child/problem/${nextId}${childId ? `?childId=${childId}` : ""}`;
 
           return (
             <Link
               key={stage.id}
               href={href as Route}
-              className={styles.stageCard}
+              className={`${styles.stageCard} ${cleared ? styles.stageCardCleared : ""}`}
               title={`${stage.title}をはじめよう`}
             >
               <div className={styles.stageCardTop}>
                 <span className={styles.stageCardEmoji} role="img" aria-label={stage.title}>
                   {stage.emoji}
                 </span>
-                <span className={styles.stageCardBadge}>{stage.problemCount}もん</span>
+                <span
+                  className={cleared ? styles.stageCardBadgeCleared : styles.stageCardBadge}
+                  aria-label={`${stage.problemCount}もん中 ${solvedCount}もん できた`}
+                >
+                  {cleared ? "⭐ クリア" : solvedCount > 0 ? `${solvedCount}/${stage.problemCount}` : `${stage.problemCount}もん`}
+                </span>
               </div>
 
               <h3 className={styles.stageCardTitle}>
@@ -61,7 +72,7 @@ export function CurriculumStageSection({
               <p className={styles.stageCardDesc}>{stage.description}</p>
 
               <div className={styles.stageCardAction}>
-                べんきょうする ▶
+                {cleared ? "もういちど ▶" : solvedCount > 0 ? "つづきから ▶" : "べんきょうする ▶"}
               </div>
             </Link>
           );

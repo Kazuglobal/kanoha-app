@@ -35,6 +35,7 @@ export interface CurriculumStage {
   description: string;
   problemCount: number;
   firstProblemId: string;
+  problemIds: readonly string[];
 }
 
 /**
@@ -801,6 +802,7 @@ export function getCurriculumStages(subject: Subject): CurriculumStage[] {
         description: unitDef.subUnits.join("・"),
         problemCount: problems.length,
         firstProblemId: first.id,
+        problemIds: problems.map((problem) => problem.id),
       },
     ];
   });

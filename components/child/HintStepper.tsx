@@ -96,7 +96,7 @@ export function HintStepper({
       </div>
       {shown.length === 0 && !visualUrl ? (
         <p className={styles.hintTip}>
-          💡 「ヒントを みる」を すすめると、「えで おしえて」ボタンが つかえるよ！
+          💡 こまったら「ヒントを みる」を おしてね
         </p>
       ) : null}
       {shown.length === 1 && !visualUrl ? (

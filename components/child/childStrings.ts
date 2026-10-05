@@ -96,7 +96,7 @@ export const LANDING_TEXT = Object.freeze({
   childMode: "子どもモードではじめる",
   parentLink: "おうちの方はこちら",
   orbLabel: "いっしょに やろう！",
-  pointMath: "さんすう・こくご・えいご",
+  pointMath: "3きょうか",
   pointHint: "ヒントつき",
   pointReward: "ごほうび",
 });
