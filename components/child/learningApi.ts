@@ -61,6 +61,8 @@ export async function fetchSimilarProblems(
 export interface AttemptResult {
   correct: boolean;
   explanation: string | null;
+  /** 元問題の正解でサーバーが記録したごほうび(それ以外は null) */
+  reward?: unknown;
 }
 
 /** 正誤はサーバー(/api/attempts)が判定して返す。 */
@@ -71,6 +73,7 @@ export async function postAttempt(body: Record<string, unknown>): Promise<Attemp
   return {
     correct: Boolean(json.data.is_correct),
     explanation: typeof json.data.explanation === "string" ? json.data.explanation : null,
+    reward: json.data.reward ?? null,
   };
 }
 

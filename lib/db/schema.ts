@@ -269,3 +269,18 @@ export const rateLimits = sqliteTable(
     ),
   ],
 );
+
+/**
+ * ごほうび(5円メーター・累計正解数)と着せかえ。子どもごとに1行。
+ * 正解数はサーバー(/api/attempts)だけが増やす。端末の localStorage は表示用キャッシュ。
+ */
+export const childRewards = sqliteTable("child_rewards", {
+  childId: text("child_id").primaryKey().references(() => childProfiles.id, { onDelete: "cascade" }),
+  currentCycleCount: integer("current_cycle_count").notNull().default(0),
+  totalCorrectCount: integer("total_correct_count").notNull().default(0),
+  totalRewardYen: integer("total_reward_yen").notNull().default(0),
+  lastRewardEarnedAt: text("last_reward_earned_at"),
+  equippedAccessories: text("equipped_accessories"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

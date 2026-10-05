@@ -6,18 +6,24 @@ import { type FormEvent, useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { RewardMeter } from "@/components/child/RewardMeter";
 import { SoundToggleButton } from "@/components/child/SoundToggleButton";
+import { syncRewardsFromServer } from "@/lib/rewards/rewardSync";
 
 const PARENT_HOME = "/parent/dashboard";
 
 /**
  * 子ども画面の共通ヘッダー。親画面へのリンクは置かない(A1)。
  * 親は「おうちのかた」ボタンから PIN を入れて子どもモードを解除する(POST /api/parent/pin/verify)。
+ * childId があれば、その子のごほうび・着せかえを DB から読んで表示を合わせる。
  */
-export function ChildHeader({ progress }: { progress?: string }) {
+export function ChildHeader({ progress, childId }: { progress?: string; childId?: string }) {
   const [open, setOpen] = useState(false);
   const [pin, setPin] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (childId) void syncRewardsFromServer(childId);
+  }, [childId]);
 
   async function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

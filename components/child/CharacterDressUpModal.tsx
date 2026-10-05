@@ -17,6 +17,7 @@ import {
   type EquippedAccessories,
   type CharacterProgress,
 } from "@/lib/rewards/characterGrowthStore";
+import { saveEquipToServer } from "@/lib/rewards/rewardSync";
 
 interface CharacterDressUpModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
     soundManager.playTap();
     const updated = equipAccessory(item.category, item.id);
     setEquipped(updated);
+    void saveEquipToServer(item.category, item.id);
   };
 
   return (

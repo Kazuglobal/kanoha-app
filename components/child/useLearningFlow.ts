@@ -10,7 +10,7 @@ import {
   type StoredSimilarProblem,
 } from "@/lib/sessions/progress";
 import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
-import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
+import { applyServerReward, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import { soundManager } from "@/lib/audio/soundSystem";
 import {
   playPraiseVoice,
@@ -304,7 +304,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setChecked({ correct: result.correct });
     if (result.correct) {
       soundManager.playCorrect();
-      recordCorrectAnswer();
+      applyServerReward(result.reward);
       void playPraiseVoice();
     } else {
       soundManager.playWrong();

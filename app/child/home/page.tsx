@@ -178,7 +178,7 @@ function RealHome({
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
-      <ChildHeader />
+      <ChildHeader childId={selected.id} />
       <main className={styles.main}>
         <div className={styles.homeToolbar}>
           <section className={styles.profileTabs}>

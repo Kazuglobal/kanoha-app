@@ -48,7 +48,7 @@ export default async function ProblemPage({
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
-      <ChildHeader progress={stageProgress?.label ?? "1 / 1"} />
+      <ChildHeader progress={stageProgress?.label ?? "1 / 1"} childId={loaded ? childId : undefined} />
       <main className={styles.learningStage}>
         <LearningFlow persisted={persisted} preferences={loaded?.preferences} />
       </main>
