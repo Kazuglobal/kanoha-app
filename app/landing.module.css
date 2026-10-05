@@ -110,21 +110,39 @@
   pointer-events: none;
 }
 
+/* 吹き出しは頭の右側に2行で置き、顔(円の左右32〜70%)にかからないようにする */
 .bubble {
   position: absolute;
-  top: -12%;
-  right: -14%;
+  top: -4%;
+  left: 70%;
   z-index: 2;
+  width: min-content;
   margin: 0;
-  padding: 0.5em 1em;
+  padding: 0.45em 0.75em;
   border: 2.5px solid var(--teal);
   border-radius: 0.9em;
   background: #fff;
-  font-size: clamp(11px, 6.4cqw, 20px);
+  font-size: clamp(11px, 5.4cqw, 19px);
   font-weight: 900;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-align: center;
+  word-break: keep-all;
   transform: rotate(-4deg);
   box-shadow: 0 0.25em 0 var(--teal-dark);
+}
+
+/* しっぽ(左下・キャラクター側を向く) */
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 14%;
+  bottom: -0.55em;
+  width: 0.7em;
+  height: 0.7em;
+  background: #fff;
+  border-right: 2.5px solid var(--teal);
+  border-bottom: 2.5px solid var(--teal);
+  transform: rotate(45deg) skew(8deg, 8deg);
 }
 
 .floater {
