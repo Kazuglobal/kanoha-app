@@ -27,6 +27,16 @@ describe("getAiProvider", () => {
     expect(getAiProvider({ NODE_ENV: "production", AI_PROVIDER_TEXT: "mock" }).name).toBe("mock");
   });
 
+  it("auto picks gemini only when a Gemini API key is configured", () => {
+    expect(getAiProvider({ AI_PROVIDER_TEXT: "auto", GEMINI_API_KEY: "k" }).name).toBe("gemini");
+    expect(getAiProvider({ AI_PROVIDER_TEXT: "auto", GOOGLE_AI_API_KEY: "k" }).name).toBe("gemini");
+    expect(getAiProvider({ AI_PROVIDER_TEXT: "auto" }).name).toBe("mock");
+    expect(getAiProvider({ AI_PROVIDER_TEXT: "auto", GEMINI_API_KEY: "  " }).name).toBe("mock");
+    expect(
+      getAiProvider({ NODE_ENV: "production", AI_PROVIDER_TEXT: "auto", GEMINI_API_KEY: "k" }).name,
+    ).toBe("gemini");
+  });
+
   it("rejects unsupported provider names", () => {
     expect(() => getAiProvider({ AI_PROVIDER_TEXT: "other" })).toThrow();
   });
