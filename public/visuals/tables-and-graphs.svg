@@ -1,14 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="ぼうグラフ">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="○を つかった グラフ">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">ひょうと グラフ</text>
-  <line x1="70" y1="250" x2="340" y2="250" stroke="#17324d" stroke-width="4"/>
-  <line x1="70" y1="250" x2="70" y2="80" stroke="#17324d" stroke-width="4"/>
-  <rect x="95" y="170" width="40" height="80" fill="#7fc8f8"/>
-  <rect x="155" y="120" width="40" height="130" fill="#f8a97f"/>
-  <rect x="215" y="190" width="40" height="60" fill="#a3de83"/>
-  <rect x="275" y="140" width="40" height="110" fill="#d3a5f0"/>
-  <text x="115" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">りんご</text>
-  <text x="175" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">みかん</text>
-  <text x="235" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">ぶどう</text>
-  <text x="295" y="272" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">もも</text>
+  <text x="200" y="36" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="700" fill="#17324d">ひょうと グラフ</text>
+  <line x1="40" y1="240" x2="300" y2="240" stroke="#17324d" stroke-width="3"/>
+  <circle cx="75" cy="226" r="9" fill="none" stroke="#f43f5e" stroke-width="3"/>
+  <circle cx="75" cy="204" r="9" fill="none" stroke="#f43f5e" stroke-width="3"/>
+  <circle cx="75" cy="182" r="9" fill="none" stroke="#f43f5e" stroke-width="3"/>
+  <circle cx="75" cy="160" r="9" fill="none" stroke="#f43f5e" stroke-width="3"/>
+  <circle cx="75" cy="138" r="9" fill="none" stroke="#f43f5e" stroke-width="3"/>
+  <text x="75" y="262" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">りんご</text>
+  <circle cx="137" cy="226" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="204" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="182" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="160" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="138" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="116" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="94" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <circle cx="137" cy="72" r="9" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <text x="137" y="262" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">みかん</text>
+  <circle cx="199" cy="226" r="9" fill="none" stroke="#8b5cf6" stroke-width="3"/>
+  <circle cx="199" cy="204" r="9" fill="none" stroke="#8b5cf6" stroke-width="3"/>
+  <circle cx="199" cy="182" r="9" fill="none" stroke="#8b5cf6" stroke-width="3"/>
+  <text x="199" y="262" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">ぶどう</text>
+  <circle cx="261" cy="226" r="9" fill="none" stroke="#ec4899" stroke-width="3"/>
+  <circle cx="261" cy="204" r="9" fill="none" stroke="#ec4899" stroke-width="3"/>
+  <circle cx="261" cy="182" r="9" fill="none" stroke="#ec4899" stroke-width="3"/>
+  <circle cx="261" cy="160" r="9" fill="none" stroke="#ec4899" stroke-width="3"/>
+  <circle cx="261" cy="138" r="9" fill="none" stroke="#ec4899" stroke-width="3"/>
+  <circle cx="261" cy="116" r="9" fill="none" stroke="#ec4899" stroke-width="3"/>
+  <text x="261" y="262" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">もも</text>
+  <rect x="308" y="70" width="80" height="78" rx="12" fill="#ffffff" stroke="#17324d" stroke-width="2"/>
+  <circle cx="348" cy="96" r="9" fill="none" stroke="#17324d" stroke-width="3"/>
+  <text x="348" y="132" text-anchor="middle" font-size="14" font-family="sans-serif" font-weight="700" fill="#17324d">1こ＝1人</text>
+  <text x="348" y="184" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">○を</text>
+  <text x="348" y="204" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">かぞえて</text>
+  <text x="348" y="224" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">よもう</text>
 </svg>

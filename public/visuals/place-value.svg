@@ -1,11 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="おおきい かず">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">おおきい かず</text>
-  <rect x="55" y="100" width="100" height="100" fill="#7fc8f8" stroke="#17324d" stroke-width="4"/>
-  <rect x="185" y="140" width="60" height="60" fill="#a3de83" stroke="#17324d" stroke-width="4"/>
-  <rect x="285" y="170" width="30" height="30" fill="#f8a97f" stroke="#17324d" stroke-width="4"/>
-  <text x="105" y="235" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">100</text>
-  <text x="215" y="235" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">10</text>
-  <text x="300" y="235" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">1</text>
-  <text x="200" y="272" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">くらいごとに かんがえよう</text>
+  <text x="200" y="38" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="700" fill="#17324d">おおきい かず</text>
+  <text x="200" y="64" text-anchor="middle" font-size="15" font-family="sans-serif" font-weight="700" fill="#17324d">くらいの へや(〇〇の くらい)</text>
+  <rect x="30" y="76" width="340" height="150" rx="12" fill="#ffffff" stroke="#17324d" stroke-width="2"/>
+  <line x1="30" y1="108" x2="370" y2="108" stroke="#17324d" stroke-width="1.5"/>
+  <text x="72.5" y="99" text-anchor="middle" font-size="15" font-family="sans-serif" font-weight="700" fill="#17324d">せん</text>
+  <rect x="46.5" y="122" width="44" height="44" fill="#7fc8f8" stroke="#17324d" stroke-width="2"/>
+  <rect x="50.5" y="126" width="44" height="44" fill="#7fc8f8" stroke="#17324d" stroke-width="2"/>
+  <rect x="54.5" y="130" width="44" height="44" fill="#7fc8f8" stroke="#17324d" stroke-width="2"/>
+  <text x="72.5" y="210" text-anchor="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#17324d">1000</text>
+  <line x1="115" y1="76" x2="115" y2="226" stroke="#17324d" stroke-width="1.5"/>
+  <text x="157.5" y="99" text-anchor="middle" font-size="15" font-family="sans-serif" font-weight="700" fill="#17324d">ひゃく</text>
+  <rect x="137.5" y="128" width="40" height="40" fill="#a3de83" stroke="#17324d" stroke-width="2"/>
+  <text x="157.5" y="210" text-anchor="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#17324d">100</text>
+  <line x1="200" y1="76" x2="200" y2="226" stroke="#17324d" stroke-width="1.5"/>
+  <text x="242.5" y="99" text-anchor="middle" font-size="15" font-family="sans-serif" font-weight="700" fill="#17324d">じゅう</text>
+  <rect x="236.5" y="122" width="12" height="50" fill="#ffd36e" stroke="#17324d" stroke-width="2"/>
+  <text x="242.5" y="210" text-anchor="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#17324d">10</text>
+  <line x1="285" y1="76" x2="285" y2="226" stroke="#17324d" stroke-width="1.5"/>
+  <text x="327.5" y="99" text-anchor="middle" font-size="15" font-family="sans-serif" font-weight="700" fill="#17324d">いち</text>
+  <rect x="320.5" y="146" width="14" height="14" fill="#f8a97f" stroke="#17324d" stroke-width="2"/>
+  <text x="327.5" y="210" text-anchor="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#17324d">1</text>
+  <text x="200" y="262" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#17324d">10こ あつまると、ひだりの へやへ</text>
+  <text x="200" y="284" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#17324d">(10が 10こで 100、100が 10こで 1000)</text>
 </svg>

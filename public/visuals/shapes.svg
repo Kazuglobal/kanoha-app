@@ -1,8 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="さんかくと しかく">
   <rect width="400" height="300" rx="24" fill="#fff9e8"/>
-  <text x="200" y="46" text-anchor="middle" font-size="26" font-family="sans-serif" font-weight="700" fill="#17324d">さんかくと しかく</text>
-  <polygon points="115,90 55,210 175,210" fill="#7fc8f8" stroke="#17324d" stroke-width="4"/>
-  <rect x="225" y="110" width="120" height="100" fill="#f8a97f" stroke="#17324d" stroke-width="4"/>
-  <text x="115" y="245" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">へんが 3つ</text>
-  <text x="285" y="245" text-anchor="middle" font-size="18" font-family="sans-serif" fill="#17324d">へんが 4つ</text>
+  <text x="200" y="40" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="700" fill="#17324d">さんかくと しかく</text>
+  <polygon points="115,80 50,205 180,205" fill="#7fc8f8" stroke="#17324d" stroke-width="4"/>
+  <rect x="225" y="105" width="120" height="100" fill="#f8a97f" stroke="#17324d" stroke-width="4"/>
+  <path d="M225 187 h18 v18" fill="none" stroke="#17324d" stroke-width="2.5"/>
+  <circle cx="115" cy="80" r="7" fill="#e2607e"/>
+  <circle cx="50" cy="205" r="7" fill="#e2607e"/>
+  <circle cx="180" cy="205" r="7" fill="#e2607e"/>
+  <circle cx="225" cy="105" r="7" fill="#e2607e"/>
+  <circle cx="345" cy="105" r="7" fill="#e2607e"/>
+  <circle cx="225" cy="205" r="7" fill="#e2607e"/>
+  <circle cx="345" cy="205" r="7" fill="#e2607e"/>
+  <text x="115" y="230" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">へん 3つ</text>
+  <text x="115" y="249" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">ちょうてん 3つ</text>
+  <text x="285" y="230" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">へん 4つ</text>
+  <text x="285" y="249" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#17324d">ちょうてん 4つ</text>
+  <circle cx="120" cy="273" r="7" fill="#e2607e"/>
+  <text x="132" y="279" text-anchor="start" font-size="16" font-family="sans-serif" fill="#17324d">が ちょうてん</text>
+  <path d="M246 267 h12 v12" fill="none" stroke="#17324d" stroke-width="2.5"/>
+  <text x="264" y="279" text-anchor="start" font-size="16" font-family="sans-serif" fill="#17324d">は ちょっかく</text>
 </svg>
