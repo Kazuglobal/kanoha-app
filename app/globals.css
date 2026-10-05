@@ -498,3 +498,54 @@ a {
   }
 }
 
+
+/* スマホ縦: トップ画面を1画面に収める(下にスクロールさせない) */
+@media (max-width: 760px) and (orientation: portrait) {
+  .landing-shell {
+    min-height: 100dvh;
+    gap: 1rem;
+    align-content: center;
+  }
+
+  .landing-orb {
+    width: min(26vw, 112px);
+    border-width: 6px;
+    margin-top: 0;
+  }
+
+  .landing-card {
+    padding: 1.2rem 1.15rem 1.35rem;
+  }
+
+  .landing-card h1 {
+    margin: 0.6rem 0 0.5rem;
+    font-size: clamp(1.8rem, 8vw, 2.6rem);
+  }
+
+  .landing-card p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.65;
+  }
+
+  .landing-points {
+    margin-top: 0.8rem;
+    gap: 0.4rem;
+  }
+
+  .landing-actions {
+    gap: 0.75rem;
+    margin-top: 1.1rem;
+  }
+
+  .primary-link,
+  .secondary-link {
+    min-height: 54px;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) and (max-height: 700px) {
+  .landing-points {
+    display: none;
+  }
+}

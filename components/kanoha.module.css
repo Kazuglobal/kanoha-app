@@ -4184,3 +4184,77 @@
     min-height: 40px;
   }
 }
+
+/* ==========================================================================
+   One-screen follow-ups (login / handwriting modal / multi-profile home)
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .loginPanel {
+    min-height: 100dvh;
+    padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .loginPanel .formCard {
+    padding: 22px 18px 24px;
+    border-radius: 28px;
+  }
+
+  .loginPanel .pageTitle {
+    margin: 0 0 4px;
+    font-size: clamp(26px, 7.5vw, 32px);
+    letter-spacing: -0.04em;
+  }
+
+  .loginPanel .field {
+    margin-top: 12px;
+    gap: 6px;
+  }
+
+  .loginPanel .field input {
+    min-height: 50px;
+  }
+
+  .loginPanel .primaryButton,
+  .loginPanel .secondaryButton {
+    min-height: 52px;
+    font-size: 16px;
+  }
+
+  /* 手書きノート: 「とじる」「これでこたえる」を横並びにして縦の高さを節約 */
+  .handwritingActions {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 8px;
+  }
+
+  .handwritingActions > button {
+    min-height: 52px;
+    padding: 0 10px;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  /* 子どもが複数いても、名前タブと教科タブを小さめのチップにして1画面に収める */
+  .appScreen .homeToolbar .profileTabs:not(nav) {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  .appScreen .homeToolbar .profileTabs:not(nav) > a {
+    padding: 6px 14px;
+    font-size: 14px;
+    box-shadow: 0 3px 0 #d9e5e3;
+  }
+
+  .appScreen .homeToolbar .profileTabs:not(nav) > .profileTabActive {
+    box-shadow: 0 3px 0 var(--teal-dark);
+  }
+
+  .appScreen .subjectSwitch > a {
+    padding: 8px 14px;
+  }
+}
