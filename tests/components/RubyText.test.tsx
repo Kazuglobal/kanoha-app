@@ -54,3 +54,14 @@ describe("RubyAuto", () => {
   });
 });
 
+
+describe("RubyAuto english runs", () => {
+  it("marks english words with lang=en and keeps them free of ruby", () => {
+    const { container } = render(
+      <RubyAuto text="「My name is Kanoha.」は どんな いみかな？" readingMode="kanji_with_ruby" />,
+    );
+    const english = container.querySelector('[lang="en"]');
+    expect(english?.textContent).toBe("My name is Kanoha.");
+    expect(container.querySelector("rt")).toBeNull();
+  });
+});

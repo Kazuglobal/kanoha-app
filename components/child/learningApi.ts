@@ -74,6 +74,17 @@ export async function postAttempt(body: Record<string, unknown>): Promise<Attemp
   };
 }
 
+/** 未ログイン(デモ)の答え合わせ。答えはサーバーだけが持つ(A2)。 */
+export async function checkDemoAnswer(checkId: string, answer: string): Promise<AttemptResult | null> {
+  const response = await postJson("/api/demo/check", { checkId, answer }).catch(() => null);
+  const json = await response?.json().catch(() => null);
+  if (!response?.ok || !json?.success) return null;
+  return {
+    correct: Boolean(json.data.correct),
+    explanation: typeof json.data.explanation === "string" ? json.data.explanation : null,
+  };
+}
+
 export async function fetchDailyLimit(childId: string): Promise<DailyLimitInfo | null> {
   const response = await fetch(`/api/sessions?childId=${encodeURIComponent(childId)}`).catch(() => null);
   const body = await response?.json().catch(() => null);

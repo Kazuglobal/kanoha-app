@@ -1,7 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { ChildHeader } from "@/components/child/ChildHeader";
 import { LearningFlow } from "@/components/child/LearningFlow";
-import type { SimilarProblem } from "@/components/child/SimilarProblemCard";
 import type { PersistedProblem } from "@/components/child/useLearningFlow";
 import styles from "@/components/kanoha.module.css";
 import { getServerSession } from "@/lib/auth/session";
@@ -12,13 +11,14 @@ import {
   type CurriculumProblem,
 } from "@/lib/curriculum/curriculumBank";
 import { ensureCurriculumProblem } from "@/lib/curriculum/materialize";
-import { buildCurriculumPractice } from "@/lib/curriculum/practice";
+import { demoPracticeFor } from "@/lib/curriculum/demoCheck";
 import { SUBJECT_CONFIG } from "@/lib/curriculum/subjects";
 import { getDb, type Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { ownsChild } from "@/lib/utils/api";
 
 const UUID = /^[0-9a-f-]{36}$/i;
+
 
 /**
  * 子どもの問題画面(A2): クライアントへ渡すのは問題文・単元・ID(と選択式の選択肢)だけ。
@@ -61,29 +61,21 @@ const curriculumExtras = (problem?: CurriculumProblem) => ({
   ...(problem?.listenText ? { listenText: problem.listenText } : {}),
 });
 
-/** 未ログイン(デモ)用: 答え合わせと練習問題はクライアントで行うため、正解も渡す。 */
+/** 未ログイン(デモ)用: 答えは渡さず、答え合わせは POST /api/demo/check が行う(A2)。 */
 function demoProblem(
   bank: CurriculumProblem,
   childId: string | undefined,
   nextProblemId: string | null,
 ): PersistedProblem {
-  const demoPractice: SimilarProblem[] = buildCurriculumPractice(bank.id).map((item) => ({
-    question: item.question,
-    choices: item.choices,
-    answer: item.answer,
-    explanation: item.explanation,
-    ...(item.listenText ? { listenText: item.listenText } : {}),
-  }));
   return {
     childId: childId ?? "demo",
     problemId: bank.id,
     question: bank.problemText,
     unit: bank.unit,
     subject: bank.subject,
-    correctAnswer: bank.correctAnswer,
     ...curriculumExtras(bank),
     nextProblemId,
-    demoPractice,
+    demoPractice: demoPracticeFor(bank.id),
   };
 }
 

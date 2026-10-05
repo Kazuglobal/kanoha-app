@@ -9,7 +9,6 @@ import {
   type LearningProgress,
   type StoredSimilarProblem,
 } from "@/lib/sessions/progress";
-import { answersMatch } from "@/lib/utils/answers";
 import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
 import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import { soundManager } from "@/lib/audio/soundSystem";
@@ -22,12 +21,12 @@ import { SUBJECT_CONFIG, resolveSubject } from "@/lib/curriculum/subjects";
 import {
   DEMO_PROBLEM_ID,
   DEMO_QUESTION,
-  DEMO_SIMILAR_PROBLEMS,
   DEMO_UNIT,
   DEMO_VISUAL_URL,
   FLOW_TEXT,
 } from "./childStrings";
 import {
+  checkDemoAnswer,
   elapsedSeconds,
   fetchDailyLimit,
   fetchHintText,
@@ -47,15 +46,13 @@ export interface PersistedProblem {
   question: string;
   unit: string;
   subject?: string;
-  /** デモ専用: クライアントで答え合わせするための正解。実データでは渡さない(A2)。 */
-  correctAnswer?: string;
   /** 選択式の問題の選択肢(英語など)。あればタップで答える。 */
   choices?: readonly string[];
   /** 英語の聞き取り用に en-US で読み上げる文 */
   listenText?: string;
   /** ステージマップの「つぎの もんだい」(問題バンクの id) */
   nextProblemId?: string | null;
-  /** デモ専用: れんしゅう 5もん(答えつき) */
+  /** デモ専用: れんしゅう 5もん(答えは持たず、checkId でサーバーが判定する) */
   demoPractice?: readonly SimilarProblem[];
 }
 
@@ -70,7 +67,6 @@ export interface LearningPreferences {
 }
 
 const HINT_KEYS = ["hint1", "hint2", "solution", "answer"] as const;
-const DEMO_ANSWER = "1000mL";
 const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
 
 type FlowSimilarProblem = SimilarProblem | PersistedSimilarProblem;
@@ -98,8 +94,7 @@ const toStoredSimilar = (
  */
 export function useLearningFlow(persisted?: PersistedProblem) {
   const subject = resolveSubject(persisted?.subject, persisted?.unit);
-  const defaultAnswer = persisted?.correctAnswer ?? DEMO_ANSWER;
-  const defaultSimilar = persisted?.demoPractice ?? DEMO_SIMILAR_PROBLEMS;
+  const defaultSimilar: readonly SimilarProblem[] = persisted?.demoPractice ?? [];
   const isDemo =
     !persisted || !UUID_PATTERN.test(persisted.childId) || !UUID_PATTERN.test(persisted.problemId);
 
@@ -267,7 +262,15 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       setAnswer(overrideAnswer);
     }
     if (!persisted || isDemo) {
-      const isCorrect = answersMatch(candidateAnswer, defaultAnswer);
+      const judged = await checkDemoAnswer(persisted?.problemId ?? DEMO_PROBLEM_ID, candidateAnswer);
+      if (!judged) {
+        setSaveMessage(FLOW_TEXT.answerSendFailed);
+        setRetryAction(() => () => void checkOriginalAnswer(candidateAnswer));
+        return;
+      }
+      setSaveMessage("");
+      setRetryAction(null);
+      const isCorrect = judged.correct;
       setChecked({ correct: isCorrect });
       if (isCorrect) {
         soundManager.playCorrect();

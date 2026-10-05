@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import styles from "@/components/kanoha.module.css";
-import { answersMatch } from "@/lib/utils/answers";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { playPraiseVoice, playEncourageVoice } from "@/lib/audio/coachSpeech";
+import { checkDemoAnswer } from "./learningApi";
 import { ListenButton } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
 
@@ -12,9 +12,8 @@ export type SimilarProblem = {
   question: string;
   /** サーバーが作った 4 択。null のときは文字入力にフォールバックする。 */
   choices: readonly string[] | null;
-  /** デモ専用(Supabase 未設定)。実データでは渡さず、正誤は /api/attempts が返す。 */
-  answer?: string;
-  explanation?: string;
+  /** デモ専用: POST /api/demo/check の照合 id。実データでは渡さず、正誤は /api/attempts が返す。 */
+  checkId?: string;
   /** 英語の聞き取り問題で読み上げる英語 */
   listenText?: string;
 };
@@ -58,20 +57,12 @@ export function SimilarProblemCard({
     setMessage("");
     setSelected(answer);
     setLastAttempt(answer);
-    if (problem.answer !== undefined) {
-      const isCorrect = answersMatch(answer, problem.answer);
-      if (isCorrect) {
-        soundManager.playCorrect();
-        void playPraiseVoice();
-      } else {
-        soundManager.playWrong();
-        void playEncourageVoice();
-      }
-      setResult({ correct: isCorrect, explanation: problem.explanation });
-      return;
-    }
     setPending(true);
-    const judged = onAnswer ? await onAnswer(answer) : null;
+    const judged = problem.checkId
+      ? await checkDemoAnswer(problem.checkId, answer)
+      : onAnswer
+        ? await onAnswer(answer)
+        : null;
     setPending(false);
     if (!judged) {
       setSelected(null);

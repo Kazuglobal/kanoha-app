@@ -21,10 +21,18 @@ const englishDemo = {
   question: "「dog」は どの どうぶつかな？",
   unit: "どうぶつ",
   subject: "english",
-  correctAnswer: "🐶 いぬ",
   choices: ["🐶 いぬ", "🐱 ねこ", "🐰 うさぎ", "🐻 くま"],
   listenText: "dog",
 } as const;
+
+/** デモの答え合わせは /api/demo/check(サーバー)が行う。ここでは「いぬ」だけ正解として返す。 */
+const mockDemoCheck = () =>
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+    const { answer } = JSON.parse(String(init?.body ?? "{}"));
+    return new Response(JSON.stringify({ success: true, data: { correct: answer === "🐶 いぬ", explanation: null } }), {
+      status: 200,
+    });
+  });
 
 describe("LearningFlow with choices (english)", () => {
   it("shows an english badge, a listen button and tappable choices instead of a keypad", () => {
@@ -37,6 +45,7 @@ describe("LearningFlow with choices (english)", () => {
   });
 
   it("hides practice until the child answers correctly, and lets them retry after a miss", async () => {
+    const fetchMock = mockDemoCheck();
     const user = userEvent.setup();
     render(<LearningFlow persisted={englishDemo} />);
     expect(screen.queryByRole("button", { name: "れんしゅう 5もんへ" })).not.toBeInTheDocument();
@@ -48,6 +57,7 @@ describe("LearningFlow with choices (english)", () => {
     await user.click(screen.getByRole("button", { name: "🐶 いぬ" }));
     expect((await screen.findByRole("status")).textContent).toMatch(/せいかい/);
     expect(screen.getByRole("button", { name: "れんしゅう 5もんへ" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/demo/check", expect.anything());
   });
 
   it("speaks the english text in en-US when the listen button is pressed", async () => {
@@ -72,7 +82,7 @@ describe("LearningFlow with choices (english)", () => {
 
 describe("LearningFlow math keypad", () => {
   it("does not pop up the device keyboard while the on-screen keypad is shown", () => {
-    render(<LearningFlow persisted={{ childId: "demo", problemId: "addition-1", question: "28 + 15 は いくつですか。", unit: "たし算", subject: "math", correctAnswer: "43" }} />);
+    render(<LearningFlow persisted={{ childId: "demo", problemId: "addition-1", question: "28 + 15 は いくつですか。", unit: "たし算", subject: "math" }} />);
     expect(screen.getByLabelText("数字キーパッド")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "こたえ" })).toHaveAttribute("inputmode", "none");
   });

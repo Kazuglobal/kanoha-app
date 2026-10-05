@@ -40,6 +40,10 @@ test("parent login → PIN → child mode → full learning loop → PIN unlock"
   await page.goto("/child/home");
   await page.getByRole("link", { name: /きょうの おすすめを はじめる/ }).click();
   await page.getByRole("button", { name: "ヒントを みる" }).click();
+  // 答えのヒントまで見ると、れんしゅうへ すすめる
+  for (const next of [/つぎの ヒント 2/, /つぎの ときかた/, /つぎの こたえ/]) {
+    await page.getByRole("button", { name: next }).click();
+  }
   await page.getByRole("button", { name: "れんしゅう 5もんへ" }).click();
   for (let index = 0; index < 5; index += 1) {
     const choice = page.locator('[class*="choiceGrid"] button').first();

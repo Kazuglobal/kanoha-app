@@ -2,6 +2,7 @@ import { eq, desc, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { jstDayRange, toJstDateKey } from "@/lib/utils/date";
+import { getAllMistakeType } from "@/lib/curriculum/mistakeTypes";
 
 export interface DashboardSession {
   started_at: string;
@@ -65,6 +66,10 @@ const mistakeLabels: Record<string, string> = {
   other: "その他",
 };
 
+/** 親向けの間違え方ラベル。国語・英語は mistakeTypes.ts の label を使う(正はそちら)。 */
+const mistakeLabelOf = (id: string): string =>
+  mistakeLabels[id] ?? getAllMistakeType(id)?.label ?? mistakeLabels.other;
+
 const dateKey = (date: Date) => toJstDateKey(date);
 
 const startOfDay = (date: Date) => new Date(jstDayRange(date).start);
@@ -99,7 +104,7 @@ export function buildDashboard(input: DashboardInput) {
 
   return {
     accuracyRate: todayAttempts.length ? correctToday / todayAttempts.length : 0,
-    commonMistake: commonMistake ? mistakeLabels[commonMistake] ?? commonMistake : "まだ傾向はありません",
+    commonMistake: commonMistake ? mistakeLabelOf(commonMistake) : "まだ傾向はありません",
     dueReview: dueReview ? {
       date: dueReview.scheduled_for,
       label: [dueReview.unit, dueReview.sub_unit].filter(Boolean).join(" · "),

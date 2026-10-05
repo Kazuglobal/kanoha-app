@@ -1,7 +1,7 @@
 {
-  "name": "かのは - やさしい算数学習",
+  "name": "かのは - やさしい個別学習",
   "short_name": "かのは",
-  "description": "小学校2年生のための個別算数学習アプリ",
+  "description": "小学校2年生のための個別学習アプリ(算数・国語・英語)",
   "start_url": "/child/home",
   "display": "standalone",
   "background_color": "#f7fbfa",
