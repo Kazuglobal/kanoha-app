@@ -142,11 +142,16 @@ export function answersMatch(submitted: string, expected: string): boolean {
   return expectedVariants(expected).some((variant) => matchesSingle(submitted, variant));
 }
 
+/** 分数の書き方をそろえる(1/4・4ぶんの1 → 4分の1)。stripPunctuation より先に呼ぶ。 */
+function toFractionForm(str: string): string {
+  return str.replace(/^(\d+)\/(\d+)$/, "$2分の$1").replace(/(\d+)ぶんの(\d+)/, "$1分の$2");
+}
+
 function matchesSingle(submitted: string, expected: string): boolean {
   if (strictMatch(submitted, expected)) return true;
 
-  const cleanSub = stripPunctuation(normalizeAnswer(submitted));
-  const cleanExp = stripPunctuation(normalizeAnswer(expected));
+  const cleanSub = stripPunctuation(toFractionForm(normalizeAnswer(submitted)));
+  const cleanExp = stripPunctuation(toFractionForm(normalizeAnswer(expected)));
   if (!cleanSub || !cleanExp) return false;
   if (strictMatch(cleanSub, cleanExp)) return true;
 

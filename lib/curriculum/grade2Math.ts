@@ -20,13 +20,13 @@ export const GRADE_2_MATH_CURRICULUM = [
   {
     id: "addition",
     unit: "たし算",
-    subUnits: ["2けたのたし算", "くり上がり", "たし算の文章題"],
+    subUnits: ["2けたのたし算", "くり上がり", "3けたになるたし算", "計算のくふう", "たし算の文章題"],
     visualTemplate: "addition",
   },
   {
     id: "subtraction",
     unit: "ひき算",
-    subUnits: ["2けたのひき算", "くり下がり", "ひき算の文章題"],
+    subUnits: ["2けたのひき算", "くり下がり", "百の位からのくり下がり", "ひき算の文章題"],
     visualTemplate: "subtraction",
   },
   {
@@ -56,13 +56,13 @@ export const GRADE_2_MATH_CURRICULUM = [
   {
     id: "large-numbers",
     unit: "1000より大きい数",
-    subUnits: ["10000までの数", "数のしくみ", "数の大小"],
+    subUnits: ["1000までの数", "10000までの数", "数のしくみ", "数の大小"],
     visualTemplate: "place-value",
   },
   {
     id: "fractions",
     unit: "分数",
-    subUnits: ["分けた大きさ", "2分の1", "4分の1"],
+    subUnits: ["分けた大きさ", "2分の1", "4分の1", "8分の1"],
     visualTemplate: "fractions",
   },
   {
