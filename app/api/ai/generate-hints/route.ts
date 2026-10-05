@@ -17,6 +17,7 @@ import { explanationLevel, uuid } from "@/lib/utils/schemas";
 
 import { demoProblemById } from "@/lib/ai/mock";
 import { getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
+import { SUBJECT_CONFIG, resolveSubject, type Subject } from "@/lib/curriculum/subjects";
 
 const schema = z.object({
   childId: z.string().optional().nullable(),
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   const maxLevel = await hintMaxLevel(childId, problemId, sessionId, auth.db);
   if (maxLevel === null) return internalError();
 
-  const subject = (problem.subject as "math" | "japanese") || "math";
+  const subject = resolveSubject(problem.subject, problem.unit);
   const regenerated = await regenerateHints(
     auth,
     problem.problemText,
@@ -104,7 +105,8 @@ async function handleDemoGenerateHints(
   if (!problem) return apiError("Problem not found", 404);
 
   const problemText = "problem_text" in problem ? problem.problem_text : problem.problemText;
-  const subject = problem.subject === "japanese" ? "japanese" : "math";
+  const subject = resolveSubject(problem.subject, problem.unit);
+  const fallback = SUBJECT_CONFIG[subject].fallbackHints;
   const provider = getAiProvider();
   const raw = await provider.generateHints(buildHintsPrompt(problemText, level, subject));
   const validated = hintsSchema.safeParse(raw);
@@ -112,8 +114,8 @@ async function handleDemoGenerateHints(
   const hints: Hints = validated.success
     ? scrubPiiFromHints(validated.data)
     : {
-        hint1: subject === "japanese" ? "かん字の かたちを よく みてみよう。" : "え や すうじ を みてみよう。",
-        hint2: subject === "japanese" ? "１もじずつ おもいだして みよう。" : "すこしずつ かんがえてみよう。",
+        hint1: fallback.hint1,
+        hint2: fallback.hint2,
         solution: "かんがえかたを つかうと、こたえが わかるよ。",
         answer: "correct_answer" in problem ? problem.correct_answer : problem.correctAnswer,
         praise: "がんばっているね！",
@@ -134,7 +136,7 @@ async function regenerateHints(
   auth: Auth,
   problemText: string,
   level: z.infer<typeof explanationLevel>,
-  subject: "math" | "japanese" = "math",
+  subject: Subject = "math",
 ): Promise<{ hints: Hints } | { response: Response }> {
   const provider = getAiProvider();
   if (provider.name === "mock") {

@@ -2,11 +2,12 @@ import { z } from "zod";
 
 import { GRADE_2_MATH_UNITS } from "@/lib/curriculum/grade2Math";
 import { GRADE_2_JAPANESE_UNITS } from "@/lib/curriculum/grade2Japanese";
-import { GRADE_2_ALL_UNITS } from "@/lib/curriculum/subjects";
+import { GRADE_2_ENGLISH_UNITS } from "@/lib/curriculum/grade2English";
+import { GRADE_2_ALL_UNITS, SUBJECTS } from "@/lib/curriculum/subjects";
 import { ALL_MISTAKE_TYPE_IDS, MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 
 export const difficultySchema = z.enum(["basic", "standard", "advanced"]);
-export const subjectSchema = z.enum(["math", "japanese"]);
+export const subjectSchema = z.enum(SUBJECTS);
 
 /** Mistake classification. Source of truth: lib/curriculum/mistakeTypes.ts (13 ids). */
 export const mistakeTypeSchema = z.enum(MISTAKE_TYPE_IDS);
@@ -15,6 +16,7 @@ export const allMistakeTypeSchema = z.enum(ALL_MISTAKE_TYPE_IDS);
 /** Unit classification. Source of truth: lib/curriculum/grade2Math.ts (11 units). */
 export const unitSchema = z.enum(GRADE_2_MATH_UNITS);
 export const japaneseUnitSchema = z.enum(GRADE_2_JAPANESE_UNITS);
+export const englishUnitSchema = z.enum(GRADE_2_ENGLISH_UNITS);
 export const allUnitSchema = z.enum(GRADE_2_ALL_UNITS);
 
 export const TEXT_LIMITS = {
@@ -115,6 +117,7 @@ export const similarProblemRequestSchema = z
     problemText,
     subUnit: subUnitText,
     unit: allUnitSchema,
+    subject: subjectSchema.optional(),
   })
   .strict();
 

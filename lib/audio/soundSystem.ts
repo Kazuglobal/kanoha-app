@@ -8,7 +8,7 @@
  * - 子ども・保護者向けの音量・消音（ミュート）切り替え対応
  */
 
-export type BgmType = "math" | "japanese" | "celebrate";
+export type BgmType = "math" | "japanese" | "english" | "celebrate";
 
 export interface SoundSettings {
   bgmEnabled: boolean;
@@ -314,20 +314,17 @@ class SoundManager {
     const mathNotes = [523.25, 587.33, 659.25, 783.99, 659.25, 783.99, 880.0, 783.99];
     // 国語用メロディパターン (12ステップゆったりループ: レ・ファ・ソ・ラ・ド)
     const japaneseNotes = [587.33, 0, 698.46, 783.99, 0, 880.0, 1046.5, 0, 880.0, 783.99, 698.46, 587.33];
+    // 英語用メロディパターン (8ステップ・はずむリズム: ソ・ド・ミ・ソ)
+    const englishNotes = [783.99, 0, 1046.5, 783.99, 659.25, 0, 783.99, 523.25];
     // 達成用メロディパターン (6ステップ)
     const celebrateNotes = [523.25, 659.25, 783.99, 1046.5, 880.0, 1046.5];
 
-    const stepInterval = type === "japanese" ? 420 : type === "math" ? 300 : 260;
+    const stepInterval = { japanese: 420, math: 300, english: 340, celebrate: 260 }[type];
 
     const playNextNote = () => {
       if (!this.isBgmPlaying || !this.ctx || !this.bgmGain) return;
 
-      const notes =
-        type === "japanese"
-          ? japaneseNotes
-          : type === "celebrate"
-          ? celebrateNotes
-          : mathNotes;
+      const notes = { japanese: japaneseNotes, celebrate: celebrateNotes, english: englishNotes, math: mathNotes }[type];
 
       const freq = notes[this.bgmStep % notes.length];
       this.bgmStep += 1;
@@ -337,8 +334,8 @@ class SoundManager {
         const osc = this.ctx.createOscillator();
         const noteGain = this.ctx.createGain();
 
-        // 算数はピコピコ感（パルス/矩形風サイン）、国語は柔らかいサイン波
-        osc.type = type === "math" ? "sine" : "sine";
+        // 英語は軽い三角波、算数・国語は柔らかいサイン波
+        osc.type = type === "english" ? "triangle" : "sine";
         osc.frequency.setValueAtTime(freq, now);
 
         const dur = type === "japanese" ? 0.36 : 0.22;

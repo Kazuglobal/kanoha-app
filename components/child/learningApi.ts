@@ -38,6 +38,7 @@ export interface FetchedSimilarProblem {
   id: string;
   question: string;
   choices: readonly string[] | null;
+  listenText?: string;
 }
 
 export async function fetchSimilarProblems(
@@ -47,11 +48,14 @@ export async function fetchSimilarProblems(
   const response = await postJson("/api/ai/generate-similar-problems", { childId, problemId }).catch(() => null);
   const body = await response?.json().catch(() => null);
   if (!response?.ok || !body?.success || !Array.isArray(body.data)) return null;
-  return body.data.map((item: { id: string; problem_text: string; choices?: string[] | null }) => ({
-    id: item.id,
-    question: item.problem_text,
-    choices: Array.isArray(item.choices) ? item.choices : null,
-  }));
+  return body.data.map(
+    (item: { id: string; problem_text: string; choices?: string[] | null; listen_text?: string | null }) => ({
+      id: item.id,
+      question: item.problem_text,
+      choices: Array.isArray(item.choices) ? item.choices : null,
+      ...(item.listen_text ? { listenText: item.listen_text } : {}),
+    }),
+  );
 }
 
 export interface AttemptResult {

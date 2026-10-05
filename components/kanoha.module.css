@@ -182,6 +182,11 @@
   box-shadow: 0 6px 0 #cad8d5;
 }
 
+.subjectTabEmoji {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .profileTabActive {
   color: white;
   background: linear-gradient(135deg, #1bd1a9 0%, var(--teal) 100%);
@@ -2684,6 +2689,45 @@
   border: 1.5px solid #ffbeb8;
 }
 
+.subjectBadgeEnglish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 900;
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: linear-gradient(135deg, #f1edff 0%, #e4dcff 100%);
+  color: #5b3fc4;
+  border: 1.5px solid #cbbcff;
+}
+
+/* 英語の「えいごを きく」ボタン(タップしやすい大きさ) */
+.listenButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  margin: 0 0 14px;
+  padding: 0 22px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #5b3fc4;
+  background: #f1edff;
+  border: 2px solid #cbbcff;
+  border-radius: 999px;
+  box-shadow: 0 3px 0 #cbbcff;
+  cursor: pointer;
+}
+.listenButton:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #cbbcff;
+}
+.listenButton[aria-pressed="true"] {
+  background: #e4dcff;
+}
+
 .compactProblemText {
   margin: 10px 0 20px;
   font-size: clamp(24px, 4.2vw, 36px);
@@ -3805,6 +3849,7 @@
   .appScreen .subjectBadge,
   .appScreen .subjectBadgeMath,
   .appScreen .subjectBadgeJapanese,
+  .appScreen .subjectBadgeEnglish,
   .appScreen .problemNumber {
     font-size: 12px;
     padding: 4px 10px;
@@ -4256,8 +4301,11 @@
     box-shadow: 0 3px 0 var(--teal-dark);
   }
 
+  /* 3教科が 390px 幅でも 1 行に収まるように */
   .appScreen .subjectSwitch > a {
-    padding: 8px 14px;
+    padding: 8px 6px;
+    gap: 4px;
+    font-size: 15px;
   }
 }
 

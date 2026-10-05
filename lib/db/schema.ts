@@ -95,9 +95,13 @@ export const problems = sqliteTable("problems", {
   correctAnswer: text("correct_answer").notNull(),
   explanationJson: text("explanation_json").notNull(), // JSON string
   status: text("status").notNull().default("active"),
+  /** 問題バンク(lib/curriculum/curriculumBank.ts)から登録した問題の元 id。アップロード由来は null。 */
+  curriculumProblemId: text("curriculum_problem_id"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+}, (table) => [
+  uniqueIndex("problems_child_curriculum_unique").on(table.childId, table.curriculumProblemId),
+]);
 
 export const learningSessions = sqliteTable("learning_sessions", {
   id: text("id").primaryKey(),
@@ -137,6 +141,8 @@ export const generatedSimilarProblems = sqliteTable("generated_similar_problems"
   subUnit: text("sub_unit").notNull(),
   difficulty: text("difficulty").notNull(),
   choices: text("choices"), // JSON array string
+  /** 英語の聞き取り問題で en-US 読み上げする文(答えそのものは入れない) */
+  listenText: text("listen_text"),
   createdAt: text("created_at").notNull(),
 });
 

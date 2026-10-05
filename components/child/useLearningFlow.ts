@@ -18,17 +18,13 @@ import {
   playEncourageVoice,
   preloadCoachVoices,
 } from "@/lib/audio/coachSpeech";
+import { SUBJECT_CONFIG, resolveSubject } from "@/lib/curriculum/subjects";
 import {
   DEMO_PROBLEM_ID,
   DEMO_QUESTION,
   DEMO_SIMILAR_PROBLEMS,
   DEMO_UNIT,
   DEMO_VISUAL_URL,
-  DEMO_JAPANESE_PROBLEM_ID,
-  DEMO_JAPANESE_QUESTION,
-  DEMO_JAPANESE_UNIT,
-  DEMO_JAPANESE_ANSWER,
-  DEMO_JAPANESE_SIMILAR_PROBLEMS,
   FLOW_TEXT,
 } from "./childStrings";
 import {
@@ -42,10 +38,6 @@ import {
   startLearningSession,
   type DailyLimitInfo,
 } from "./learningApi";
-import {
-  getCurriculumProblemById,
-  getNextCurriculumProblem,
-} from "@/lib/curriculum/curriculumBank";
 import type { SimilarAnswerResult, SimilarProblem } from "./SimilarProblemCard";
 
 /** サーバーから渡される問題情報。答えとヒントは含まない(A2)。デモ時は正解検証用フォールバックを受け取れる。 */
@@ -55,7 +47,16 @@ export interface PersistedProblem {
   question: string;
   unit: string;
   subject?: string;
+  /** デモ専用: クライアントで答え合わせするための正解。実データでは渡さない(A2)。 */
   correctAnswer?: string;
+  /** 選択式の問題の選択肢(英語など)。あればタップで答える。 */
+  choices?: readonly string[];
+  /** 英語の聞き取り用に en-US で読み上げる文 */
+  listenText?: string;
+  /** ステージマップの「つぎの もんだい」(問題バンクの id) */
+  nextProblemId?: string | null;
+  /** デモ専用: れんしゅう 5もん(答えつき) */
+  demoPractice?: readonly SimilarProblem[];
 }
 
 export interface PersistedSimilarProblem extends SimilarProblem {
@@ -70,6 +71,7 @@ export interface LearningPreferences {
 
 const HINT_KEYS = ["hint1", "hint2", "solution", "answer"] as const;
 const DEMO_ANSWER = "1000mL";
+const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
 
 type FlowSimilarProblem = SimilarProblem | PersistedSimilarProblem;
 
@@ -83,6 +85,7 @@ const toStoredSimilar = (
       id: problem.id,
       question: problem.question,
       choices: problem.choices ? [...problem.choices] : null,
+      ...(problem.listenText ? { listenText: problem.listenText } : {}),
     }));
   return stored.length > 0 && stored.length === problems.length ? stored : null;
 };
@@ -94,28 +97,11 @@ const toStoredSimilar = (
  * - タブが隠れる/閉じるときは keepalive PATCH で利用時間を記録する。
  */
 export function useLearningFlow(persisted?: PersistedProblem) {
-  const bankProblem = getCurriculumProblemById(persisted?.problemId ?? "");
-  const isJapanese =
-    persisted?.subject === "japanese" ||
-    bankProblem?.subject === "japanese" ||
-    persisted?.problemId === DEMO_JAPANESE_PROBLEM_ID ||
-    persisted?.unit === "漢字" ||
-    persisted?.unit === "お話の読解" ||
-    persisted?.unit === "ことばのきまり" ||
-    persisted?.unit === "文の組み立て" ||
-    persisted?.unit === "説明文の読解";
-  const defaultQuestion = bankProblem?.problemText ?? (isJapanese ? DEMO_JAPANESE_QUESTION : DEMO_QUESTION);
-  const defaultUnit = bankProblem?.unit ?? (isJapanese ? DEMO_JAPANESE_UNIT : DEMO_UNIT);
-  const defaultAnswer = persisted?.correctAnswer ?? bankProblem?.correctAnswer ?? (isJapanese ? DEMO_JAPANESE_ANSWER : DEMO_ANSWER);
-  const defaultSimilar = isJapanese ? DEMO_JAPANESE_SIMILAR_PROBLEMS : DEMO_SIMILAR_PROBLEMS;
-
+  const subject = resolveSubject(persisted?.subject, persisted?.unit);
+  const defaultAnswer = persisted?.correctAnswer ?? DEMO_ANSWER;
+  const defaultSimilar = persisted?.demoPractice ?? DEMO_SIMILAR_PROBLEMS;
   const isDemo =
-    !persisted ||
-    persisted.childId === "demo" ||
-    !/^[0-9a-f-]{36}$/i.test(persisted.childId) ||
-    persisted.problemId === DEMO_PROBLEM_ID ||
-    persisted.problemId === DEMO_JAPANESE_PROBLEM_ID ||
-    Boolean(bankProblem);
+    !persisted || !UUID_PATTERN.test(persisted.childId) || !UUID_PATTERN.test(persisted.problemId);
 
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState<{ correct: boolean } | null>(null);
@@ -136,16 +122,14 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   const finishedRef = useRef(false);
   const originalSavedRef = useRef(false);
 
-  const activeProblemId = persisted?.problemId ?? (isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID);
-  const nextProblem = getNextCurriculumProblem(activeProblemId);
-  const nextProblemHref = nextProblem
-    ? `/child/problem/${nextProblem.id}${persisted?.childId ? `?childId=${persisted.childId}` : ""}`
+  const nextProblemHref = persisted?.nextProblemId
+    ? `/child/problem/${persisted.nextProblemId}${persisted.childId ? `?childId=${persisted.childId}` : ""}`
     : null;
 
   const finished = practiceIndex !== null && practiceIndex >= similarProblems.length;
-  const question = persisted?.question ?? defaultQuestion;
-  const unit = persisted?.unit ?? defaultUnit;
-  const nextParam = nextProblem ? `&nextProblemId=${nextProblem.id}` : "";
+  const question = persisted?.question ?? DEMO_QUESTION;
+  const unit = persisted?.unit ?? DEMO_UNIT;
+  const nextParam = persisted?.nextProblemId ? `&nextProblemId=${persisted.nextProblemId}` : "";
   const resultHref = persisted
     ? `/child/result?score=${score}&unit=${encodeURIComponent(unit)}&problemId=${persisted.problemId}&childId=${persisted.childId}${nextParam}`
     : `/child/result?score=${score}&unit=${encodeURIComponent(unit)}${nextParam}`;
@@ -258,8 +242,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     }
     const level = revealedHints.length + 1;
     const body = persisted ? { childId: persisted.childId, sessionId, level } : { level };
-    const demoId = isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID;
-    const text = await fetchHintText(persisted?.problemId ?? demoId, body);
+    const text = await fetchHintText(persisted?.problemId ?? DEMO_PROBLEM_ID, body);
     if (text === null) {
       setSaveMessage(FLOW_TEXT.hintLoadFailed);
       setRetryAction(() => () => void requestNextHint());
@@ -296,7 +279,8 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       }
       return;
     }
-    if (!sessionId || originalSavedRef.current) return;
+    // 送信中の二重送信と、正解後の再送信だけを止める(まちがえたら何度でも挑戦できる)。
+    if (!sessionId || originalSavedRef.current || checked?.correct) return;
     originalSavedRef.current = true;
     const result = await postAttempt({
       childId: persisted.childId,
@@ -311,6 +295,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       setRetryAction(() => () => void checkOriginalAnswer(candidateAnswer));
       return;
     }
+    originalSavedRef.current = false;
     setSaveMessage("");
     setRetryAction(null);
     setChecked({ correct: result.correct });
@@ -351,8 +336,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
 
     const targetChildId = persisted?.childId || "demo";
-    const targetProblemId =
-      persisted?.problemId || (isJapanese ? DEMO_JAPANESE_PROBLEM_ID : DEMO_PROBLEM_ID);
+    const targetProblemId = persisted?.problemId || DEMO_PROBLEM_ID;
     const effectiveSessionId = sessionId || "demo-session";
 
     const response = await postJson("/api/ai/generate-hints", {
@@ -364,8 +348,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
 
     const body = await response?.json().catch(() => null);
 
-    const fallbackHint1 = isJapanese ? "かん字の かたちを よく みてみよう。" : "え や すうじ を みてみよう。";
-    const fallbackHint2 = isJapanese ? "１もじずつ おもいだして みよう。" : "すこしずつ かんがえてみよう。";
+    const { hint1: fallbackHint1, hint2: fallbackHint2 } = SUBJECT_CONFIG[subject].fallbackHints;
     const easyHint1 = (typeof body?.data?.hint1 === "string" && body.data.hint1) || fallbackHint1;
     const easyHint2 = (typeof body?.data?.hint2 === "string" && body.data.hint2) || fallbackHint2;
 
@@ -475,7 +458,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     setSaveMessage("");
     setRetryAction(null);
     setStartedAt(Date.now());
-    setSimilarProblems(DEMO_SIMILAR_PROBLEMS);
+    setSimilarProblems(defaultSimilar);
     finishedRef.current = false;
     originalSavedRef.current = false;
     if (persisted) {
@@ -486,7 +469,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }
 
   return {
-    answer, setAnswer, checked, revealedHints, practiceIndex, score, sessionId,
+    subject, answer, setAnswer, checked, revealedHints, practiceIndex, score, sessionId,
     similarProblems, pending, simplifying, visualPending, visualUrl,
     saveMessage, retryAction, dailyLimit, finished, question, unit, resultHref,
     nextProblemHref,

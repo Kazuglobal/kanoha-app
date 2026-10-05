@@ -5,6 +5,7 @@ import styles from "@/components/kanoha.module.css";
 import { answersMatch } from "@/lib/utils/answers";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { playPraiseVoice, playEncourageVoice } from "@/lib/audio/coachSpeech";
+import { ListenButton } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
 
 export type SimilarProblem = {
@@ -14,6 +15,8 @@ export type SimilarProblem = {
   /** デモ専用(Supabase 未設定)。実データでは渡さず、正誤は /api/attempts が返す。 */
   answer?: string;
   explanation?: string;
+  /** 英語の聞き取り問題で読み上げる英語 */
+  listenText?: string;
 };
 
 export interface SimilarAnswerResult {
@@ -99,6 +102,7 @@ export function SimilarProblemCard({
         </div>
       </div>
       <p className={styles.problemText}><RubyAuto text={problem.question} readingMode={readingMode} excludeBrackets /></p>
+      {problem.listenText ? <ListenButton text={problem.listenText} /> : null}
       {problem.choices ? (
         <div className={styles.choiceGrid}>
           {problem.choices.map((choice) => (

@@ -1,5 +1,9 @@
 import { buildProblemExplanation } from "./buildProblemRecords";
-import { CURRICULUM_PROBLEMS, getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
+import {
+  CURRICULUM_PROBLEMS,
+  getCurriculumProblemById,
+  getCurriculumProblemsByUnit,
+} from "@/lib/curriculum/curriculumBank";
 import type { AiProvider } from "./provider";
 import type {
   Hints,
@@ -151,24 +155,27 @@ export const demoProblemById = (id: string) => {
   return null;
 };
 
+/** 単元に問題バンクがあれば、同じ単元の問題をくり返し使って決定的に類題を組む(教科を問わない)。 */
+const curriculumSimilarProblems = (input: SimilarProblemRequest): SimilarProblemDraft[] | null => {
+  const unitProblems = getCurriculumProblemsByUnit(input.unit);
+  if (unitProblems.length === 0) return null;
+  return Array.from({ length: 5 }, (_, index) => {
+    const problem = unitProblems[index % unitProblems.length];
+    return {
+      answer: problem.correctAnswer,
+      difficulty: input.difficulty,
+      explanation: problem.hints.solution,
+      problemText: problem.problemText,
+      subUnit: input.subUnit,
+      unit: input.unit,
+    };
+  });
+};
+
 const makeSimilarProblem = (
   input: SimilarProblemRequest,
   index: number,
 ): SimilarProblemDraft => {
-  const isJapanese = input.unit === "漢字" || input.unit === "お話の読解" || input.unit === "ことばのきまり";
-  if (isJapanese) {
-    const kanjiSamples = ["青空", "春風", "青い鳥", "青葉", "大空"];
-    const sample = kanjiSamples[index % kanjiSamples.length];
-    return {
-      answer: "よみかた",
-      difficulty: input.difficulty,
-      explanation: `漢字の読み方をていねいに確認しましょう。`,
-      problemText: `次の漢字の読み方を書きましょう。「${sample}」`,
-      subUnit: input.subUnit,
-      unit: input.unit,
-    };
-  }
-
   const count = index + 1;
   return {
     answer: `${count * 1000}mL`,
@@ -226,6 +233,7 @@ export const mockAiProvider: AiProvider = {
     return STANDARD_MOCK_HINTS;
   },
   generateSimilarProblems: async (input) =>
+    curriculumSimilarProblems(input) ??
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),
   name: "mock",
   recognizeHandwriting: async (_images, problemText = "", subject = "math") => {

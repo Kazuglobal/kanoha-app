@@ -5,9 +5,11 @@ import Link from "next/link";
 import type { Route } from "next";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
+import { SUBJECT_CONFIG, type Subject } from "@/lib/curriculum/subjects";
 import { CharacterCoach } from "./CharacterCoach";
 import { HandwritingPad } from "./HandwritingPad";
 import { HintStepper } from "./HintStepper";
+import { ListenButton } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
 import { FLOW_TEXT } from "./childStrings";
 import { FinishedScreen, LimitScreen, PracticeFlow } from "./PracticeFlow";
@@ -18,6 +20,12 @@ import {
   type LearningPreferences,
   type PersistedProblem,
 } from "./useLearningFlow";
+
+const SUBJECT_BADGE_CLASS: Readonly<Record<Subject, string>> = {
+  math: styles.subjectBadgeMath,
+  japanese: styles.subjectBadgeJapanese,
+  english: styles.subjectBadgeEnglish,
+};
 
 const DEFAULT_PREFERENCES: LearningPreferences = {
   enableAudio: true,
@@ -37,11 +45,10 @@ export function LearningFlow({
   preferences?: LearningPreferences;
 }) {
   const flow = useLearningFlow(persisted);
-  const isJapanese =
-    persisted?.subject === "japanese" ||
-    flow.unit === "漢字" ||
-    flow.unit === "お話の読解" ||
-    flow.unit === "ことばのきまり";
+  const subject = flow.subject;
+  const subjectConfig = SUBJECT_CONFIG[subject];
+  // 答えを考えたあと(正解 or 答えのヒントまで見た)に、れんしゅうへ すすめる
+  const canPractice = Boolean(flow.checked?.correct) || flow.revealedHints.length >= 4;
 
   // 教科に応じた BGM の自動開始 & 終了
   useEffect(() => {
@@ -49,12 +56,12 @@ export function LearningFlow({
     if (flow.finished) {
       soundManager.startBgm("celebrate");
     } else {
-      soundManager.startBgm(isJapanese ? "japanese" : "math");
+      soundManager.startBgm(subject);
     }
     return () => {
       soundManager.stopBgm();
     };
-  }, [flow.finished, isJapanese, preferences.enableAudio]);
+  }, [flow.finished, subject, preferences.enableAudio]);
 
   if (flow.dailyLimit) return <LimitScreen usedMinutes={flow.dailyLimit.usedMinutes} />;
   if (flow.finished) {
@@ -112,12 +119,8 @@ export function LearningFlow({
           <div className={styles.problemScroll}>
             <div className={styles.learningHeaderRow}>
               <div className={styles.badgeGroup}>
-                <span
-                  className={
-                    isJapanese ? styles.subjectBadgeJapanese : styles.subjectBadgeMath
-                  }
-                >
-                  {isJapanese ? "📖 こくご" : "🧮 さんすう"}
+                <span className={SUBJECT_BADGE_CLASS[subject]}>
+                  {subjectConfig.emoji} {subjectConfig.child}
                 </span>
                 <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
               </div>
@@ -127,6 +130,7 @@ export function LearningFlow({
             <h1 className={styles.compactProblemText}>
               <RubyAuto text={flow.question} readingMode={preferences.readingMode} excludeBrackets />
             </h1>
+            {persisted?.listenText ? <ListenButton text={persisted.listenText} /> : null}
 
             <HintStepper
               revealed={flow.revealedHints}
@@ -139,16 +143,18 @@ export function LearningFlow({
               visualUrl={flow.visualUrl}
             />
 
-            <div className={styles.hintActions}>
-              <button
-                className={styles.secondaryButton}
-                disabled={flow.pending}
-                type="button"
-                onClick={() => void flow.startPractice()}
-              >
-                {flow.pending ? FLOW_TEXT.preparing : FLOW_TEXT.practiceButton}
-              </button>
-            </div>
+            {canPractice ? (
+              <div className={styles.hintActions}>
+                <button
+                  className={styles.secondaryButton}
+                  disabled={flow.pending}
+                  type="button"
+                  onClick={() => void flow.startPractice()}
+                >
+                  {flow.pending ? FLOW_TEXT.preparing : FLOW_TEXT.practiceButton}
+                </button>
+              </div>
+            ) : null}
             {flow.saveMessage ? <p className={styles.feedbackWrong}>{flow.saveMessage}</p> : null}
             {flow.retryAction ? (
               <button className={styles.secondaryButton} type="button" onClick={flow.retryAction}>
@@ -159,7 +165,7 @@ export function LearningFlow({
 
           <AnswerDock
             flow={flow}
-            isJapanese={isJapanese}
+            subject={subject}
             persisted={persisted}
             enableVoiceAnswer={preferences.enableVoiceAnswer}
           />
@@ -174,20 +180,21 @@ type Flow = ReturnType<typeof useLearningFlow>;
 /**
  * 回答エリア(結果・入力・キーパッド)。スマホでは画面下に固定され、
  * 問題文とヒントだけがその上でスクロールする(ページ全体は縦スクロールしない)。
+ * 選択肢がある問題はタップで答え、算数はテンキー、国語は文字入力+手書きで答える。
  */
 function AnswerDock({
   flow,
-  isJapanese,
+  subject,
   persisted,
   enableVoiceAnswer,
 }: {
   flow: Flow;
-  isJapanese: boolean;
+  subject: Subject;
   persisted?: PersistedProblem;
   enableVoiceAnswer: boolean;
 }) {
-  const hasTools = enableVoiceAnswer || Boolean(persisted);
   const solved = Boolean(flow.checked?.correct);
+  const choices = persisted?.choices;
   return (
     <div className={styles.answerDock}>
       {flow.checked ? (
@@ -207,75 +214,127 @@ function AnswerDock({
       ) : null}
 
       {/* 正解したら入力欄は畳み、「つぎの もんだいへ」に場所をゆずる(スマホで重ならないように) */}
-      {solved ? null : (
-        <>
-        <div className={styles.learningInputRow}>
-          <input
-            aria-label="こたえ"
-            className={styles.learningDisplayInput}
-            inputMode={isJapanese ? "text" : "numeric"}
-            placeholder={isJapanese ? "こたえを 入力 または 手書き" : "こたえ"}
-            value={flow.answer}
-            onChange={(event) => flow.setAnswer(event.target.value)}
-          />
-          <button
-            className={styles.toyAnswerButton}
-            disabled={!flow.answer || flow.pending}
-            type="button"
-            onClick={() => void flow.checkOriginalAnswer()}
-          >
-            {FLOW_TEXT.answerButton}
-          </button>
-        </div>
-
-        {hasTools ? (
-          <div className={styles.learningActionBtns}>
-            {enableVoiceAnswer ? <VoiceAnswer onAnswer={flow.setAnswer} /> : null}
-            {persisted ? (
-              <HandwritingPad
-                childId={persisted.childId}
-                onAnswer={flow.setAnswer}
-                onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
-                problemId={persisted.problemId}
-                subject={isJapanese ? "japanese" : "math"}
-              />
-            ) : null}
-          </div>
-        ) : null}
-        </>
+      {solved ? null : choices ? (
+        <ChoiceAnswers choices={choices} flow={flow} />
+      ) : (
+        <TypedAnswer
+          enableVoiceAnswer={enableVoiceAnswer}
+          flow={flow}
+          persisted={persisted}
+          subject={subject}
+        />
       )}
+    </div>
+  );
+}
 
-      {/* 算数用 オンスクリーン・トイテンキー (タップでカンタン入力) */}
-      {!isJapanese && !solved ? (
-        <div className={styles.toyKeypad} aria-label="数字キーパッド">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
-            <button
-              key={num}
-              type="button"
-              className={styles.keypadKey}
-              onClick={() => flow.setAnswer((prev) => prev + num.toString())}
-            >
-              {num}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`${styles.keypadKey} ${styles.keypadKeyAction} ${styles.keypadBack}`}
-            onClick={() => flow.setAnswer((prev) => prev.slice(0, -1))}
-            title="1文字消す"
-          >
-            ⌫
-          </button>
-          <button
-            type="button"
-            className={`${styles.keypadKey} ${styles.keypadKeyAction} ${styles.keypadClear}`}
-            onClick={() => flow.setAnswer("")}
-            title="ぜんぶ消す"
-          >
-            クリア
-          </button>
+/** 選択式(英語など): タップした選択肢でそのまま答え合わせする。 */
+function ChoiceAnswers({ choices, flow }: { choices: readonly string[]; flow: Flow }) {
+  return (
+    <div className={styles.choiceGrid} role="group" aria-label="こたえを えらぶ">
+      {choices.map((choice) => (
+        <button
+          className={`${styles.choice} ${flow.answer === choice ? styles.choiceSelected : ""}`}
+          disabled={flow.pending}
+          key={choice}
+          lang={/^[A-Za-z0-9 .,!?'-]+$/.test(choice) ? "en" : undefined}
+          type="button"
+          onClick={() => void flow.checkOriginalAnswer(choice)}
+        >
+          {choice}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TypedAnswer({
+  flow,
+  subject,
+  persisted,
+  enableVoiceAnswer,
+}: {
+  flow: Flow;
+  subject: Subject;
+  persisted?: PersistedProblem;
+  enableVoiceAnswer: boolean;
+}) {
+  const numeric = SUBJECT_CONFIG[subject].answerMode === "numeric";
+  const hasTools = enableVoiceAnswer || Boolean(persisted);
+  return (
+    <>
+      <div className={styles.learningInputRow}>
+        <input
+          aria-label="こたえ"
+          className={styles.learningDisplayInput}
+          // テンキーがあるときは端末のキーボードを出さない(画面のテンキーと重ならないように)
+          inputMode={numeric ? "none" : "text"}
+          placeholder={numeric ? "こたえ" : "こたえを かこう"}
+          value={flow.answer}
+          onChange={(event) => flow.setAnswer(event.target.value)}
+        />
+        <button
+          className={styles.toyAnswerButton}
+          disabled={!flow.answer || flow.pending}
+          type="button"
+          onClick={() => void flow.checkOriginalAnswer()}
+        >
+          {FLOW_TEXT.answerButton}
+        </button>
+      </div>
+
+      {hasTools ? (
+        <div className={styles.learningActionBtns}>
+          {enableVoiceAnswer ? (
+            <VoiceAnswer lang={SUBJECT_CONFIG[subject].speechLang} onAnswer={flow.setAnswer} />
+          ) : null}
+          {persisted ? (
+            <HandwritingPad
+              childId={persisted.childId}
+              onAnswer={flow.setAnswer}
+              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
+              problemId={persisted.problemId}
+              subject={subject}
+            />
+          ) : null}
         </div>
       ) : null}
+
+      {numeric ? <ToyKeypad flow={flow} /> : null}
+    </>
+  );
+}
+
+/** 算数用 オンスクリーン・トイテンキー (タップでカンタン入力) */
+function ToyKeypad({ flow }: { flow: Flow }) {
+  return (
+    <div className={styles.toyKeypad} aria-label="数字キーパッド">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
+        <button
+          key={num}
+          type="button"
+          className={styles.keypadKey}
+          onClick={() => flow.setAnswer((prev) => prev + num.toString())}
+        >
+          {num}
+        </button>
+      ))}
+      <button
+        type="button"
+        className={`${styles.keypadKey} ${styles.keypadKeyAction} ${styles.keypadBack}`}
+        onClick={() => flow.setAnswer((prev) => prev.slice(0, -1))}
+        aria-label="1もじ けす"
+      >
+        ⌫
+      </button>
+      <button
+        type="button"
+        className={`${styles.keypadKey} ${styles.keypadKeyAction} ${styles.keypadClear}`}
+        onClick={() => flow.setAnswer("")}
+        aria-label="ぜんぶ けす"
+      >
+        クリア
+      </button>
     </div>
   );
 }

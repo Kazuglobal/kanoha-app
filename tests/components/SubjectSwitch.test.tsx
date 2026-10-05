@@ -36,4 +36,13 @@ describe("SubjectSwitch component", () => {
     expect(japaneseLink.getAttribute("aria-current")).toBe("page");
     expect(mathLink.getAttribute("aria-current")).toBeNull();
   });
+
+  it("renders the english option and marks it active", () => {
+    render(<SubjectSwitch currentSubject="english" childId="child-1" />);
+
+    const englishLink = screen.getByRole("link", { name: /えいご/ });
+    expect(englishLink.getAttribute("href")).toContain("subject=english");
+    expect(englishLink.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: /さんすう/ }).getAttribute("aria-current")).toBeNull();
+  });
 });

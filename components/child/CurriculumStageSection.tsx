@@ -5,7 +5,7 @@ import type { Route } from "next";
 import styles from "@/components/kanoha.module.css";
 import { RubyAuto } from "@/components/child/RubyText";
 import { getCurriculumStages } from "@/lib/curriculum/curriculumBank";
-import type { Subject } from "@/lib/curriculum/subjects";
+import { SUBJECT_CONFIG, type Subject } from "@/lib/curriculum/subjects";
 
 interface CurriculumStageSectionProps {
   currentSubject: Subject;
@@ -19,7 +19,6 @@ export function CurriculumStageSection({
   readingMode = "kanji_with_ruby",
 }: CurriculumStageSectionProps) {
   const stages = getCurriculumStages(currentSubject);
-  const isJapanese = currentSubject === "japanese";
 
   return (
     <section className={styles.stageMapSection} aria-label="カリキュラムステージ">
@@ -30,9 +29,7 @@ export function CurriculumStageSection({
             <span>カリキュラム ステージマップ</span>
           </h2>
           <p className={styles.stageMapSubtitle}>
-            {isJapanese
-              ? "すきな たんげんを えらんで、こくごを どんどん すすめよう！"
-              : "すきな たんげんを えらんで、さんすうを どんどん すすめよう！"}
+            {`すきな たんげんを えらんで、${SUBJECT_CONFIG[currentSubject].child}を どんどん すすめよう！`}
           </p>
         </div>
       </div>

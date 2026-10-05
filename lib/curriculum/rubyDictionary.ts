@@ -12,6 +12,11 @@
  */
 export const RUBY_DICTIONARY: Readonly<Record<string, string>> = Object.freeze({
   // 熟語(先に登録: 走査側で長いキーを優先マッチ)
+  大文字: "おおもじ",
+  小文字: "こもじ",
+  英語: "えいご",
+  朝: "あさ",
+  昼: "ひる",
   数字: "すうじ",
   問題: "もんだい",
   注目: "ちゅうもく",

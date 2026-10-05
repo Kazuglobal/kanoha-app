@@ -2,10 +2,12 @@ import { z } from "zod";
 import { getAiProvider } from "@/lib/ai";
 import { costLimitsFromEnv } from "@/lib/ai/costGuard";
 import { scrubPiiFromSimilarProblem } from "@/lib/ai/pii";
-import { similarProblemDraftsSchema, unitSchema } from "@/lib/ai/schemas";
+import { allUnitSchema, similarProblemDraftsSchema } from "@/lib/ai/schemas";
 import type { SimilarProblemDraft, SimilarProblemRequest } from "@/lib/ai/schemas";
 import { reserveAiUsage } from "@/lib/ai/usage";
-import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { ALL_MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { buildCurriculumPractice } from "@/lib/curriculum/practice";
+import { resolveSubject } from "@/lib/curriculum/subjects";
 import * as schema from "@/lib/db/schema";
 import { recentUnitAttempts } from "@/lib/review/loop";
 import { buildChoices } from "@/lib/review/choices";
@@ -20,7 +22,7 @@ const schemaValidation = z.object({
   childId: uuid,
   problemId: uuid,
   difficulty: difficulty.optional(),
-  mistakeType: z.enum(MISTAKE_TYPE_IDS).optional(),
+  mistakeType: z.enum(ALL_MISTAKE_TYPE_IDS).optional(),
 });
 
 const SIMILAR_COST_USD = Number(process.env.AI_SIMILAR_COST_USD ?? 0.005);
@@ -38,8 +40,9 @@ export async function POST(request: Request) {
   const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
   if (!problem) return apiError("Problem not found", 404);
 
-  const unit = unitSchema.safeParse(problem.unit);
+  const unit = allUnitSchema.safeParse(problem.unit);
   if (!unit.success) return internalError();
+  if (problem.curriculumProblemId) return persistCurriculumPractice(auth, problem, problem.curriculumProblemId);
   const history = await recentUnitAttempts(parsed.data.childId, unit.data, MISTAKE_HISTORY_SIZE, auth.db);
   const { difficulty: adjusted, streak } = difficultyForNextSimilarSet(
     parsed.data.difficulty ?? difficulty.safeParse(problem.difficulty).data ?? "standard",
@@ -51,6 +54,7 @@ export async function POST(request: Request) {
     problemText: problem.problemText,
     subUnit: problem.subUnit,
     unit: unit.data,
+    subject: resolveSubject(problem.subject, problem.unit),
   };
 
   const provider = getAiProvider();
@@ -90,7 +94,36 @@ async function generateWithGemini(
   return persistDrafts(auth, problem, drafts);
 }
 
-async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly SimilarProblemDraft[]) {
+/** 問題バンク由来の問題は、同じバンクから決定的に類題を組む(AI を使わず、選択肢・聞き取り音声つき)。 */
+async function persistCurriculumPractice(auth: Auth, problem: Problem, curriculumProblemId: string) {
+  const items = buildCurriculumPractice(curriculumProblemId);
+  const drafts: SimilarProblemDraft[] = items.map((item) => ({
+    answer: item.answer,
+    difficulty: "standard",
+    explanation: item.explanation,
+    problemText: item.question,
+    subUnit: item.subUnit,
+    unit: item.unit,
+  }));
+  return persistDrafts(
+    auth,
+    problem,
+    drafts,
+    items.map(({ choices, listenText }) => ({ choices, listenText })),
+  );
+}
+
+interface DraftExtras {
+  choices: readonly string[] | null;
+  listenText: string | null;
+}
+
+async function persistDrafts(
+  auth: Auth,
+  problem: Problem,
+  drafts: readonly SimilarProblemDraft[],
+  extras?: readonly DraftExtras[],
+) {
   const validated = similarProblemDraftsSchema.safeParse(drafts);
   if (!validated.success) return internalError();
 
@@ -105,7 +138,8 @@ async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly Simi
     unit: item.unit,
     subUnit: item.subUnit,
     difficulty: item.difficulty,
-    choices: JSON.stringify(buildChoices(item.answer, `${problem.id}:${index}`)),
+    choices: JSON.stringify(extras?.[index]?.choices ?? buildChoices(item.answer, `${problem.id}:${index}`)),
+    listenText: extras?.[index]?.listenText ?? null,
     createdAt: now,
   }));
 
@@ -122,6 +156,7 @@ async function persistDrafts(auth: Auth, problem: Problem, drafts: readonly Simi
           sub_unit: schema.generatedSimilarProblems.subUnit,
           difficulty: schema.generatedSimilarProblems.difficulty,
           choices: schema.generatedSimilarProblems.choices,
+          listen_text: schema.generatedSimilarProblems.listenText,
         })
         .get();
       inserted.push({

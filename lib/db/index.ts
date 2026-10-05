@@ -70,6 +70,23 @@ export const createLocalD1 = (dbSync: DatabaseSync = newMemoryDb()): D1Database 
 };
 
 /**
+ * drizzle/migrations の SQL を journal 順にすべて適用する(ローカル/テスト用 in-memory DB)。
+ * 失敗はスキーマ不整合を隠さないよう例外のまま投げる。
+ */
+const applyLocalMigrations = (db: DatabaseSync): void => {
+  const fs = builtin<FsModule>("node:fs");
+  const path = builtin<PathModule>("node:path");
+  const dir = path.join(process.cwd(), "drizzle/migrations");
+  const journalPath = path.join(dir, "meta/_journal.json");
+  if (!fs.existsSync(journalPath)) return;
+  const journal = JSON.parse(fs.readFileSync(journalPath, "utf8")) as { entries: { tag: string }[] };
+  for (const { tag } of journal.entries) {
+    const sql = fs.readFileSync(path.join(dir, `${tag}.sql`), "utf8");
+    db.exec(sql.replace(/--> statement-breakpoint/g, ""));
+  }
+};
+
+/**
  * D1 データベースインスタンスの解決
  */
 export const getD1Database = (): D1Database => {
@@ -80,19 +97,7 @@ export const getD1Database = (): D1Database => {
   // 2. ローカル / テスト用エミュレータ
   if (!localD1Instance) {
     localDbSync = newMemoryDb();
-    try {
-      const fs = builtin<FsModule>("node:fs");
-      const path = builtin<PathModule>("node:path");
-      const sqlPath = path.join(process.cwd(), "drizzle/migrations/0000_fast_stephen_strange.sql");
-      if (fs.existsSync(sqlPath)) {
-        const sql = fs.readFileSync(sqlPath, "utf8");
-        // SQLite exec does not support comments starting with --> if parsed strictly, so strip statement breakpoints
-        const cleanSql = sql.replace(/--> statement-breakpoint/g, "");
-        localDbSync.exec(cleanSql);
-      }
-    } catch (err) {
-      console.warn("Failed to auto-apply migrations to in-memory SQLite:", err);
-    }
+    applyLocalMigrations(localDbSync);
     localD1Instance = createLocalD1(localDbSync);
   }
   return localD1Instance;

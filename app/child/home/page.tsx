@@ -10,7 +10,7 @@ import { HOME_TEXT } from "@/components/child/childStrings";
 import styles from "@/components/kanoha.module.css";
 import { getTodayRecommendations } from "@/lib/review/today";
 import { getServerSession } from "@/lib/auth/session";
-import { isSubject, type Subject } from "@/lib/curriculum/subjects";
+import { SUBJECT_CONFIG, isSubject, type Subject } from "@/lib/curriculum/subjects";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
@@ -142,8 +142,8 @@ function RealHome({
   selected: ChildProfile;
   currentSubject: Subject;
 }) {
-  const isJapanese = currentSubject === "japanese";
-  const defaultProblemId = isJapanese ? "kanji-1" : "volume-1";
+  const config = SUBJECT_CONFIG[currentSubject];
+  const defaultProblemId = config.defaultProblemId;
   const first = problems[0];
   const startHref = first
     ? (`/child/problem/${first.id}?childId=${selected.id}` as const)
@@ -152,13 +152,8 @@ function RealHome({
     ? (`/child/problem/${recentProblemId}?childId=${selected.id}` as const)
     : startHref;
 
-  const subjectGreeting = isJapanese
-    ? "きょうも たのしく こくごを やろう！"
-    : "きょうも たのしく さんすうを やろう！";
-
-  const defaultDemoNote = isJapanese
-    ? "まずは デモもんだい（漢字の書き取り）から はじめよう！"
-    : "まずは デモもんだい（水のかさ）から はじめよう！";
+  const subjectGreeting = `きょうも たのしく ${config.child}を やろう！`;
+  const defaultDemoNote = `まずは「${config.demoLabel}」から はじめよう！`;
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
@@ -229,12 +224,10 @@ function RealHome({
 }
 
 function DemoHome({ currentSubject }: { currentSubject: Subject }) {
-  const isJapanese = currentSubject === "japanese";
-  const demoProblemHref = isJapanese ? "/child/problem/kanji-1" : "/child/problem/volume-1";
-  const demoSubtitle = isJapanese ? "デモもんだい: 漢字の書き取り" : "デモもんだい: 水のかさ(LとmL)";
-  const heroSubtitle = isJapanese
-    ? "まいにち 15ふん、たのしく こくご！"
-    : "まいにち 15ふん、たのしく さんすう！";
+  const config = SUBJECT_CONFIG[currentSubject];
+  const demoProblemHref = `/child/problem/${config.defaultProblemId}` as const;
+  const demoSubtitle = `デモもんだい: ${config.demoLabel}`;
+  const heroSubtitle = `まいにち 15ふん、たのしく ${config.child}！`;
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
