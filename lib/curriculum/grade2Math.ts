@@ -106,7 +106,7 @@ export function resolveVisualTemplate(unit: string): string | null {
   if (exact) return exact.visualTemplate;
 
   // 2. 部分一致・単元キーワードによるエイリアス解決
-  if (trimmed.includes("かさ") || trimmed.includes("水") || trimmed.includes("mL") || trimmed.includes("dL") || trimmed.includes("L")) {
+  if (trimmed.includes("かさ") || trimmed.includes("水") || trimmed.includes("mL") || trimmed.includes("dL") || trimmed.includes("リットル")) {
     return "volume";
   }
   if (trimmed.includes("たし") || trimmed.includes("足し") || trimmed.includes("くり上がり") || trimmed.includes("加算")) {
@@ -117,6 +117,9 @@ export function resolveVisualTemplate(unit: string): string | null {
   }
   if (trimmed.includes("かけ") || trimmed.includes("掛け") || trimmed.includes("九九") || trimmed.includes("乗算")) {
     return "multiplication";
+  }
+  if (trimmed.includes("長方形") || trimmed.includes("正方形") || trimmed.includes("直角")) {
+    return "shapes";
   }
   if (trimmed.includes("長") || trimmed.includes("ながさ") || trimmed.includes("cm") || trimmed.includes("mm") || trimmed.includes("メートル")) {
     return "length";
@@ -136,7 +139,7 @@ export function resolveVisualTemplate(unit: string): string | null {
   if (trimmed.includes("分数") || trimmed.includes("分の") || trimmed.includes("ぶんすう")) {
     return "fractions";
   }
-  if (trimmed.includes("グラフ") || trimmed.includes("表") || trimmed.includes("ひょう")) {
+  if (trimmed.includes("グラフ") || trimmed.includes("表と") || trimmed.includes("表の") || trimmed.includes("ひょう")) {
     return "tables-and-graphs";
   }
   if (trimmed.includes("数") || trimmed.includes("1000") || trimmed.includes("10000") || trimmed.includes("位")) {

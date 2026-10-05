@@ -9,7 +9,7 @@ import {
   type LearningProgress,
   type StoredSimilarProblem,
 } from "@/lib/sessions/progress";
-import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
+import { visualTemplateFor, visualTemplateUrl } from "@/lib/curriculum/visuals";
 import { applyServerReward, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import { soundManager } from "@/lib/audio/soundSystem";
 import {
@@ -97,6 +97,8 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   const defaultSimilar: readonly SimilarProblem[] = persisted?.demoPractice ?? [];
   const isDemo =
     !persisted || !UUID_PATTERN.test(persisted.childId) || !UUID_PATTERN.test(persisted.problemId);
+  // デモはテンプレ図解だけ(AI生成なし)。テンプレが無い国語・英語には「えで おしえて」を出さない。
+  const visualAvailable = !isDemo || !persisted || visualTemplateFor(persisted.unit, persisted.subject) !== null;
 
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState<{ correct: boolean } | null>(null);
@@ -396,9 +398,9 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     }
 
     // サーバーが失敗した場合(403設定OFFやネットワーク等)でも、小2単元の静的SVGテンプレートをフォールバック表示
-    const fallback = resolveVisualTemplate(persisted.unit);
+    const fallback = visualTemplateFor(persisted.unit, persisted.subject);
     if (fallback) {
-      setVisualUrl(`/visuals/${fallback}.svg`);
+      setVisualUrl(visualTemplateUrl(fallback));
       setSaveMessage("");
     } else {
       setSaveMessage(FLOW_TEXT.visualUnavailable);
@@ -473,7 +475,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
 
   return {
     subject, answer, setAnswer, checked, revealedHints, practiceIndex, score, sessionId,
-    similarProblems, pending, simplifying, visualPending, visualUrl,
+    similarProblems, pending, simplifying, visualPending, visualUrl, visualAvailable,
     saveMessage, retryAction, dailyLimit, finished, question, unit, resultHref,
     nextProblemHref,
     requestNextHint, checkOriginalAnswer, startPractice, simplifyHints,

@@ -4,7 +4,7 @@ import { costLimitsFromEnv } from "@/lib/ai/costGuard";
 import { generateVisualImage, ImageGenerationUnavailableError } from "@/lib/ai/image";
 import { buildVisualImagePrompt } from "@/lib/ai/prompts";
 import { reserveAiUsage } from "@/lib/ai/usage";
-import { resolveVisualTemplate } from "@/lib/curriculum/grade2Math";
+import { visualTemplateFor, visualTemplateUrl } from "@/lib/curriculum/visuals";
 import * as schema from "@/lib/db/schema";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
@@ -38,31 +38,26 @@ export async function POST(request: Request) {
     uuid.safeParse(problemId).success;
 
   if (!isReal) {
-    const problem =
-      demoProblemById(problemId) ??
-      getCurriculumProblemById(problemId) ??
-      demoProblemById("volume-1");
-    if (!problem) return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
-    const template = resolveVisualTemplate(problem.unit);
-    if (template) {
-      return apiSuccess({ kind: "template", url: `/visuals/${template}.svg` });
-    }
-    return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
+    const problem = demoProblemById(problemId) ?? getCurriculumProblemById(problemId);
+    if (!problem) return apiError("Problem not found", 404);
+    return templateOrUnavailable(visualTemplateFor(problem.unit, problem.subject));
   }
 
   const auth = await requireOwnedChild(childId);
-  if (auth.response) {
-    return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
-  }
+  if (auth.response) return auth.response;
   if (!checkRateLimit(`image:${auth.user!.id}`, 5)) return apiError("Too many requests", 429);
   const problem = await ownedProblem(childId, problemId, auth.db);
-  if (!problem) {
-    return apiSuccess({ kind: "template", url: "/visuals/volume.svg" });
-  }
+  if (!problem) return apiError("Problem not found", 404);
 
-  const template = resolveVisualTemplate(problem.unit);
-  if (template) return apiSuccess({ kind: "template", url: `/visuals/${template}.svg` });
+  const template = visualTemplateFor(problem.unit, problem.subject);
+  if (template) return apiSuccess({ kind: "template", url: visualTemplateUrl(template) });
   return generateWithAi(auth, problem);
+}
+
+/** デモはAI生成をしないので、テンプレが無い単元(国語・英語など)は 404 で「えは ない」と返す。 */
+function templateOrUnavailable(template: string | null) {
+  if (!template) return apiError("えの ヒントは この もんだいには ないよ。", 404);
+  return apiSuccess({ kind: "template", url: visualTemplateUrl(template) });
 }
 
 async function generateWithAi(auth: Auth, problem: Problem) {

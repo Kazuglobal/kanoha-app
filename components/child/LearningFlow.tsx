@@ -145,7 +145,7 @@ export function LearningFlow({
               readingMode={preferences.readingMode}
               onSimplify={persisted ? () => void flow.simplifyHints() : undefined}
               simplifying={flow.simplifying}
-              onVisual={() => void flow.showVisualHint()}
+              onVisual={flow.visualAvailable ? () => void flow.showVisualHint() : undefined}
               visualPending={flow.visualPending}
               visualUrl={flow.visualUrl}
             />
