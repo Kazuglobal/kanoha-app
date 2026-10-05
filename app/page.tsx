@@ -1,59 +1,84 @@
 import Link from "next/link";
 import { RubyAuto } from "@/components/child/RubyText";
 import { LANDING_TEXT } from "@/components/child/childStrings";
+import styles from "./landing.module.css";
+
+const POINTS = [
+  { icon: "🧮", label: LANDING_TEXT.pointMath, tone: styles.pointCoral },
+  { icon: "💡", label: LANDING_TEXT.pointHint, tone: styles.pointSun },
+  { icon: "🎁", label: LANDING_TEXT.pointReward, tone: styles.pointMint },
+] as const;
+
+/** 浮かぶ さんすう記号(かざり)。位置と色は CSS 側で決める。 */
+const FLOATERS = [
+  { text: "1", className: styles.floatOne },
+  { text: "＋", className: styles.floatPlus },
+  { text: "2", className: styles.floatTwo },
+  { text: "×", className: styles.floatTimes },
+  { text: "★", className: styles.floatStar },
+] as const;
 
 export default function HomePage() {
   return (
-    <main className="landing-shell">
-      <section className="landing-card">
-        <span className="eyebrow">{LANDING_TEXT.eyebrow}</span>
-        <h1>
-          {LANDING_TEXT.titleLine1}
-          <br />
-          <RubyAuto text={LANDING_TEXT.titleLine2} readingMode="kanji_with_ruby" />
-        </h1>
-        <p>{LANDING_TEXT.lead}</p>
-        <ul className="landing-points" aria-label="かのはの とくちょう">
-          <li><span aria-hidden="true">🧮</span>{LANDING_TEXT.pointMath}</li>
-          <li><span aria-hidden="true">💡</span>{LANDING_TEXT.pointHint}</li>
-          <li><span aria-hidden="true">⏱️</span>{LANDING_TEXT.pointTime}</li>
-        </ul>
-        <div className="landing-actions">
-          <Link className="primary-link" href="/child/home">
-            <RubyAuto text={LANDING_TEXT.childMode} readingMode="kanji_with_ruby" />
-            <span className="link-arrow" aria-hidden="true">▶</span>
-          </Link>
-          <Link className="secondary-link" href="/login">
-            <RubyAuto text={LANDING_TEXT.parentLink} readingMode="kanji_with_ruby" />
-          </Link>
+    <main className={styles.shell}>
+      <header className={styles.header}>
+        <span className={styles.brand}>
+          <span className={styles.brandMark} aria-hidden="true">か</span>
+          かのは
+        </span>
+        <span className={styles.timePill}>
+          <span aria-hidden="true">⏱️</span>
+          {LANDING_TEXT.eyebrow}
+        </span>
+      </header>
+
+      <section className={styles.hero} aria-label="かのはコーチ">
+        <div className={styles.orb}>
+          {FLOATERS.map(({ text, className }) => (
+            <span key={text} className={`${styles.floater} ${className}`} aria-hidden="true">
+              {text}
+            </span>
+          ))}
+          {/* 静的なキャラクター画像(public/images/character)。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt="かのはちゃん"
+            className={styles.character}
+            src="/images/character/kanoha-ref-happy.png"
+            fetchPriority="high"
+          />
+          <p className={styles.bubble}>{LANDING_TEXT.orbLabel}</p>
         </div>
       </section>
 
-      <aside className="landing-orb" aria-label="かのはコーチ">
-        {/* Floating Sparks */}
-        <div className="orb-sparkles" aria-hidden="true">
-          <span className="sparkle-1">✦</span>
-          <span className="sparkle-2">✨</span>
-          <span className="sparkle-3">★</span>
-        </div>
+      <section className={styles.card}>
+        <h1 className={styles.title}>
+          <span className={styles.titleAccent}>{LANDING_TEXT.titleAccent}</span>
+          {LANDING_TEXT.titleLine1Rest}
+          <br />
+          <RubyAuto text={LANDING_TEXT.titleLine2} readingMode="kanji_with_ruby" />
+        </h1>
+        <p className={styles.lead}>{LANDING_TEXT.lead}</p>
 
-        {/* Mascot Face & Sprout inside Orb */}
-        <div className="orb-mascot" aria-hidden="true">
-          <div className="orb-sprout">
-            <svg viewBox="0 0 40 30" width="40" height="30" fill="none">
-              <path d="M20 28 C20 18 24 10 32 8 C34 14 30 20 22 25" fill="#a3e635" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
-              <path d="M20 28 C18 19 12 14 4 13 C4 19 10 24 18 26" fill="#a3e635" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <span className="orb-letter">か</span>
-          <div className="orb-cheeks">
-            <span className="cheek left" />
-            <span className="cheek right" />
-          </div>
-        </div>
+        <ul className={styles.points} aria-label="かのはの とくちょう">
+          {POINTS.map(({ icon, label, tone }) => (
+            <li key={label} className={`${styles.point} ${tone}`}>
+              <span aria-hidden="true" className={styles.pointIcon}>{icon}</span>
+              {label}
+            </li>
+          ))}
+        </ul>
 
-        <small>{LANDING_TEXT.orbLabel}</small>
-      </aside>
+        <Link className={styles.cta} href="/child/home">
+          <span>
+            <RubyAuto text={LANDING_TEXT.childMode} readingMode="kanji_with_ruby" />
+          </span>
+          <span className={styles.ctaArrow} aria-hidden="true">▶</span>
+        </Link>
+        <Link className={styles.parentLink} href="/login">
+          <RubyAuto text={LANDING_TEXT.parentLink} readingMode="kanji_with_ruby" />
+        </Link>
+      </section>
     </main>
   );
 }
