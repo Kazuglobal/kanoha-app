@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   if (!unit.success) return internalError();
   const history = await recentUnitAttempts(parsed.data.childId, unit.data, MISTAKE_HISTORY_SIZE, auth.db);
   const { difficulty: adjusted, streak } = difficultyForNextSimilarSet(
-    (parsed.data.difficulty as any) ?? problem.difficulty,
+    parsed.data.difficulty ?? difficulty.safeParse(problem.difficulty).data ?? "standard",
     history,
   );
   const input: SimilarProblemRequest = {

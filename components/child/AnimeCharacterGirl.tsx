@@ -73,7 +73,7 @@ export function AnimeCharacterGirl({
   // リアルタイム骨格アニメーションループ
   useEffect(() => {
     let animId: number;
-    let startTime = performance.now();
+    const startTime = performance.now();
     let lastTime = performance.now();
 
     const loop = (now: number) => {
