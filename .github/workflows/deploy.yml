@@ -1,0 +1,58 @@
+# main にマージ(push)されたら、テストを通してから Cloudflare Workers へ公開する。
+#
+# 事前に GitHub の Settings → Secrets and variables → Actions に登録すること:
+#   CLOUDFLARE_API_TOKEN   … Workers スクリプト編集・D1 編集の権限を持つ API トークン
+#   CLOUDFLARE_ACCOUNT_ID  … Cloudflare のアカウント ID
+# GEMINI_API_KEY などの実行時シークレットは `wrangler secret put` で Workers 側に登録済みのものを使う。
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 公開が重ならないようにし、途中のものは取り消さず順番に流す
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # ビルド時にクライアントへ埋め込まれる値(wrangler.jsonc の vars と同じ)
+      NEXT_PUBLIC_APP_URL: https://kanoha-app.globalbunny.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Apply D1 migrations
+        run: npx wrangler d1 migrations apply kanoha-db --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build and deploy
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
