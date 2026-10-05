@@ -2,11 +2,10 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { resolveAuthSecret } from "./secret";
 
 export const auth = betterAuth({
-  secret:
-    process.env.BETTER_AUTH_SECRET ||
-    "kanoha-app-secret-key-must-be-at-least-32-chars-long",
+  secret: resolveAuthSecret(process.env),
   baseURL:
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
