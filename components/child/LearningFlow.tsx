@@ -113,9 +113,9 @@ export function LearningFlow({
             <div className={styles.learningHeaderRow}>
               <div className={styles.badgeGroup}>
                 <span
-                  className={
+                  className={`${styles.subjectBadge} ${
                     isJapanese ? styles.subjectBadgeJapanese : styles.subjectBadgeMath
-                  }
+                  }`}
                 >
                   {isJapanese ? "📖 こくご" : "🧮 さんすう"}
                 </span>
@@ -214,7 +214,7 @@ function AnswerDock({
             aria-label="こたえ"
             className={styles.learningDisplayInput}
             inputMode={isJapanese ? "text" : "numeric"}
-            placeholder={isJapanese ? "こたえを 入力 または 手書き" : "こたえ"}
+            placeholder={isJapanese ? "ここに こたえを かいてね" : "こたえ"}
             value={flow.answer}
             onChange={(event) => flow.setAnswer(event.target.value)}
           />
