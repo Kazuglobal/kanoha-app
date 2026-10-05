@@ -108,15 +108,16 @@ export const RESULT_TEXT = Object.freeze({
 /** ランディング(app/page.tsx)の子どもにも見える文言。 */
 export const LANDING_TEXT = Object.freeze({
   eyebrow: "まいにち 15ふん",
-  titleLine1: "わかった！が",
+  titleAccent: "わかった！",
+  titleLine1Rest: "が",
   titleLine2: "ふえていく算数",
-  lead: "かのはが、あなたにぴったりのヒントとれんしゅうをとどけるよ。",
+  lead: "かのはちゃんが ぴったりの ヒントを とどけるよ。",
   childMode: "子どもモードではじめる",
   parentLink: "おうちの方はこちら",
-  orbLabel: "いっしょにやろう",
+  orbLabel: "いっしょに やろう！",
   pointMath: "さんすう・こくご",
   pointHint: "ヒントつき",
-  pointTime: "1にち 15ふん",
+  pointReward: "ごほうび",
 });
 
 /** ルビ辞書カバレッジテストの対象になる、子ども画面の固定文言ぜんぶ。 */
