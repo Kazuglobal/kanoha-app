@@ -48,7 +48,7 @@ export default async function ProblemPage({
   const progressLabel = stageProgress ? stageProgress.label : "1 / 1";
 
   return (
-    <div className={styles.childShell}>
+    <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader progress={progressLabel} />
       <main className={styles.learningStage}>
         <LearningFlow persisted={persisted} preferences={loaded?.preferences} />

@@ -71,7 +71,7 @@ export function FinishedScreen({
         <RubyAuto text={unit} readingMode={readingMode} />
         {FLOW_TEXT.finishedLeadSuffix}
       </p>
-      <div className={styles.hintActions}>
+      <div className={`${styles.hintActions} ${styles.resultActions}`}>
         {nextProblemHref && (
           <Link className={styles.nextProblemButton} href={nextProblemHref as Route}>
             🚀 つぎの もんだいへ すすむ！

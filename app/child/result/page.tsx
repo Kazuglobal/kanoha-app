@@ -25,7 +25,7 @@ export default async function ResultPage({
     ? `/child/problem/${encodeURIComponent(problemId)}?childId=${encodeURIComponent(childId)}`
     : "/child/problem/volume-1";
   return (
-    <div className={styles.childShell}>
+    <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader />
       <main className={styles.narrow}>
         <section className={`${styles.card} ${styles.resultHero}`}>
@@ -54,7 +54,7 @@ export default async function ResultPage({
             </div>
           </div>
           <p className={styles.lead}>{RESULT_TEXT.lead}</p>
-          <div className={styles.hintActions}>
+          <div className={`${styles.hintActions} ${styles.resultActions}`}>
             {nextHref && (
               <Link className={styles.nextProblemButton} href={nextHref as Route}>
                 🚀 つぎの もんだいへ すすむ！

@@ -3415,3 +3415,772 @@
     font-size: 16px;
   }
 }
+
+/* ==========================================================================
+   One-screen app layout (mobile: no vertical page scroll)
+   ========================================================================== */
+
+.problemScroll {
+  min-width: 0;
+}
+
+.answerDock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.answerDock .feedback,
+.answerDock .feedbackWrong {
+  margin-top: 0;
+}
+
+.answerDock .nextProblemButton {
+  align-self: center;
+}
+
+.feedbackStrong {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.hintTip {
+  margin: 14px 0 6px;
+  color: #0d9f8c;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.keypadBack,
+.keypadClear {
+  font-variant-numeric: normal;
+}
+
+@media (max-width: 640px) {
+  /* --- Shell: fixed to the visible viewport, content fits inside --- */
+  .appScreen {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .appScreen > .topbar {
+    flex: none;
+    width: 100%;
+    margin: 0;
+    padding: max(8px, env(safe-area-inset-top)) 14px 6px;
+    row-gap: 4px;
+    gap: 8px;
+  }
+
+  .appScreen .brandMark {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+    border-radius: 14px;
+  }
+
+  .appScreen .topIconButton,
+  .appScreen .soundToggle {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+  }
+
+  .appScreen > main {
+    flex: 1;
+    min-height: 0;
+    width: calc(100% - 24px);
+    margin: 0 auto;
+    padding: 4px 0 max(10px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* --- Home --- */
+  .appScreen .homeToolbar {
+    flex: none;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .appScreen .homeToolbar > span:empty {
+    display: none;
+  }
+
+  .appScreen .profileTabs {
+    padding: 2px 2px 6px;
+    margin: 0;
+    gap: 8px;
+  }
+
+  .appScreen .profileTab,
+  .appScreen .profileTabActive {
+    padding: 8px 16px;
+    font-size: 15px;
+  }
+
+  .appScreen .heroCard {
+    flex: none;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    grid-template-rows: auto auto auto;
+    column-gap: 8px;
+    row-gap: 0;
+    align-items: center;
+    text-align: left;
+    padding: 14px 16px 16px;
+    margin-bottom: 10px;
+    border-radius: 28px;
+  }
+
+  .appScreen .heroCard .heroContent {
+    display: contents;
+  }
+
+  .appScreen .heroCard .pageTitle {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+    font-size: clamp(21px, 6vw, 26px);
+    line-height: 1.35;
+    letter-spacing: -0.03em;
+  }
+
+  .appScreen .heroCard .lead {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 4px 0 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .appScreen .heroCard .coach {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    padding: 0;
+    min-height: 0;
+  }
+
+  .appScreen .heroCard .speechBubble {
+    display: none;
+  }
+
+  .appScreen .heroCard .coachAvatarWrapper {
+    width: 96px;
+    height: 104px;
+  }
+
+  .appScreen .heroCta {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    max-width: none;
+    margin-top: 12px;
+    min-height: 64px;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+
+  .appScreen .heroCta svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .appScreen .heroCtaText strong {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .appScreen .heroCtaText small {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .appScreen .quickRow {
+    flex: none;
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+
+  .appScreen .quickTile {
+    min-height: 56px;
+    padding: 8px 14px;
+    gap: 12px;
+    border-radius: 18px;
+  }
+
+  .appScreen .quickTile svg {
+    width: 24px;
+    height: 24px;
+    flex: none;
+  }
+
+  .appScreen .quickTile strong {
+    font-size: 16px;
+  }
+
+  .appScreen .quickTile small {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Curriculum: horizontal swipe carousel fills the remaining height */
+  .appScreen .stageMapSection {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    gap: 6px;
+  }
+
+  .appScreen .stageMapTitle {
+    font-size: 17px;
+  }
+
+  .appScreen .stageMapSubtitle {
+    display: none;
+  }
+
+  .appScreen .stageGrid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: clamp(136px, 40vw, 168px);
+    gap: 10px;
+    margin: 0 -12px;
+    padding: 2px 12px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 12px;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .appScreen .stageGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .appScreen .stageCard {
+    min-height: 0;
+    max-height: 180px;
+    padding: 10px 12px;
+    gap: 4px;
+    border-radius: 20px;
+    scroll-snap-align: start;
+    box-shadow: 0 4px 0 #cbd5e1;
+  }
+
+  .appScreen .stageCardEmoji {
+    font-size: 24px;
+  }
+
+  .appScreen .stageCardBadge {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  .appScreen .stageCardTitle {
+    font-size: 16px;
+    line-height: 1.35;
+  }
+
+  .appScreen .stageCardDesc {
+    font-size: 12px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex-grow: 0;
+  }
+
+  /* カード全体がボタンなので、スマホでは「べんきょうする」帯を省く */
+  .appScreen .stageCardAction {
+    display: none;
+  }
+
+  /* --- Problem: coach strip + card (scrolling body + docked answer area) --- */
+  .appScreen .learningStage {
+    min-height: 0;
+    justify-content: flex-start;
+  }
+
+  .appScreen .learningGrid {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .appScreen .learningCoachCol {
+    flex: none;
+    justify-content: flex-start;
+  }
+
+  .appScreen .learningCoachCol .coach {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .appScreen .learningCoachCol .coachAvatarWrapper {
+    width: 60px;
+    height: 68px;
+  }
+
+  .appScreen .learningCoachCol .speechBubble {
+    flex: 1;
+    max-width: none;
+    padding: 8px 12px;
+    border-radius: 16px;
+    text-align: left;
+  }
+
+  .appScreen .learningCoachCol .speechBubble::after {
+    display: none;
+  }
+
+  .appScreen .learningCoachCol .speechText {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .appScreen .learningCoachCol .thinkBubble {
+    display: none;
+  }
+
+  .appScreen .learningCardCol {
+    flex: 1;
+    min-height: 0;
+    justify-content: stretch;
+  }
+
+  .appScreen .learningProblemCard,
+  .appScreen .problemCard,
+  .appScreen .resultHero {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    border-radius: 24px;
+    box-shadow:
+      0 10px 24px -8px rgba(19, 34, 56, 0.08),
+      0 5px 0 #e2eee8;
+  }
+
+  .appScreen .learningProblemCard {
+    justify-content: flex-start;
+  }
+
+  .appScreen .problemScroll,
+  .appScreen .problemCard {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .appScreen .learningHeaderRow {
+    margin-bottom: 2px;
+    gap: 6px;
+  }
+
+  .appScreen .subjectBadge,
+  .appScreen .subjectBadgeMath,
+  .appScreen .subjectBadgeJapanese,
+  .appScreen .problemNumber {
+    font-size: 12px;
+    padding: 4px 10px;
+    margin: 0;
+  }
+
+  .appScreen .learningHeaderRow .secondaryButton,
+  .appScreen .learningHeaderRow .ghostButton {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .appScreen .compactProblemText {
+    margin: 6px 0 4px;
+    font-size: clamp(20px, 5.8vw, 24px);
+    line-height: 1.6;
+  }
+
+  .appScreen .hintArea {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .appScreen .hintArea .hintActions {
+    order: -1;
+    margin: 0 0 8px;
+  }
+
+  .appScreen .hintTip {
+    order: -1;
+    margin: 0 0 6px;
+    font-size: 12px;
+  }
+
+  .appScreen .hintSteps {
+    gap: 8px;
+  }
+
+  .appScreen .hintItem {
+    padding: 10px 12px;
+    border-left-width: 6px;
+  }
+
+  .appScreen .hintItem strong {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .appScreen .hintItem p {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .appScreen .visualHintCard {
+    margin-top: 8px;
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .appScreen .hintActions {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .appScreen .hintActions > button,
+  .appScreen .hintActions > a {
+    flex: 1 1 auto;
+    min-height: 46px;
+    padding: 0 14px;
+    font-size: 15px;
+    gap: 6px;
+    border-radius: 16px;
+  }
+
+  .appScreen .hintActions svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .appScreen .answerDock {
+    flex: none;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 2px dashed #d7ebe6;
+  }
+
+  .appScreen .answerDock .feedback,
+  .appScreen .answerDock .feedbackWrong {
+    padding: 8px 12px;
+    font-size: 15px;
+    border-radius: 14px;
+  }
+
+  .appScreen .feedbackStrong {
+    font-size: 17px;
+  }
+
+  .appScreen .answerDock .nextProblemButton {
+    align-self: stretch;
+    padding: 12px 16px;
+    font-size: 17px;
+    box-shadow: 0 5px 0 #047857;
+  }
+
+  .appScreen .learningInputRow {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .appScreen .learningDisplayInput {
+    min-width: 0;
+    min-height: 52px;
+    padding: 0 14px;
+    font-size: 24px;
+    border-width: 3px;
+    border-radius: 16px;
+  }
+
+  .appScreen .toyAnswerButton {
+    flex: none;
+    min-height: 52px;
+    padding: 0 18px;
+    font-size: 17px;
+    border-radius: 16px;
+    box-shadow: 0 4px 0 #b92416;
+  }
+
+  .appScreen .learningActionBtns {
+    gap: 8px;
+  }
+
+  .appScreen .learningActionBtns > button {
+    min-width: 0;
+    white-space: nowrap;
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 14px;
+    border-radius: 14px;
+    box-shadow: 0 3px 0 #5eead4;
+  }
+
+  .appScreen .learningActionBtns svg {
+    flex: none;
+  }
+
+  .appScreen .learningActionBtns > .secondaryButton {
+    box-shadow: 0 3px 0 #d4e2df;
+  }
+
+  .appScreen .toyKeypad {
+    grid-template-columns: repeat(6, 1fr);
+    grid-auto-flow: dense;
+    gap: 6px;
+    margin: 0;
+    padding: 6px;
+    border-radius: 18px;
+  }
+
+  .appScreen .keypadKey {
+    min-height: 44px;
+    font-size: 22px;
+    border-radius: 12px;
+    box-shadow: 0 3px 0 #5eead4;
+  }
+
+  .appScreen .keypadKeyAction {
+    font-size: 13px;
+    box-shadow: 0 3px 0 #fcd34d;
+  }
+
+  .appScreen .keypadBack {
+    grid-column: 6;
+    grid-row: 1;
+    font-size: 18px;
+  }
+
+  .appScreen .keypadClear {
+    grid-column: 6;
+    grid-row: 2;
+  }
+
+  /* Practice (similar problems) */
+  .appScreen .quizTop {
+    margin-bottom: 4px;
+  }
+
+  .appScreen .problemCard .problemText {
+    margin: 8px 0 14px;
+    font-size: clamp(20px, 5.8vw, 24px);
+    line-height: 1.6;
+  }
+
+  .appScreen .choiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  /* 選択肢は親指が届く画面下側に寄せる */
+  .appScreen .problemCard .choiceGrid,
+  .appScreen .problemCard .answerRow {
+    margin-top: auto;
+  }
+
+  .appScreen .choice {
+    min-height: 76px;
+    font-size: 20px;
+    border-radius: 18px;
+  }
+
+  .appScreen .problemCard .answerRow {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .appScreen .problemCard .answerInput {
+    flex: 1;
+    min-width: 0;
+    min-height: 52px;
+    font-size: 22px;
+  }
+
+  .appScreen .problemCard .primaryButton,
+  .appScreen .problemCard .secondaryButton {
+    min-height: 52px;
+    margin-top: 10px;
+    width: 100%;
+  }
+
+  .appScreen .problemCard .answerRow .primaryButton {
+    width: auto;
+    margin-top: 0;
+    flex: none;
+  }
+
+  .appScreen .problemCard .feedback,
+  .appScreen .problemCard .feedbackWrong {
+    margin-top: 12px;
+    padding: 10px 14px;
+    font-size: 16px;
+  }
+
+  /* --- Result / finished / limit --- */
+  .appScreen .resultHero {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow-y: auto;
+    gap: 2px;
+  }
+
+  .appScreen .resultHero .coach {
+    flex: 0 1 auto;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .appScreen .resultHero .speechBubble {
+    margin-bottom: 4px;
+    padding: 8px 14px;
+  }
+
+  .appScreen .resultHero .speechText {
+    font-size: 13px;
+  }
+
+  .appScreen .resultHero .coachAvatarWrapper {
+    width: 120px;
+    height: clamp(96px, 18dvh, 150px);
+  }
+
+  .appScreen .resultHero .rewardBurst {
+    min-height: 0;
+    margin: 6px 0 2px;
+  }
+
+  .appScreen .resultHero .rewardBadge {
+    padding: 8px 16px;
+    font-size: 16px;
+    box-shadow: 0 5px 0 var(--coral-dark);
+  }
+
+  .appScreen .resultHero .pageTitle {
+    margin: 6px 0 0;
+    font-size: clamp(22px, 6.4vw, 28px);
+    letter-spacing: -0.03em;
+  }
+
+  .appScreen .resultHero .score {
+    margin: 0;
+    font-size: clamp(48px, 14vw, 64px);
+  }
+
+  .appScreen .resultGrid {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 8px 0;
+  }
+
+  .appScreen .stat {
+    padding: 8px 4px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+  }
+
+  .appScreen .stat svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .appScreen .stat strong {
+    font-size: 18px;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .appScreen .resultHero .lead {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .appScreen .resultActions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .appScreen .resultActions > * {
+    margin: 0;
+    padding: 0 10px;
+    min-height: 50px;
+    font-size: 15px;
+  }
+
+  .appScreen .resultActions > .nextProblemButton {
+    grid-column: 1 / -1;
+    padding: 12px 16px;
+    font-size: 17px;
+    box-shadow: 0 5px 0 #047857;
+  }
+
+  .appScreen .resultActions > :only-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Short phones (iPhone SE etc.): trim the remaining decoration */
+@media (max-width: 640px) and (max-height: 720px) {
+  .appScreen .heroCard .lead,
+  .appScreen .quickTile small,
+  .appScreen .hintTip {
+    display: none;
+  }
+
+  .appScreen .heroCard .coachAvatarWrapper {
+    height: 80px;
+  }
+
+  .appScreen .stageGrid {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .appScreen .learningCoachCol .coachAvatarWrapper {
+    width: 48px;
+    height: 52px;
+  }
+
+  .appScreen .keypadKey {
+    min-height: 40px;
+  }
+}
