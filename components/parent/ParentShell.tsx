@@ -1,4 +1,4 @@
-import { BarChart3, BookImage, Settings, Upload } from "lucide-react";
+import { BarChart3, BookImage, Home, Settings, Upload } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -42,6 +42,9 @@ export async function ParentShell({
               <Icon size={19} /> {label}
             </Link>
           ))}
+          <Link className={styles.navLink} href="/">
+            <Home size={19} /> ホーム
+          </Link>
           <Link className={styles.navLink} href="/child/home">
             <BookImage size={19} /> 子どもモード
           </Link>
