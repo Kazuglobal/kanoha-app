@@ -3500,7 +3500,9 @@
     padding: 4px 0 max(10px, env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /* --- Home --- */
@@ -4256,5 +4258,158 @@
 
   .appScreen .subjectSwitch > a {
     padding: 8px 14px;
+  }
+}
+
+
+/* ==========================================================================
+   Real-device fixes (iPhone Safari: toolbars shrink the visible height)
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  /* --- Home: curriculum cards never get squashed --- */
+  .appScreen .stageMapSection {
+    min-height: 168px;
+    container-type: size;
+  }
+
+  .appScreen .stageGrid {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  @container (min-height: 340px) {
+    .appScreen .stageGrid {
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .appScreen .stageCard {
+    min-height: 128px;
+  }
+
+  /* --- Problem: one compact header row, question always visible --- */
+  .appScreen .learningHeaderRow {
+    flex-wrap: nowrap;
+  }
+
+  .appScreen .learningHeaderRow .problemNumber {
+    display: none;
+  }
+
+  .appScreen .learningHeaderRow .ghostButton {
+    min-height: 34px;
+    padding: 0 12px;
+    gap: 4px;
+    font-size: 13px;
+    border-radius: 12px;
+  }
+
+  .appScreen .learningHeaderRow .ghostButton svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .appScreen .problemScroll {
+    min-height: 112px;
+  }
+
+  /* ヒント操作は2つ横並びにして、問題文の場所を広く */
+  .appScreen .hintArea .hintActions > button {
+    flex: 1 1 40%;
+    min-width: 0;
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+}
+
+/* iPhone Safari くらいの高さ(〜760px)では、飾りをさらに詰める */
+@media (max-width: 640px) and (max-height: 760px) {
+  .appScreen .heroCard {
+    grid-template-columns: minmax(0, 1fr) 64px;
+    padding: 12px 14px 14px;
+  }
+
+  .appScreen .heroCard .lead {
+    display: none;
+  }
+
+  .appScreen .heroCard .coachAvatarWrapper {
+    width: 64px;
+    height: 64px;
+  }
+
+  .appScreen .heroCard .pageTitle {
+    align-self: center;
+  }
+
+  .appScreen .heroCta {
+    margin-top: 10px;
+    min-height: 56px;
+  }
+
+  .appScreen .quickTile {
+    min-height: 46px;
+    padding: 6px 12px;
+  }
+
+  .appScreen .quickTile small {
+    display: none;
+  }
+
+  .appScreen .homeToolbar .profileTab,
+  .appScreen .homeToolbar .profileTabActive {
+    padding: 6px 14px;
+  }
+
+  .appScreen .learningCoachCol .coachAvatarWrapper {
+    width: 44px;
+    height: 48px;
+  }
+
+  .appScreen .learningCoachCol .speechBubble {
+    padding: 6px 10px;
+  }
+
+  .appScreen .learningCoachCol .speechText {
+    font-size: 12px;
+  }
+
+  .appScreen .compactProblemText {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 760px) {
+  .appScreen .heroCtaText strong {
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  .appScreen .heroCtaText strong br {
+    display: none;
+  }
+}
+
+/* SE + Safari のような とても低い画面(〜620px): コーチの吹き出しを省いて問題を優先 */
+@media (max-width: 640px) and (max-height: 620px) {
+  .appScreen .learningCoachCol {
+    display: none;
+  }
+
+  .appScreen .problemScroll {
+    min-height: 76px;
+  }
+
+  .appScreen .keypadKey {
+    min-height: 38px;
+  }
+
+  .appScreen .learningActionBtns > button {
+    min-height: 38px;
+  }
+
+  .appScreen .learningDisplayInput,
+  .appScreen .toyAnswerButton {
+    min-height: 48px;
   }
 }
