@@ -11,19 +11,43 @@
 const ttsAudioCache = new Map<string, string>();
 
 let activeAudio: HTMLAudioElement | null = null;
+let activeSource: AudioBufferSourceNode | null = null;
 let isSpeakingState = false;
+/** 再生リクエストの世代番号。新しい発話や停止で進み、古い発話は鳴らさない */
+let playbackToken = 0;
+/** 再生中の発話を待っている呼び出し元(止めたときも待ちを解く) */
+let settlePending: (() => void) | null = null;
 
 export function isCoachSpeaking(): boolean {
   return isSpeakingState;
 }
 
 export function stopCoachVoice(): void {
+  playbackToken += 1;
   if (activeAudio) {
+    activeAudio.onended = null;
+    activeAudio.onerror = null;
     activeAudio.pause();
     activeAudio.currentTime = 0;
     activeAudio = null;
   }
+  if (activeSource) {
+    activeSource.onended = null;
+    try {
+      activeSource.stop();
+    } catch {
+      // already stopped
+    }
+    activeSource = null;
+  }
+  const settle = settlePending;
+  settlePending = null;
+  settle?.();
   setSpeaking(false);
+}
+
+function isCurrent(token: number): boolean {
+  return token === playbackToken;
 }
 
 function setSpeaking(speaking: boolean) {
@@ -76,7 +100,7 @@ function getSharedAudioContext(): AudioContext | null {
 /**
  * Web Audio API を用いた音声データ再生（ブラウザの autoplay 制限を確実に突破するフォールバック）
  */
-function playViaWebAudio(audioUrl: string): Promise<boolean> {
+function playViaWebAudio(audioUrl: string, token: number): Promise<boolean> {
   return new Promise((resolve) => {
     try {
       const ctx = getSharedAudioContext();
@@ -95,13 +119,17 @@ function playViaWebAudio(audioUrl: string): Promise<boolean> {
       ctx.decodeAudioData(
         bytes.buffer.slice(0),
         (audioBuffer) => {
+          // デコード中に別の発話・停止があれば鳴らさない
+          if (!isCurrent(token)) return resolve(true);
           try {
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(ctx.destination);
+            activeSource = source;
 
             setSpeaking(true);
             source.onended = () => {
+              if (activeSource === source) activeSource = null;
               setSpeaking(false);
               resolve(true);
             };
@@ -125,39 +153,52 @@ function playViaWebAudio(audioUrl: string): Promise<boolean> {
 
 /**
  * オーディオ要素を再生する共通ヘルパー
+ * - play() の reject と onerror は両方発火しうるので、フォールバックは1回だけ実行する
  */
-function playAudio(audioUrl: string): Promise<void> {
-  return new Promise((resolve) => {
+function playAudio(audioUrl: string, token: number): Promise<void> {
+  return new Promise((done) => {
+    if (!isCurrent(token)) return done();
+    const resolve = () => {
+      if (settlePending === resolve) settlePending = null;
+      done();
+    };
+    settlePending = resolve;
     const audio = new Audio(audioUrl);
     audio.volume = 1.0;
     activeAudio = audio;
+    let fellBack = false;
+
+    const fallBack = async () => {
+      if (fellBack) return;
+      fellBack = true;
+      audio.onended = null;
+      audio.onerror = null;
+      if (activeAudio === audio) activeAudio = null;
+      const ok = isCurrent(token) && (await playViaWebAudio(audioUrl, token));
+      if (!ok && isCurrent(token)) setSpeaking(false);
+      resolve();
+    };
 
     audio.onplay = () => {
       setSpeaking(true);
     };
 
     audio.onended = () => {
+      if (activeAudio === audio) activeAudio = null;
       setSpeaking(false);
-      activeAudio = null;
       resolve();
     };
 
-    audio.onerror = async (err) => {
-      console.warn("[CoachVoice] Audio playback error, trying WebAudio fallback:", err);
-      activeAudio = null;
-      const fallbackSuccess = await playViaWebAudio(audioUrl);
-      if (!fallbackSuccess) setSpeaking(false);
-      resolve();
+    audio.onerror = () => {
+      console.warn("[CoachVoice] Audio playback error, trying WebAudio fallback");
+      void fallBack();
     };
 
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(async (err) => {
-        console.warn("[CoachVoice] Audio autoplay prevented, trying WebAudio fallback:", err);
-        activeAudio = null;
-        const fallbackSuccess = await playViaWebAudio(audioUrl);
-        if (!fallbackSuccess) setSpeaking(false);
-        resolve();
+      playPromise.catch(() => {
+        console.warn("[CoachVoice] Audio autoplay prevented, trying WebAudio fallback");
+        void fallBack();
       });
     } else {
       resolve();
@@ -174,13 +215,14 @@ export async function speakCoachVoice(
   mood: "happy" | "celebrate" | "think" = "happy"
 ): Promise<void> {
   stopCoachVoice();
+  const token = playbackToken;
 
   if (!text || typeof window === "undefined") return;
 
   const cacheKey = `${mood}:${text}`;
   const cachedUrl = ttsAudioCache.get(cacheKey);
   if (cachedUrl) {
-    return playAudio(cachedUrl);
+    return playAudio(cachedUrl, token);
   }
 
   try {
@@ -194,7 +236,8 @@ export async function speakCoachVoice(
       const data = await res.json();
       if (data.success && data.audioDataUrl) {
         ttsAudioCache.set(cacheKey, data.audioDataUrl);
-        return playAudio(data.audioDataUrl);
+        // 取得を待つ間に別の発話・停止があれば、古い音声は鳴らさない
+        return playAudio(data.audioDataUrl, token);
       }
       console.warn("[CoachVoice] TTS API returned non-success:", data.error);
     } else {
@@ -206,9 +249,10 @@ export async function speakCoachVoice(
 
   // 音声通信が万一不通の場合でも、ロボット機械音声は鳴らさず、
   // リップシンク（口パクアニメーション）のみを短時間自然に行います
+  if (!isCurrent(token)) return;
   setSpeaking(true);
   setTimeout(() => {
-    setSpeaking(false);
+    if (isCurrent(token)) setSpeaking(false);
   }, 1200);
 }
 
