@@ -15,8 +15,21 @@ export interface WeaknessAttempt {
 /** 類題セットで習得扱いになる正解数(doc.md §9: 4問以上正解)。 */
 export const SIMILAR_SET_MASTERY_THRESHOLD = 4;
 
+/** この正答率以上は「できている」扱い(習得判定と苦手判定で共通)。 */
+export const MASTERY_ACCURACY_THRESHOLD = 0.8;
+
+/** 親ダッシュボードの「苦手単元」: 習得前で、まちがいがあり、正答率が習得ラインに届かない単元。 */
+export const isWeakUnit = (unit: {
+  accuracyRate: number;
+  masteryLevel: string;
+  mistakeCount: number;
+}): boolean =>
+  unit.masteryLevel !== "mastered" &&
+  unit.mistakeCount > 0 &&
+  unit.accuracyRate < MASTERY_ACCURACY_THRESHOLD;
+
 const masteryFor = (attemptCount: number, correctCount: number, accuracyRate: number): MasteryLevel =>
-  attemptCount >= 5 && accuracyRate >= 0.8
+  attemptCount >= 5 && accuracyRate >= MASTERY_ACCURACY_THRESHOLD
     ? "mastered"
     : correctCount > 0
       ? "reviewing"

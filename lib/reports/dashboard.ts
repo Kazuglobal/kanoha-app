@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { jstDayRange, toJstDateKey } from "@/lib/utils/date";
 import { getAllMistakeType } from "@/lib/curriculum/mistakeTypes";
+import { isWeakUnit } from "@/lib/review/weakness";
 
 export interface DashboardSession {
   started_at: string;
@@ -127,7 +128,13 @@ export function buildDashboard(input: DashboardInput) {
     }),
     todayQuestionCount: todayAttempts.length,
     weaknesses: [...input.weaknesses]
-      .filter(({ mastery_level }) => mastery_level !== "mastered")
+      .filter((weakness) =>
+        isWeakUnit({
+          accuracyRate: weakness.accuracy_rate,
+          masteryLevel: weakness.mastery_level,
+          mistakeCount: weakness.mistake_count,
+        }),
+      )
       .sort((left, right) => left.accuracy_rate - right.accuracy_rate)
       .slice(0, 3),
   };
