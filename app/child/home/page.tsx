@@ -113,7 +113,7 @@ async function loadRecentProblemId(
 
 function NoProfileHome() {
   return (
-    <div className={styles.childShell}>
+    <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader />
       <main className={styles.narrow}>
         <section className={`${styles.card} ${styles.resultHero}`}>
@@ -161,7 +161,7 @@ function RealHome({
     : "まずは デモもんだい（水のかさ）から はじめよう！";
 
   return (
-    <div className={styles.childShell}>
+    <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader />
       <main className={styles.main}>
         <div className={styles.homeToolbar}>
@@ -237,7 +237,7 @@ function DemoHome({ currentSubject }: { currentSubject: Subject }) {
     : "まいにち 15ふん、たのしく さんすう！";
 
   return (
-    <div className={styles.childShell}>
+    <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader />
       <main className={styles.main}>
         <div className={styles.homeToolbar}>

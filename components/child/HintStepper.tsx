@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, Image as ImageIcon, WandSparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { RubyAuto } from "./RubyText";
 
@@ -42,6 +42,14 @@ export function HintStepper({
   const [loading, setLoading] = useState(false);
   const shown = revealed ?? localRevealed;
   const nextIndex = Math.min(shown.length, labels.length - 1);
+  const latestRef = useRef<HTMLElement | null>(null);
+  const shownCount = shown.length + (visualUrl ? 1 : 0);
+
+  // 新しいヒントが開いたら、スクロール領域の中でそこまで見せる(スマホは1画面固定のため)
+  useEffect(() => {
+    if (shownCount === 0) return;
+    latestRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+  }, [shownCount]);
 
   async function revealNext() {
     if (loading || shown.length >= labels.length) return;
@@ -60,7 +68,11 @@ export function HintStepper({
     <section className={styles.hintArea} aria-label="だんかいヒント">
       <div className={styles.hintSteps}>
         {shown.map((hint, index) => (
-          <article className={styles.hintItem} key={labels[index]}>
+          <article
+            className={styles.hintItem}
+            key={labels[index]}
+            ref={!visualUrl && index === shown.length - 1 ? latestRef : undefined}
+          >
             <strong>
               <span aria-hidden="true">{stepIcons[index] ?? "💡"}</span> {labels[index]}
             </strong>
@@ -68,7 +80,7 @@ export function HintStepper({
           </article>
         ))}
         {visualUrl ? (
-          <article className={styles.visualHintCard}>
+          <article className={styles.visualHintCard} ref={latestRef}>
             <div className={styles.visualHintHeader}>
               <ImageIcon size={22} color="#0d9f8c" />
               <span>えで かんがえよう！</span>
@@ -83,12 +95,12 @@ export function HintStepper({
         ) : null}
       </div>
       {shown.length === 0 && !visualUrl ? (
-        <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
+        <p className={styles.hintTip}>
           💡 「ヒントを みる」を すすめると、「えで おしえて」ボタンが つかえるよ！
         </p>
       ) : null}
       {shown.length === 1 && !visualUrl ? (
-        <p className={styles.tiny} style={{ margin: "14px 0 6px", color: "#0d9f8c", fontWeight: 700 }}>
+        <p className={styles.hintTip}>
           💡 もうひとつ ヒントを みると、「えで おしえて」が つかえるよ！
         </p>
       ) : null}
