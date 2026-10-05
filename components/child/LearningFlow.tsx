@@ -187,6 +187,7 @@ function AnswerDock({
   enableVoiceAnswer: boolean;
 }) {
   const hasTools = enableVoiceAnswer || Boolean(persisted);
+  const solved = Boolean(flow.checked?.correct);
   return (
     <div className={styles.answerDock}>
       {flow.checked ? (
@@ -205,42 +206,47 @@ function AnswerDock({
         </Link>
       ) : null}
 
-      <div className={styles.learningInputRow}>
-        <input
-          aria-label="こたえ"
-          className={styles.learningDisplayInput}
-          inputMode={isJapanese ? "text" : "numeric"}
-          placeholder={isJapanese ? "こたえを 入力 または 手書き" : "こたえ"}
-          value={flow.answer}
-          onChange={(event) => flow.setAnswer(event.target.value)}
-        />
-        <button
-          className={styles.toyAnswerButton}
-          disabled={!flow.answer || flow.pending}
-          type="button"
-          onClick={() => void flow.checkOriginalAnswer()}
-        >
-          {FLOW_TEXT.answerButton}
-        </button>
-      </div>
-
-      {hasTools ? (
-        <div className={styles.learningActionBtns}>
-          {enableVoiceAnswer ? <VoiceAnswer onAnswer={flow.setAnswer} /> : null}
-          {persisted ? (
-            <HandwritingPad
-              childId={persisted.childId}
-              onAnswer={flow.setAnswer}
-              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
-              problemId={persisted.problemId}
-              subject={isJapanese ? "japanese" : "math"}
-            />
-          ) : null}
+      {/* 正解したら入力欄は畳み、「つぎの もんだいへ」に場所をゆずる(スマホで重ならないように) */}
+      {solved ? null : (
+        <>
+        <div className={styles.learningInputRow}>
+          <input
+            aria-label="こたえ"
+            className={styles.learningDisplayInput}
+            inputMode={isJapanese ? "text" : "numeric"}
+            placeholder={isJapanese ? "こたえを 入力 または 手書き" : "こたえ"}
+            value={flow.answer}
+            onChange={(event) => flow.setAnswer(event.target.value)}
+          />
+          <button
+            className={styles.toyAnswerButton}
+            disabled={!flow.answer || flow.pending}
+            type="button"
+            onClick={() => void flow.checkOriginalAnswer()}
+          >
+            {FLOW_TEXT.answerButton}
+          </button>
         </div>
-      ) : null}
+
+        {hasTools ? (
+          <div className={styles.learningActionBtns}>
+            {enableVoiceAnswer ? <VoiceAnswer onAnswer={flow.setAnswer} /> : null}
+            {persisted ? (
+              <HandwritingPad
+                childId={persisted.childId}
+                onAnswer={flow.setAnswer}
+                onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
+                problemId={persisted.problemId}
+                subject={isJapanese ? "japanese" : "math"}
+              />
+            ) : null}
+          </div>
+        ) : null}
+        </>
+      )}
 
       {/* 算数用 オンスクリーン・トイテンキー (タップでカンタン入力) */}
-      {!isJapanese && !flow.checked?.correct ? (
+      {!isJapanese && !solved ? (
         <div className={styles.toyKeypad} aria-label="数字キーパッド">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
             <button

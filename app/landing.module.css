@@ -89,6 +89,7 @@
 
 .orb {
   position: relative;
+  container-type: inline-size;
   width: min(92cqw, 86cqh);
   aspect-ratio: 1;
   border-radius: 50%;
@@ -109,21 +110,39 @@
   pointer-events: none;
 }
 
+/* 吹き出しは頭の右側に2行で置き、顔(円の左右32〜70%)にかからないようにする */
 .bubble {
   position: absolute;
-  top: -13%;
-  right: -6%;
+  top: -4%;
+  left: 70%;
   z-index: 2;
+  width: min-content;
   margin: 0;
-  padding: 0.55em 1.1em;
-  border: 3px solid var(--teal);
-  border-radius: 18px;
+  padding: 0.45em 0.75em;
+  border: 2.5px solid var(--teal);
+  border-radius: 0.9em;
   background: #fff;
-  font-size: clamp(14px, 4.2cqw, 20px);
+  font-size: clamp(11px, 5.4cqw, 19px);
   font-weight: 900;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-align: center;
+  word-break: keep-all;
   transform: rotate(-4deg);
-  box-shadow: 0 5px 0 var(--teal-dark);
+  box-shadow: 0 0.25em 0 var(--teal-dark);
+}
+
+/* しっぽ(左下・キャラクター側を向く) */
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 14%;
+  bottom: -0.55em;
+  width: 0.7em;
+  height: 0.7em;
+  background: #fff;
+  border-right: 2.5px solid var(--teal);
+  border-bottom: 2.5px solid var(--teal);
+  transform: rotate(45deg) skew(8deg, 8deg);
 }
 
 .floater {
@@ -131,11 +150,11 @@
   z-index: 1;
   display: grid;
   place-items: center;
-  width: clamp(28px, 9cqw, 36px);
+  width: clamp(20px, 10.5cqw, 36px);
   aspect-ratio: 1;
   color: #fff;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: clamp(14px, 4.4cqw, 18px);
+  font-size: clamp(11px, 5.2cqw, 18px);
   font-weight: 900;
   animation: floatBob 3.2s ease-in-out infinite;
 }
