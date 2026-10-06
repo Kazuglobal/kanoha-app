@@ -19,4 +19,10 @@ describe("appSettingsInput", () => {
       enableVoiceAnswer: true,
     }).success).toBe(false);
   });
+
+  it("caps the daily limit at 60 minutes", () => {
+    const base = { explanationLevel: "easy", enableAudio: true, enableVoiceAnswer: true };
+    expect(appSettingsInput.safeParse({ ...base, dailyLimitMinutes: 60 }).success).toBe(true);
+    expect(appSettingsInput.safeParse({ ...base, dailyLimitMinutes: 61 }).success).toBe(false);
+  });
 });

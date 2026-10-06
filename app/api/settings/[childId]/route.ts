@@ -9,7 +9,7 @@ import { nowJstIso } from "@/lib/utils/date";
 
 const defaultSettings = {
   explanation_level: "easy",
-  daily_limit_minutes: 15,
+  daily_limit_minutes: 60,
   enable_audio: true,
   enable_voice_answer: true,
   enable_image_generation: false,
