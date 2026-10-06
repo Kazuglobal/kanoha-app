@@ -18,7 +18,7 @@ interface SettingsState {
 
 const defaults: SettingsState = {
   explanationLevel: "easy",
-  dailyLimitMinutes: 15,
+  dailyLimitMinutes: 60,
   enableAudio: true,
   enableVoiceAnswer: true,
   enableImageGeneration: false,
@@ -170,7 +170,7 @@ export function SettingsForm() {
           value={settings.dailyLimitMinutes}
           onChange={(event) => setSettings({ ...settings, dailyLimitMinutes: Number(event.target.value) })}
         >
-          <option value="10">10分</option><option value="15">15分</option><option value="20">20分</option>
+          <option value="10">10分</option><option value="15">15分</option><option value="20">20分</option><option value="30">30分</option><option value="45">45分</option><option value="60">60分</option>
         </select>
       </label>
       <label className={styles.switchRow}><span><strong>音声読み上げ</strong><br /><small className={styles.tiny}>子どもが押したときだけ再生</small></span><input aria-label="音声読み上げ" checked={settings.enableAudio} disabled={pending || !childId} type="checkbox" onChange={(event) => setSettings({ ...settings, enableAudio: event.target.checked })} /></label>

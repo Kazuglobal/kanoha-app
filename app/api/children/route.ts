@@ -83,6 +83,7 @@ export async function POST(request: Request) {
       .values({
         id: crypto.randomUUID(),
         childId,
+        dailyLimitMinutes: 60,
         createdAt: now,
         updatedAt: now,
       })

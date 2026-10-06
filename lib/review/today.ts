@@ -16,7 +16,7 @@ import {
 import { jstDayRange, todayKeyJst } from "@/lib/utils/date";
 
 const ESTIMATED_MINUTES = 3;
-const DEFAULT_LIMIT_MINUTES = 15;
+const DEFAULT_LIMIT_MINUTES = 60;
 const LIMITS = {
   attempts: 300,
   problems: 100,

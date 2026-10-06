@@ -10,7 +10,7 @@ import { nowJstIso } from "@/lib/utils/date";
 import type { Database } from "@/lib/db";
 
 const startSchema = z.object({ childId: uuid });
-const DEFAULT_LIMIT_MINUTES = 15;
+const DEFAULT_LIMIT_MINUTES = 60;
 
 async function loadDailyLimit(db: Database, childId: string, now = new Date()) {
   try {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   if (rawJson?.childId === "demo") {
     return apiSuccess({
       id: "demo-session",
-      limitMinutes: 15,
+      limitMinutes: 60,
       usedMinutes: 0,
       limitReached: false,
     });
