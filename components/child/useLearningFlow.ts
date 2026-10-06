@@ -218,6 +218,19 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     };
   }, [persisted, sessionId, startedAt]);
 
+  // アプリ内リンクで画面を離れたとき(pagehide も hidden も起きない)にもセッションを閉じる。
+  // 開いたままだと「最後の操作 + 猶予10分」が計上され、数問で上限に達してしまう。
+  const openSessionRef = useRef<{ sessionId: string; childId: string; startedAt: number } | null>(null);
+  useEffect(() => {
+    openSessionRef.current = persisted && sessionId && !isDemo
+      ? { sessionId, childId: persisted.childId, startedAt }
+      : null;
+  }, [persisted, sessionId, startedAt, isDemo]);
+  useEffect(() => () => {
+    const open = openSessionRef.current;
+    if (open && !finishedRef.current) sendSessionKeepalive(open.sessionId, open.childId, open.startedAt);
+  }, []);
+
   // 5問終了: セッション終了 → 復習予定 → Slack を直列で送り、途中経過を消す。
   useEffect(() => {
     if (!finished || !persisted || !sessionId || finishedRef.current) return;
