@@ -1,0 +1,70 @@
+import { describe, expect, it } from "vitest";
+
+import { TALK_SCENES, getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
+import {
+  judgeTalkAnswer,
+  normalizeEnglish,
+  toPublicScene,
+} from "@/lib/englishTalk/judge";
+
+const turn = (sceneId: string, turnId: string) => {
+  const found = getTalkTurn(sceneId, turnId);
+  if (!found) throw new Error(`missing ${turnId}`);
+  return found;
+};
+
+describe("normalizeEnglish", () => {
+  it("lowercases and strips punctuation and apostrophes", () => {
+    expect(normalizeEnglish("  I'm FINE,  thank you! ")).toBe("im fine thank you");
+    expect(normalizeEnglish("It’s a dog.")).toBe("its a dog");
+  });
+});
+
+describe("judgeTalkAnswer", () => {
+  it("accepts any phrasing that contains the key words", () => {
+    const shop = turn("shop", "shop-want");
+    expect(judgeTalkAnswer(shop, "Bananas please")).toBe(true);
+    expect(judgeTalkAnswer(shop, "I want an apple.")).toBe(true);
+    expect(judgeTalkAnswer(shop, "I'm fine.")).toBe(false);
+  });
+
+  it("matches whole words only", () => {
+    const morning = turn("school", "school-morning");
+    expect(judgeTalkAnswer(morning, "this")).toBe(false);
+    expect(judgeTalkAnswer(morning, "Hi!")).toBe(true);
+  });
+
+  it("rejects empty answers", () => {
+    expect(judgeTalkAnswer(turn("park", "park-dog"), "   ")).toBe(false);
+  });
+
+  it("has exactly one correct choice and the model answer passes in every turn", () => {
+    for (const scene of TALK_SCENES) {
+      for (const t of scene.turns) {
+        const passing = t.choices.filter((choice) => judgeTalkAnswer(t, choice));
+        expect(passing, t.id).toEqual([t.modelAnswer]);
+      }
+    }
+  });
+});
+
+describe("toPublicScene", () => {
+  it("does not leak the answer keys to the client", () => {
+    const scene = toPublicScene(TALK_SCENES[1]);
+    const json = JSON.stringify(scene);
+    expect(json).not.toContain("accept");
+    expect(json).not.toContain("modelAnswer");
+    expect(scene.turns[0].choices).toHaveLength(4);
+  });
+
+  it("shuffles choices deterministically so the answer is not always first", () => {
+    const first = toPublicScene(TALK_SCENES[0]);
+    expect(toPublicScene(TALK_SCENES[0])).toEqual(first);
+    const positions = TALK_SCENES.flatMap((scene) =>
+      toPublicScene(scene).turns.map((t, index) =>
+        t.choices.indexOf(scene.turns[index].modelAnswer),
+      ),
+    );
+    expect(new Set(positions).size).toBeGreaterThan(1);
+  });
+});

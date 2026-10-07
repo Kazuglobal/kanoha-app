@@ -200,22 +200,36 @@ export async function speakCoachVoice(
   text: string,
   mood: "happy" | "celebrate" | "think" = "happy"
 ): Promise<void> {
+  await speakVoice(text, { mood });
+}
+
+/**
+ * Gemini TTS で再生し、鳴らせたかどうかを返す(英会話れんしゅうは lang: "en")。
+ * false のときは呼び出し側がブラウザの読み上げなどにフォールバックできる。
+ */
+export async function speakVoice(
+  text: string,
+  { mood = "happy", lang = "ja" }: { mood?: "happy" | "celebrate" | "think"; lang?: "ja" | "en" } = {}
+): Promise<boolean> {
   stopCoachVoice();
   const token = playbackToken;
 
-  if (!text || typeof window === "undefined") return;
+  if (!text || typeof window === "undefined") return false;
 
-  const cacheKey = `${mood}:${text}`;
+  const cacheKey = lang === "ja" ? `${mood}:${text}` : `${lang}:${mood}:${text}`;
   const cachedUrl = ttsAudioCache.get(cacheKey);
   if (cachedUrl) {
-    return playAudio(cachedUrl, token);
+    await playAudio(cachedUrl, token);
+    return true;
   }
 
   try {
     const res = await fetch("/api/ai/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, mood, voiceName: "Aoede" }),
+      body: JSON.stringify(
+        lang === "ja" ? { text, mood, voiceName: "Aoede" } : { text, mood, voiceName: "Aoede", lang }
+      ),
     });
 
     if (res.ok) {
@@ -223,7 +237,8 @@ export async function speakCoachVoice(
       if (data.success && data.audioDataUrl) {
         ttsAudioCache.set(cacheKey, data.audioDataUrl);
         // 取得を待つ間に別の発話・停止があれば、古い音声は鳴らさない
-        return playAudio(data.audioDataUrl, token);
+        await playAudio(data.audioDataUrl, token);
+        return true;
       }
       console.warn("[CoachVoice] TTS API returned non-success:", data.error);
     } else {
@@ -235,11 +250,12 @@ export async function speakCoachVoice(
 
   // 音声通信が万一不通の場合でも、ロボット機械音声は鳴らさず、
   // リップシンク（口パクアニメーション）のみを短時間自然に行います
-  if (!isCurrent(token)) return;
+  if (!isCurrent(token)) return false;
   setSpeaking(true);
   setTimeout(() => {
     if (isCurrent(token)) setSpeaking(false);
   }, 1200);
+  return false;
 }
 
 /**

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <rect width="1600" height="900" fill="#fff4e3"/>
+  <rect y="0" width="1600" height="560" fill="#ffe7c4"/>
+  <g fill="#ffd9a8"><rect x="0" y="0" width="80" height="560"/><rect x="160" y="0" width="80" height="560"/><rect x="320" y="0" width="80" height="560"/><rect x="480" y="0" width="80" height="560"/><rect x="640" y="0" width="80" height="560"/><rect x="800" y="0" width="80" height="560"/><rect x="960" y="0" width="80" height="560"/><rect x="1120" y="0" width="80" height="560"/><rect x="1280" y="0" width="80" height="560"/><rect x="1440" y="0" width="80" height="560"/></g>
+  <g>
+    <path d="M520 60 H1560 V170 H520Z" fill="#ff6b6b"/>
+    <g fill="#fff"><rect x="600" y="60" width="80" height="110"/><rect x="760" y="60" width="80" height="110"/><rect x="920" y="60" width="80" height="110"/><rect x="1080" y="60" width="80" height="110"/><rect x="1240" y="60" width="80" height="110"/><rect x="1400" y="60" width="80" height="110"/></g>
+    <path d="M520 170 Q560 215 600 170 Q640 215 680 170 Q720 215 760 170 Q800 215 840 170 Q880 215 920 170 Q960 215 1000 170 Q1040 215 1080 170 Q1120 215 1160 170 Q1200 215 1240 170 Q1280 215 1320 170 Q1360 215 1400 170 Q1440 215 1480 170 Q1520 215 1560 170Z" fill="#ff6b6b"/>
+    <rect x="860" y="230" width="380" height="80" rx="40" fill="#fff" stroke="#ff6b6b" stroke-width="8"/>
+    <text x="1050" y="285" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="46" font-weight="700" fill="#e04848" text-anchor="middle">FRUIT SHOP</text>
+  </g>
+  <rect x="520" y="560" width="1080" height="340" fill="#c98b4a"/>
+  <rect x="520" y="540" width="1080" height="36" rx="10" fill="#a8703a"/>
+  <g>
+    <rect x="580" y="420" width="290" height="130" rx="14" fill="#e3a964" stroke="#a8703a" stroke-width="8"/>
+    <g fill="#ff4d4d"><circle cx="630" cy="430" r="38"/><circle cx="700" cy="420" r="38"/><circle cx="770" cy="430" r="38"/><circle cx="830" cy="425" r="34"/><circle cx="665" cy="470" r="38"/><circle cx="740" cy="470" r="38"/><circle cx="810" cy="468" r="36"/></g>
+    <g fill="#fff" opacity=".55"><circle cx="618" cy="418" r="9"/><circle cx="688" cy="408" r="9"/><circle cx="758" cy="418" r="9"/></g>
+    <g fill="#6b3f1d"><rect x="628" y="386" width="5" height="16"/><rect x="698" y="376" width="5" height="16"/><rect x="768" y="386" width="5" height="16"/></g>
+  </g>
+  <g>
+    <rect x="920" y="420" width="290" height="130" rx="14" fill="#e3a964" stroke="#a8703a" stroke-width="8"/>
+    <g fill="#ffd93b" stroke="#e0b400" stroke-width="4">
+      <path d="M950 450 Q1010 380 1080 410 Q1020 420 960 470Z"/><path d="M980 470 Q1050 400 1120 430 Q1060 440 990 490Z"/><path d="M1040 460 Q1110 390 1180 420 Q1120 430 1050 480Z"/>
+    </g>
+  </g>
+  <g>
+    <rect x="1260" y="420" width="290" height="130" rx="14" fill="#e3a964" stroke="#a8703a" stroke-width="8"/>
+    <g fill="#ffa53b"><circle cx="1310" cy="430" r="36"/><circle cx="1380" cy="422" r="36"/><circle cx="1450" cy="430" r="36"/><circle cx="1510" cy="428" r="32"/><circle cx="1345" cy="470" r="36"/><circle cx="1420" cy="470" r="36"/><circle cx="1490" cy="468" r="34"/></g>
+    <g fill="#4caf50"><ellipse cx="1312" cy="398" rx="10" ry="5"/><ellipse cx="1382" cy="390" rx="10" ry="5"/><ellipse cx="1452" cy="398" rx="10" ry="5"/></g>
+  </g>
+  <g transform="translate(1240 620)">
+    <rect x="0" y="0" width="220" height="140" rx="16" fill="#5a7d9a"/>
+    <rect x="20" y="20" width="180" height="50" rx="8" fill="#b9e3ff"/>
+    <g fill="#e8eef3"><rect x="20" y="85" width="50" height="20" rx="5"/><rect x="85" y="85" width="50" height="20" rx="5"/><rect x="150" y="85" width="50" height="20" rx="5"/></g>
+  </g>
+  <g transform="translate(660 640)">
+    <path d="M0 40 H170 L150 180 H20Z" fill="#ffe08a" stroke="#d9a400" stroke-width="6"/>
+    <path d="M40 40 Q85 -20 130 40" fill="none" stroke="#d9a400" stroke-width="10"/>
+  </g>
+  <rect y="560" width="520" height="340" fill="#f3dcae"/>
+  <g fill="#e8c992"><rect x="0" y="640" width="520" height="6"/><rect x="0" y="740" width="520" height="6"/><rect x="0" y="840" width="520" height="6"/></g>
+</svg>

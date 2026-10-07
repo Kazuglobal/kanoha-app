@@ -7,6 +7,7 @@ export async function POST(request: Request) {
     const text = typeof body.text === "string" ? body.text.trim() : "";
     const mood = body.mood === "celebrate" || body.mood === "think" ? body.mood : "happy";
     const voiceName = body.voiceName || "Aoede";
+    const lang = body.lang === "en" ? "en" : "ja";
 
     if (!text) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
       text: truncatedText,
       mood,
       voiceName,
+      lang,
     });
 
     return NextResponse.json(result);

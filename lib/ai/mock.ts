@@ -235,6 +235,8 @@ export const mockAiProvider: AiProvider = {
   generateSimilarProblems: async (input) =>
     curriculumSimilarProblems(input) ??
     Array.from({ length: 5 }, (_, index) => makeSimilarProblem(input, index)),
+  // モックは AI 判定をしない(キーワード判定の結果をそのまま使う)
+  judgeEnglishTalk: async () => ({ correct: false, feedback: "もういちど いってみよう！" }),
   name: "mock",
   recognizeHandwriting: async (_images, problemText = "", subject = "math") => {
     const bankMatch = CURRICULUM_PROBLEMS.find(

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd3ff"/><stop offset="1" stop-color="#fff2cc"/></linearGradient></defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1450" cy="130" r="70" fill="#ffd84d"/>
+  <g fill="#fff"><ellipse cx="420" cy="110" rx="90" ry="34"/><ellipse cx="480" cy="92" rx="60" ry="38"/><ellipse cx="1050" cy="150" rx="80" ry="30"/></g>
+  <path d="M0 520 Q400 460 800 500 T1600 480 V900 H0Z" fill="#c5e59a"/>
+  <path d="M0 640 Q500 600 1000 630 T1600 620 V900 H0Z" fill="#e8d29b"/>
+  <g transform="translate(1250 160)">
+    <rect x="70" y="150" width="34" height="200" fill="#f5c542"/>
+    <rect x="70" y="160" width="34" height="200" fill="none"/>
+    <g fill="#c98a2b"><circle cx="82" cy="190" r="8"/><circle cx="95" cy="240" r="9"/><circle cx="80" cy="290" r="8"/></g>
+    <ellipse cx="95" cy="380" rx="90" ry="55" fill="#f5c542"/>
+    <g fill="#c98a2b"><circle cx="60" cy="370" r="12"/><circle cx="110" cy="360" r="14"/><circle cx="140" cy="395" r="11"/></g>
+    <rect x="30" y="420" width="18" height="110" fill="#f5c542"/><rect x="140" y="420" width="18" height="110" fill="#f5c542"/>
+    <ellipse cx="100" cy="135" rx="50" ry="32" fill="#f5c542"/>
+    <circle cx="112" cy="128" r="6" fill="#333"/>
+    <rect x="78" y="88" width="6" height="26" fill="#c98a2b"/><rect x="96" y="86" width="6" height="26" fill="#c98a2b"/>
+  </g>
+  <g transform="translate(660 420)">
+    <ellipse cx="190" cy="270" rx="220" ry="22" fill="#000" opacity=".12"/>
+    <ellipse cx="200" cy="150" rx="190" ry="120" fill="#9aa9b8"/>
+    <rect x="60" y="200" width="60" height="80" rx="20" fill="#8a99a8"/><rect x="150" y="210" width="60" height="70" rx="20" fill="#8a99a8"/>
+    <rect x="240" y="210" width="60" height="70" rx="20" fill="#8a99a8"/><rect x="320" y="200" width="56" height="80" rx="20" fill="#8a99a8"/>
+    <circle cx="40" cy="110" r="95" fill="#a9b7c5"/>
+    <ellipse cx="90" cy="100" rx="60" ry="80" fill="#c4cfda"/>
+    <path d="M-30 150 Q-60 230 -20 270 Q0 280 0 260 Q-30 220 0 160Z" fill="#a9b7c5"/>
+    <circle cx="10" cy="80" r="10" fill="#2b2b2b"/><circle cx="14" cy="76" r="3" fill="#fff"/>
+    <path d="M-20 150 Q-10 165 10 150" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M385 140 Q420 170 400 200" stroke="#8a99a8" stroke-width="10" fill="none" stroke-linecap="round"/>
+  </g>
+  <g fill="#8b5a2b">
+    <rect x="0" y="600" width="1600" height="14"/><rect x="0" y="650" width="1600" height="14"/>
+    <rect x="60" y="580" width="16" height="110"/><rect x="300" y="580" width="16" height="110"/><rect x="540" y="580" width="16" height="110"/><rect x="1060" y="580" width="16" height="110"/><rect x="1300" y="580" width="16" height="110"/><rect x="1540" y="580" width="16" height="110"/>
+  </g>
+  <g transform="translate(150 300)">
+    <rect x="70" y="80" width="16" height="200" fill="#8b5a2b"/>
+    <rect x="0" y="0" width="160" height="90" rx="14" fill="#fff" stroke="#8b5a2b" stroke-width="8"/>
+    <text x="80" y="62" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="46" font-weight="700" fill="#2e7d32" text-anchor="middle">ZOO</text>
+  </g>
+  <g fill="#43a047"><circle cx="560" cy="520" r="60"/><circle cx="510" cy="550" r="45"/><circle cx="1580" cy="520" r="70"/></g>
+</svg>
