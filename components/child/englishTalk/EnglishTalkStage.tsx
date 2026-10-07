@@ -1,10 +1,10 @@
 "use client";
 
-import { Headphones, Languages, RotateCcw, Star } from "lucide-react";
+import { Headphones, Languages, Mic, RotateCcw, Star } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { VoiceAnswer } from "@/components/child/VoiceAnswer";
+import { useSpeechRecognitionSupported, VoiceAnswer } from "@/components/child/VoiceAnswer";
 import { REPEAT_TARGET, talkScore } from "@/lib/englishTalk/flow";
 import type { PublicTalkScene } from "@/lib/englishTalk/judge";
 import { speakTalkEnglish } from "@/lib/audio/englishTalkSpeech";
@@ -14,11 +14,16 @@ import styles from "./englishTalk.module.css";
 
 /**
  * 英会話れんしゅうの舞台: 背景のシーンの中で、かのはちゃんが英語で話しかける。
- * こたえは「こえ(en-US)」か「4択」。まちがえたら正しい言い方を教えて、まねして2回いう。
+ * こたえは「こえ(en-US)」。音声認識が使えない端末だけ4択にする。
+ * まちがえたら、すぐにはげまして正しい言い方を聞かせ、声でまねして2回いったら、おなじ質問をもう1回きく。
  */
+/** まねが何回聞き取れなかったら「いえたよ！」で進めるようにするか */
+const SELF_REPORT_AFTER_FAILS = 2;
+
 export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; childId?: string }) {
   const talk = useEnglishTalk(scene, childId);
   const { state, turn } = talk;
+  const voiceSupported = useSpeechRecognitionSupported();
   const panelRef = useRef<HTMLElement>(null);
   // 小さい画面でも、こたえるボタンが画面の外に出たままにならないようにする
   useEffect(() => {
@@ -65,8 +70,11 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
         ) : (
           <>
             {talk.message && <p className={styles.message}>{talk.message}</p>}
+            {talk.heard && <HeardText text={talk.heard} />}
             {state.phase === "ask" && turn && (
               <AnswerPanel
+                key={`${turn.id}:${state.isRetry}`}
+                voiceSupported={voiceSupported}
                 choices={turn.choices}
                 hintJa={talk.showJapanese ? turn.answerHintJa : null}
                 disabled={talk.checking}
@@ -78,6 +86,8 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
               <TeachPanel
                 teach={talk.teach}
                 repeatCount={state.repeatCount}
+                voiceSupported={voiceSupported}
+                canSelfReport={!voiceSupported || talk.repeatFails >= SELF_REPORT_AFTER_FAILS}
                 onRepeat={(text) => void talk.repeat(text)}
               />
             )}
@@ -129,13 +139,24 @@ function StartPanel({ description, onStart }: { description: string; onStart: ()
   );
 }
 
+/** 音声認識で聞こえたことば(子どもが自分の声を確かめられるように出す) */
+function HeardText({ text }: { text: string }) {
+  return (
+    <p className={styles.heard}>
+      きこえた ことば: <span lang="en">「{text}」</span>
+    </p>
+  );
+}
+
 function AnswerPanel({
+  voiceSupported,
   choices,
   hintJa,
   disabled,
   onAnswer,
   onJapanese,
 }: {
+  voiceSupported: boolean;
   choices: readonly string[];
   /** 「えいごが わからない」を押したときの、こたえかたのヒント */
   hintJa: string | null;
@@ -145,14 +166,39 @@ function AnswerPanel({
 }) {
   return (
     <div className={styles.answerPanel}>
-      <div className={styles.answerTools}>
-        <VoiceAnswer lang="en-US" disabled={disabled} onAnswer={(text) => onAnswer(text, "voice")} />
-        <button className={styles.japaneseButton} type="button" onClick={onJapanese}>
-          <Languages size={20} aria-hidden="true" /> えいごが わからない
-        </button>
-      </div>
+      {voiceSupported && (
+        <VoiceAnswer
+          lang="en-US"
+          className={styles.micButton}
+          idleLabel="こえで こたえる"
+          disabled={disabled}
+          onAnswer={(text) => onAnswer(text, "voice")}
+        />
+      )}
       {hintJa && <p className={styles.bubbleHint}>💡 {hintJa}</p>}
-      <p className={styles.choiceLead}>えらんで こたえても いいよ</p>
+      <button className={styles.japaneseButton} type="button" onClick={onJapanese}>
+        <Languages size={20} aria-hidden="true" /> えいごが わからない
+      </button>
+      {!voiceSupported && <ChoiceFallback choices={choices} disabled={disabled} onAnswer={onAnswer} />}
+    </div>
+  );
+}
+
+/** 音声認識が使えない端末だけ、えらんで こたえる */
+function ChoiceFallback({
+  choices,
+  disabled,
+  onAnswer,
+}: {
+  choices: readonly string[];
+  disabled: boolean;
+  onAnswer: (text: string, mode: "choice") => void;
+}) {
+  return (
+    <>
+      <p className={styles.choiceLead}>
+        <Mic size={16} aria-hidden="true" /> こえが つかえないので、えらんで こたえてね
+      </p>
       <div className={styles.choices}>
         {choices.map((choice) => (
           <button
@@ -167,17 +213,22 @@ function AnswerPanel({
           </button>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
 function TeachPanel({
   teach,
   repeatCount,
+  voiceSupported,
+  canSelfReport,
   onRepeat,
 }: {
   teach: TalkTeach;
   repeatCount: number;
+  voiceSupported: boolean;
+  /** 声が使えない・何回も聞き取れなかったときだけ「いえたよ！」で進める */
+  canSelfReport: boolean;
   onRepeat: (text: string | null) => void;
 }) {
   return (
@@ -200,10 +251,21 @@ function TeachPanel({
         </span>
       </div>
       <div className={styles.answerTools}>
-        <VoiceAnswer lang="en-US" onAnswer={(text) => onRepeat(text)} />
-        <button className={styles.saidButton} type="button" onClick={() => onRepeat(null)}>
-          いえたよ！
-        </button>
+        {voiceSupported && (
+          <VoiceAnswer
+            key={repeatCount}
+            lang="en-US"
+            className={styles.micButton}
+            idleLabel="まねして いう"
+            heardLabel="もういちど いう"
+            onAnswer={(text) => onRepeat(text)}
+          />
+        )}
+        {canSelfReport && (
+          <button className={styles.saidButton} type="button" onClick={() => onRepeat(null)}>
+            いえたよ！
+          </button>
+        )}
       </div>
     </div>
   );

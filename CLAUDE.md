@@ -87,7 +87,7 @@ npm run lint         # ESLint
 - 現在は `docs/goals/kanoha-v01-complete/`(GoalBuddy ボード)に沿って修復・完成作業中。設計判断 A1〜A5 と欠陥リスト B1〜B15 は同ディレクトリの `goal.md` が正
 - 単元・間違え方分類の正は `lib/curriculum/*`、日付は `lib/utils/date.ts`(Asia/Tokyo)のみを使う。`AI_PROVIDER_TEXT` は本番で必須
 - 2026-10-05: 英語教科を追加(7単元・4択23問)。ステージマップ問題の学習記録を結線し、デモの答え合わせをサーバー化
-- 2026-10-07: 「えいごで おはなし」(`/child/english-talk`)を追加。シーン(背景 `public/scenes/*.svg`)の中でかのはちゃんと英会話。シーン定義は `lib/curriculum/englishTalkScenes.ts`、判定・進行は `lib/englishTalk/*`(判定キーはクライアントへ渡さない)。音声は Gemini TTS(`lang: "en"`)、声のこたえの AI 判定はログイン中のみ costGuard 経由
+- 2026-10-07: 「えいごで おはなし」(`/child/english-talk`)を追加。シーン(背景 `public/scenes/*.svg`)の中でかのはちゃんと英会話。シーン定義は `lib/curriculum/englishTalkScenes.ts`、判定・進行は `lib/englishTalk/*`(判定キーはクライアントへ渡さない)。音声は Gemini TTS(`lang: "en"`)、声のこたえの AI 判定はログイン中のみ costGuard 経由。こたえは声のみ(音声認識が使えない端末だけ4択)。まちがえたら すぐ はげまして正しい言い方を聞かせ、声で2回まねしたら同じ質問をすぐ聞きなおす(はげましの文言は `lib/englishTalk/feedback.ts`)
 - 2026-10-05: ごほうび(5円メーター・正解数)と着せかえを `child_rewards` に保存。正解数を増やすのは `/api/attempts` だけ、端末の localStorage は表示キャッシュ(`lib/rewards/rewardSync.ts`)
 
 <!-- BEGIN:nextjs-agent-rules -->

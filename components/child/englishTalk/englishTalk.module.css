@@ -225,7 +225,40 @@
   justify-content: center;
 }
 
+.micButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 12px 32px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c5cff, #b46bff);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 900;
+  box-shadow: 0 6px 16px rgb(124 92 255 / 35%);
+  cursor: pointer;
+}
+
+.micButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.heard {
+  margin: 0;
+  color: #6b4f80;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 .choiceLead {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin: 4px 0 0;
   color: #8a6aa0;
   font-weight: 700;
@@ -488,10 +521,6 @@
     font-size: 0.95rem;
   }
 
-  .choiceLead {
-    display: none;
-  }
-
   .choices {
     gap: 8px;
   }
@@ -528,6 +557,12 @@
   .teachPanel .answerTools {
     flex-wrap: nowrap;
     align-items: center;
+  }
+
+  .micButton {
+    min-height: 52px;
+    padding: 8px 20px;
+    font-size: 1.05rem;
   }
 
   .teachPanel .answerTools button {

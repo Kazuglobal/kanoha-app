@@ -9,7 +9,15 @@ import {
   startTalk,
   type TalkState,
 } from "@/lib/englishTalk/flow";
+import {
+  pickPhrase,
+  TALK_ASK_AGAIN,
+  TALK_ENCOURAGE,
+  TALK_REPEAT_RETRY,
+  TALK_RETRY_SUCCESS,
+} from "@/lib/englishTalk/feedback";
 import type { PublicTalkScene, PublicTalkTurn } from "@/lib/englishTalk/judge";
+import { preloadCoachVoices } from "@/lib/audio/coachSpeech";
 import { speakTalkEnglish, speakTalkJapanese, stopTalkSpeech } from "@/lib/audio/englishTalkSpeech";
 import { soundManager } from "@/lib/audio/soundSystem";
 import type { TalkMood } from "./TalkCharacter";
@@ -52,6 +60,11 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
   const [message, setMessage] = useState<string | null>(null);
   const [mood, setMood] = useState<TalkMood>("happy");
   const [checking, setChecking] = useState(false);
+  /** 音声認識で聞こえたことば(画面に出すだけで、保存しない) */
+  const [heard, setHeard] = useState<string | null>(null);
+  /** まねが聞き取れなかった回数(多いときは「いえたよ」で進めるようにする) */
+  const [repeatFails, setRepeatFails] = useState(0);
+  const missCountRef = useRef(0);
   // 遅れて届いた声のこたえ(古い描画のコールバック)でも、いまの状態で判断する
   const stateRef = useRef(state);
   const checkingRef = useRef(false);
@@ -67,6 +80,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
 
   const begin = useCallback(() => {
     setStarted(true);
+    preloadCoachVoices(TALK_ENCOURAGE);
     sayPrompt(turn);
   }, [sayPrompt, turn]);
 
@@ -89,23 +103,31 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         setMessage("うまく きこえなかったよ。もういちど おしえてね");
         return;
       }
+      setHeard(mode === "voice" ? text : null);
       setState((current) => answerTalk(current, result.correct));
       if (result.correct) {
         const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
         setMood("celebrate");
-        setMessage(result.feedback ?? `${praise} ばっちり つたわったよ！`);
+        setMessage(
+          result.feedback ?? (stateRef.current.isRetry ? TALK_RETRY_SUCCESS : `${praise} ばっちり つたわったよ！`),
+        );
         soundManager.playCorrect();
         void speakTalkEnglish(praise, "celebrate");
         return;
       }
+      // まちがえたら、すぐに はげまして正しい言い方を聞かせる
+      const encourage = pickPhrase(TALK_ENCOURAGE, missCountRef.current);
+      missCountRef.current += 1;
       soundManager.playWrong();
       setMood("think");
+      setRepeatFails(0);
       setTeach({
         modelAnswer: result.modelAnswer ?? "",
         modelAnswerJa: result.modelAnswerJa ?? "",
       });
-      setMessage("おしい！ こう いうと つたわるよ");
-      if (result.modelAnswer) void speakTalkEnglish(result.modelAnswer, "think");
+      setMessage(encourage);
+      const model = result.modelAnswer;
+      void speakTalkJapanese(encourage).then(() => (model ? speakTalkEnglish(model, "think") : undefined));
     },
     [childId, scene.id, turn],
   );
@@ -118,16 +140,31 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         text === null
           ? true
           : Boolean((await postCheck({ sceneId: scene.id, turnId: turn.id, answer: text, mode: "repeat" }))?.correct);
+      if (stateRef.current.phase !== "teach") return;
+      setHeard(text);
       if (!ok) {
-        setMessage("いいね！ もう いちど、ゆっくり いってみよう");
+        setMessage(pickPhrase(TALK_REPEAT_RETRY, repeatFails));
+        setRepeatFails((count) => count + 1);
+        if (teach?.modelAnswer) void speakTalkEnglish(teach.modelAnswer, "think");
         return;
       }
       soundManager.playCorrect();
-      setState((current) => repeatTalk(current, true));
+      const following = repeatTalk(stateRef.current, true);
+      stateRef.current = following;
+      setState(following);
+      if (following.phase === "ask") {
+        // まねできたら、おなじ質問をすぐにもう1回きく
+        setTeach(null);
+        setHeard(null);
+        setMood("happy");
+        setMessage(TALK_ASK_AGAIN);
+        sayPrompt(turn);
+        return;
+      }
       setMood("celebrate");
-      setMessage("じょうず！");
+      setMessage(following.phase === "correct" ? "じょうず！ つぎに いこう" : "じょうず！ もう いっかい いってみよう");
     },
-    [scene.id, turn],
+    [repeatFails, sayPrompt, scene.id, teach, turn],
   );
 
   const next = useCallback(() => {
@@ -137,6 +174,8 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     setShowJapanese(false);
     setMood("happy");
     setMessage(null);
+    setHeard(null);
+    setRepeatFails(0);
     const nextTurn = scene.turns.find(({ id }) => id === currentTurnId(following));
     if (following.phase === "ask") sayPrompt(nextTurn);
   }, [sayPrompt, scene.turns, state]);
@@ -148,6 +187,8 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     setShowJapanese(false);
     setMood("happy");
     setMessage(null);
+    setHeard(null);
+    setRepeatFails(0);
     setStarted(false);
   }, [turnIds]);
 
@@ -160,6 +201,8 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     message,
     mood,
     checking,
+    heard,
+    repeatFails,
     begin,
     sayPrompt: () => sayPrompt(turn),
     askInJapanese,

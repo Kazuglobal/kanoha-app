@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_TURN_MISSES,
   REPEAT_TARGET,
   answerTalk,
   currentTurnId,
@@ -23,9 +24,10 @@ describe("english talk flow", () => {
     expect(talkScore(state)).toEqual({ firstTry: 2, total: 2 });
   });
 
-  it("teaches the right answer and asks to repeat it before moving on", () => {
+  it("teaches the right answer, has the child repeat it, then asks the same question again", () => {
     let state = answerTalk(startTalk(ids), false);
     expect(state.phase).toBe("teach");
+    expect(state.turnMisses).toBe(1);
     for (let i = 1; i < REPEAT_TARGET; i += 1) {
       state = repeatTalk(state, true);
       expect(state.phase).toBe("teach");
@@ -34,23 +36,38 @@ describe("english talk flow", () => {
     state = repeatTalk(state, false);
     expect(state.repeatCount).toBe(REPEAT_TARGET - 1);
     state = repeatTalk(state, true);
+    // まねできたら、おなじ質問をすぐにもう1回きく
+    expect(state.phase).toBe("ask");
+    expect(currentTurnId(state)).toBe("a");
+    expect(state.isRetry).toBe(true);
+    state = answerTalk(state, true);
     expect(state.phase).toBe("correct");
+    expect(talkScore(state).firstTry).toBe(0);
+  });
+
+  it("moves on after missing the same question MAX_TURN_MISSES times", () => {
+    let state = startTalk(ids);
+    for (let miss = 1; miss <= MAX_TURN_MISSES; miss += 1) {
+      state = answerTalk(state, false);
+      for (let i = 0; i < REPEAT_TARGET; i += 1) state = repeatTalk(state, true);
+    }
+    expect(state.phase).toBe("correct");
+    state = nextTalk(state);
+    expect(currentTurnId(state)).toBe("b");
+    expect(state.turnMisses).toBe(0);
   });
 
   it("asks a missed turn once more at the end", () => {
     let state = startTalk(ids);
     state = answerTalk(state, false);
     for (let i = 0; i < REPEAT_TARGET; i += 1) state = repeatTalk(state, true);
-    state = nextTalk(state);
+    state = nextTalk(answerTalk(state, true));
     expect(currentTurnId(state)).toBe("b");
     state = nextTalk(answerTalk(state, true));
     expect(currentTurnId(state)).toBe("a");
     expect(state.isRetry).toBe(true);
-    state = nextTalk(answerTalk(state, false));
-    // 2回目もまちがえたら教えるが、3回目は出さない
-    expect(state.phase).toBe("teach");
-    for (let i = 0; i < REPEAT_TARGET; i += 1) state = repeatTalk(state, true);
-    state = nextTalk(state);
+    state = nextTalk(answerTalk(state, true));
+    // 最後の聞きなおしは1回だけ
     expect(state.phase).toBe("done");
     expect(talkScore(state)).toEqual({ firstTry: 1, total: 2 });
   });
