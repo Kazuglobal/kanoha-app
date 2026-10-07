@@ -68,7 +68,9 @@ const greeting: TalkScene = {
       modelAnswer: "My name is Yuki.",
       modelAnswerJa: "わたしの なまえは ゆきです。",
       choices: ["My name is Yuki.", "I like apples.", "It's sunny.", "Goodbye!"],
-      accept: [["my name is", "im", "i am", "name is"]],
+      // 「I'm fine」などを名前と取りちがえないよう、名前を言う言い方だけをキーワードにする。
+      // 「I'm Yuki.」のような答えは、ログイン中なら AI 判定がひろう
+      accept: [["my name is", "name is", "call me"]],
       visual: "🙂",
     },
     {

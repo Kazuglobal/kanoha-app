@@ -146,7 +146,7 @@ function AnswerPanel({
   return (
     <div className={styles.answerPanel}>
       <div className={styles.answerTools}>
-        <VoiceAnswer lang="en-US" onAnswer={(text) => onAnswer(text, "voice")} />
+        <VoiceAnswer lang="en-US" disabled={disabled} onAnswer={(text) => onAnswer(text, "voice")} />
         <button className={styles.japaneseButton} type="button" onClick={onJapanese}>
           <Languages size={20} aria-hidden="true" /> えいごが わからない
         </button>

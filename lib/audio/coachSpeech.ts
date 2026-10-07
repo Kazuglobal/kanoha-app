@@ -140,13 +140,15 @@ function playViaWebAudio(audioUrl: string, token: number): Promise<boolean> {
 /**
  * オーディオ要素を再生する共通ヘルパー
  * - play() の reject と onerror は両方発火しうるので、フォールバックは1回だけ実行する
+ * - 鳴らせなかったときは false(呼び出し側がブラウザ読み上げに切り替えられる)。
+ *   別の発話・停止で止めたときは、わざと止めたので true として扱う
  */
-function playAudio(audioUrl: string, token: number): Promise<void> {
+function playAudio(audioUrl: string, token: number): Promise<boolean> {
   return new Promise((done) => {
-    if (!isCurrent(token)) return done();
-    const resolve = () => {
+    if (!isCurrent(token)) return done(true);
+    const resolve = (played = true) => {
       if (settlePending === resolve) settlePending = null;
-      done();
+      done(played);
     };
     settlePending = resolve;
     const audio = new Audio(audioUrl);
@@ -162,7 +164,7 @@ function playAudio(audioUrl: string, token: number): Promise<void> {
       if (activeAudio === audio) activeAudio = null;
       const ok = isCurrent(token) && (await playViaWebAudio(audioUrl, token));
       if (!ok && isCurrent(token)) setSpeaking(false);
-      resolve();
+      resolve(ok || !isCurrent(token));
     };
 
     audio.onplay = () => {
@@ -219,8 +221,7 @@ export async function speakVoice(
   const cacheKey = lang === "ja" ? `${mood}:${text}` : `${lang}:${mood}:${text}`;
   const cachedUrl = ttsAudioCache.get(cacheKey);
   if (cachedUrl) {
-    await playAudio(cachedUrl, token);
-    return true;
+    return playAudio(cachedUrl, token);
   }
 
   try {
@@ -237,8 +238,7 @@ export async function speakVoice(
       if (data.success && data.audioDataUrl) {
         ttsAudioCache.set(cacheKey, data.audioDataUrl);
         // 取得を待つ間に別の発話・停止があれば、古い音声は鳴らさない
-        await playAudio(data.audioDataUrl, token);
-        return true;
+        return playAudio(data.audioDataUrl, token);
       }
       console.warn("[CoachVoice] TTS API returned non-success:", data.error);
     } else {

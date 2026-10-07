@@ -28,6 +28,13 @@ describe("judgeTalkAnswer", () => {
     expect(judgeTalkAnswer(shop, "I'm fine.")).toBe(false);
   });
 
+  it("does not take an unrelated I'm-sentence as a name", () => {
+    const name = turn("greeting", "greeting-name");
+    expect(judgeTalkAnswer(name, "I'm fine")).toBe(false);
+    expect(judgeTalkAnswer(name, "I am hungry")).toBe(false);
+    expect(judgeTalkAnswer(name, "My name is Sora.")).toBe(true);
+  });
+
   it("matches whole words only", () => {
     const morning = turn("school", "school-morning");
     expect(judgeTalkAnswer(morning, "this")).toBe(false);

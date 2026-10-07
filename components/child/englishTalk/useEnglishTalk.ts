@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   answerTalk,
   currentTurnId,
@@ -52,6 +52,10 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
   const [message, setMessage] = useState<string | null>(null);
   const [mood, setMood] = useState<TalkMood>("happy");
   const [checking, setChecking] = useState(false);
+  // 遅れて届いた声のこたえ(古い描画のコールバック)でも、いまの状態で判断する
+  const stateRef = useRef(state);
+  const checkingRef = useRef(false);
+  stateRef.current = state;
 
   const turn: PublicTalkTurn | undefined = scene.turns.find(({ id }) => id === currentTurnId(state));
 
@@ -74,9 +78,12 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
 
   const answer = useCallback(
     async (text: string, mode: Exclude<CheckMode, "repeat">) => {
-      if (!turn || checking || state.phase !== "ask") return;
+      const currentId = currentTurnId(stateRef.current);
+      if (!turn || turn.id !== currentId || checkingRef.current || stateRef.current.phase !== "ask") return;
+      checkingRef.current = true;
       setChecking(true);
       const result = await postCheck({ sceneId: scene.id, turnId: turn.id, answer: text, mode, childId });
+      checkingRef.current = false;
       setChecking(false);
       if (!result) {
         setMessage("うまく きこえなかったよ。もういちど おしえてね");
@@ -100,12 +107,12 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
       setMessage("おしい！ こう いうと つたわるよ");
       if (result.modelAnswer) void speakTalkEnglish(result.modelAnswer, "think");
     },
-    [checking, childId, scene.id, state.phase, turn],
+    [childId, scene.id, turn],
   );
 
   const repeat = useCallback(
     async (text: string | null) => {
-      if (!turn || state.phase !== "teach") return;
+      if (!turn || stateRef.current.phase !== "teach") return;
       // 「いえたよ」ボタン(text=null)は自己申告でかぞえる。声のときはサーバーで判定する。
       const ok =
         text === null
@@ -120,7 +127,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
       setMood("celebrate");
       setMessage("じょうず！");
     },
-    [scene.id, state.phase, turn],
+    [scene.id, turn],
   );
 
   const next = useCallback(() => {
