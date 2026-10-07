@@ -97,7 +97,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         modelAnswer: result.modelAnswer ?? "",
         modelAnswerJa: result.modelAnswerJa ?? "",
       });
-      setMessage("おしい！ こう いうと つたわるよ。まねして いってみよう！");
+      setMessage("おしい！ こう いうと つたわるよ");
       if (result.modelAnswer) void speakTalkEnglish(result.modelAnswer, "think");
     },
     [checking, childId, scene.id, state.phase, turn],

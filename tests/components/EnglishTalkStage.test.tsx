@@ -60,10 +60,10 @@ describe("EnglishTalkStage", () => {
 
     expect(await screen.findByText("ただしい いいかた")).toBeInTheDocument();
     expect(screen.getByText("It's a dog.")).toBeInTheDocument();
-    expect(screen.getByText(/いってみよう\(\d/)).toHaveTextContent("0 / 2");
+    expect(screen.getByText(/まねして いおう \d/)).toHaveTextContent("0 / 2");
 
     await userEvent.click(screen.getByRole("button", { name: "いえたよ！" }));
-    expect(screen.getByText(/いってみよう\(\d/)).toHaveTextContent("1 / 2");
+    expect(screen.getByText(/まねして いおう \d/)).toHaveTextContent("1 / 2");
     await userEvent.click(screen.getByRole("button", { name: "いえたよ！" }));
 
     // まちがえた質問は最後にもう1回出る
