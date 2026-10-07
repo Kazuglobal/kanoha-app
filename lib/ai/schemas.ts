@@ -123,6 +123,22 @@ export const similarProblemRequestSchema = z
 
 export type SimilarProblemRequest = z.infer<typeof similarProblemRequestSchema>;
 
+/** 英会話れんしゅう: 子どもの声のこたえを AI がゆるく判定した結果。feedback はひらがな中心の短いほめ言葉。 */
+export const englishTalkJudgeSchema = z
+  .object({
+    correct: z.boolean(),
+    feedback: boundedText(TEXT_LIMITS.answer),
+  })
+  .strict();
+
+export interface EnglishTalkJudgeRequest {
+  question: string;
+  modelAnswer: string;
+  answer: string;
+}
+
+export type EnglishTalkJudge = z.infer<typeof englishTalkJudgeSchema>;
+
 export type Difficulty = z.infer<typeof difficultySchema>;
 export type MistakeTypeId = z.infer<typeof allMistakeTypeSchema>;
 export type MathUnit = z.infer<typeof unitSchema>;

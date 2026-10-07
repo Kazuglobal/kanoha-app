@@ -1,6 +1,8 @@
 import type { Subject } from "@/lib/curriculum/subjects";
 import type { GeminiImagePart } from "./gemini";
 import type {
+  EnglishTalkJudge,
+  EnglishTalkJudgeRequest,
   HandwritingAnswer,
   Hints,
   SimilarProblemDraft,
@@ -24,4 +26,6 @@ export interface AiProvider {
   ): Promise<readonly SimilarProblemDraft[]>;
   /** 「もっとかんたんに」の再生成。prompt は buildHintsPrompt で組み立てる。 */
   generateHints(prompt: string): Promise<Hints>;
+  /** 英会話れんしゅうの声のこたえを判定する(キーワード判定で不正解だったときだけ呼ぶ)。 */
+  judgeEnglishTalk(input: EnglishTalkJudgeRequest): Promise<EnglishTalkJudge>;
 }

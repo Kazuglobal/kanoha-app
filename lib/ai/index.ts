@@ -6,17 +6,20 @@ import { createGeminiClient } from "./gemini";
 import { mockAiProvider } from "./mock";
 import {
   buildAnalyzeProblemsPrompt,
+  buildEnglishTalkJudgePrompt,
   buildHandwritingPrompt,
   buildSimilarProblemsPrompt,
 } from "./prompts";
 import type { AiProvider } from "./provider";
 import {
+  englishTalkJudgeResponseSchema,
   handwritingResponseSchema,
   hintsResponseSchema,
   parsedProblemsResponseSchema,
   similarProblemsResponseSchema,
 } from "./responseSchemas";
 import {
+  englishTalkJudgeSchema,
   handwritingAnswerSchema,
   hintsSchema,
   similarProblemDraftsSchema,
@@ -56,6 +59,13 @@ const createGeminiProvider = (env: Record<string, string | undefined>): AiProvid
       ),
     generateHints: (prompt) =>
       client.generateStructured("structured", prompt, hintsSchema, hintsResponseSchema),
+    judgeEnglishTalk: (input) =>
+      client.generateStructured(
+        "structured",
+        buildEnglishTalkJudgePrompt(input),
+        englishTalkJudgeSchema,
+        englishTalkJudgeResponseSchema,
+      ),
   };
 };
 

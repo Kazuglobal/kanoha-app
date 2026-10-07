@@ -38,6 +38,7 @@
     "AI_RECOGNIZE_COST_USD": "0.005",
     "AI_SIMILAR_COST_USD": "0.005",
     "AI_HINTS_COST_USD": "0.002",
+    "AI_ENGLISH_TALK_COST_USD": "0.0005",
     "AI_IMAGE_COST_USD": "0.01",
     "GEMINI_TTS_MODEL": "gemini-2.5-flash-preview-tts"
   },
@@ -58,6 +59,7 @@
       "AI_RECOGNIZE_COST_USD": "0.005",
       "AI_SIMILAR_COST_USD": "0.005",
       "AI_HINTS_COST_USD": "0.002",
+      "AI_ENGLISH_TALK_COST_USD": "0.0005",
       "AI_IMAGE_COST_USD": "0.01",
       "GEMINI_TTS_MODEL": "gemini-2.5-flash-preview-tts"
     },

@@ -103,6 +103,23 @@ export const buildHandwritingPrompt = (
   "指定されたJSON形式だけを出力してください。",
 ].join("\n");
 
+export const buildEnglishTalkJudgePrompt = (input: {
+  question: string;
+  modelAnswer: string;
+  answer: string;
+}): string =>
+  [
+    "あなたは小学2年生の英会話れんしゅうを見守る、やさしいえいごコーチです。",
+    privacyRule,
+    `コーチの質問: ${input.question}`,
+    `お手本の答え: ${input.modelAnswer}`,
+    `子どもの答え(音声認識の結果): ${input.answer}`,
+    "音声認識の誤りや文法の小さなまちがいは気にせず、質問に対して意味が通じる答えなら correct を true にしてください。",
+    "質問と関係のない答えや、意味が通じない答えは false にしてください。",
+    "feedback は、ひらがな中心の日本語で40文字以内の短いほめ言葉にしてください。否定する言葉は使わないでください。",
+    "指定されたJSON形式だけを出力してください。",
+  ].join("\n");
+
 export const buildVisualImagePrompt = (problemText: string, unit: string): string =>
   [
     "小学2年生向けの学習図解イラストを1枚作ってください。",

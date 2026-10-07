@@ -1,4 +1,5 @@
-import { BookOpen, History, RotateCcw } from "lucide-react";
+import { BookOpen, History, MessagesSquare, RotateCcw } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import { eq, desc, and, isNotNull } from "drizzle-orm";
 import { CharacterCoach } from "@/components/child/CharacterCoach";
@@ -130,6 +131,19 @@ async function loadRecentProblemId(
   return fallbackRow?.problemId ?? null;
 }
 
+/** えいごで おはなし(かのはちゃんと英会話れんしゅう)への入り口。 */
+function EnglishTalkTile({ href }: { href: Route }) {
+  return (
+    <Link href={href} className={styles.quickTile}>
+      <MessagesSquare size={32} className={styles.actionIcon} />
+      <span>
+        <strong>えいごで おはなし</strong>
+        <small>かのはちゃんと えいごで かいわしよう</small>
+      </span>
+    </Link>
+  );
+}
+
 function NoProfileHome() {
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
@@ -232,6 +246,7 @@ function RealHome({
               <small>さいきん といたもんだいを ふくしゅうしよう</small>
             </span>
           </Link>
+          <EnglishTalkTile href={`/child/english-talk?childId=${selected.id}` as Route} />
         </div>
 
         <CurriculumStageSection
@@ -288,6 +303,7 @@ function DemoHome({ currentSubject }: { currentSubject: Subject }) {
               <small>ログインしてがくしゅうをはじめよう</small>
             </span>
           </Link>
+          <EnglishTalkTile href="/child/english-talk" />
         </div>
 
         <CurriculumStageSection

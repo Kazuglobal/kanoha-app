@@ -98,3 +98,8 @@ export const similarProblemsResponseSchema: JsonSchema = {
 };
 
 export const handwritingResponseSchema = object({ answer: text }, ["answer"]);
+
+export const englishTalkJudgeResponseSchema = object(
+  { correct: boolean, feedback: text },
+  ["correct", "feedback"],
+);

@@ -140,13 +140,15 @@ function playViaWebAudio(audioUrl: string, token: number): Promise<boolean> {
 /**
  * オーディオ要素を再生する共通ヘルパー
  * - play() の reject と onerror は両方発火しうるので、フォールバックは1回だけ実行する
+ * - 鳴らせなかったときは false(呼び出し側がブラウザ読み上げに切り替えられる)。
+ *   別の発話・停止で止めたときは、わざと止めたので true として扱う
  */
-function playAudio(audioUrl: string, token: number): Promise<void> {
+function playAudio(audioUrl: string, token: number): Promise<boolean> {
   return new Promise((done) => {
-    if (!isCurrent(token)) return done();
-    const resolve = () => {
+    if (!isCurrent(token)) return done(true);
+    const resolve = (played = true) => {
       if (settlePending === resolve) settlePending = null;
-      done();
+      done(played);
     };
     settlePending = resolve;
     const audio = new Audio(audioUrl);
@@ -162,7 +164,7 @@ function playAudio(audioUrl: string, token: number): Promise<void> {
       if (activeAudio === audio) activeAudio = null;
       const ok = isCurrent(token) && (await playViaWebAudio(audioUrl, token));
       if (!ok && isCurrent(token)) setSpeaking(false);
-      resolve();
+      resolve(ok || !isCurrent(token));
     };
 
     audio.onplay = () => {
@@ -200,12 +202,23 @@ export async function speakCoachVoice(
   text: string,
   mood: "happy" | "celebrate" | "think" = "happy"
 ): Promise<void> {
+  await speakVoice(text, { mood });
+}
+
+/**
+ * Gemini TTS で再生し、鳴らせたかどうかを返す(英会話れんしゅうは lang: "en")。
+ * false のときは呼び出し側がブラウザの読み上げなどにフォールバックできる。
+ */
+export async function speakVoice(
+  text: string,
+  { mood = "happy", lang = "ja" }: { mood?: "happy" | "celebrate" | "think"; lang?: "ja" | "en" } = {}
+): Promise<boolean> {
   stopCoachVoice();
   const token = playbackToken;
 
-  if (!text || typeof window === "undefined") return;
+  if (!text || typeof window === "undefined") return false;
 
-  const cacheKey = `${mood}:${text}`;
+  const cacheKey = lang === "ja" ? `${mood}:${text}` : `${lang}:${mood}:${text}`;
   const cachedUrl = ttsAudioCache.get(cacheKey);
   if (cachedUrl) {
     return playAudio(cachedUrl, token);
@@ -215,7 +228,9 @@ export async function speakCoachVoice(
     const res = await fetch("/api/ai/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, mood, voiceName: "Aoede" }),
+      body: JSON.stringify(
+        lang === "ja" ? { text, mood, voiceName: "Aoede" } : { text, mood, voiceName: "Aoede", lang }
+      ),
     });
 
     if (res.ok) {
@@ -235,11 +250,12 @@ export async function speakCoachVoice(
 
   // 音声通信が万一不通の場合でも、ロボット機械音声は鳴らさず、
   // リップシンク（口パクアニメーション）のみを短時間自然に行います
-  if (!isCurrent(token)) return;
+  if (!isCurrent(token)) return false;
   setSpeaking(true);
   setTimeout(() => {
     if (isCurrent(token)) setSpeaking(false);
   }, 1200);
+  return false;
 }
 
 /**
