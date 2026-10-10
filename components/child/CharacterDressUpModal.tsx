@@ -8,6 +8,7 @@ import { soundManager } from "@/lib/audio/soundSystem";
 import { KanohaCharacter } from "./KanohaCharacter";
 import {
   ACCESSORY_CATALOG,
+  DEFAULT_EQUIPPED,
   getCharacterProgress,
   getEquippedAccessories,
   equipAccessory,
@@ -19,6 +20,18 @@ import {
 } from "@/lib/rewards/characterGrowthStore";
 import { saveEquipToServer } from "@/lib/rewards/rewardSync";
 
+const DRESS_UP_TABS: { id: AccessoryCategory; label: string; icon: string }[] = [
+  { id: "clothes", label: "ふく", icon: "👕" },
+  { id: "hairstyle", label: "かみがた", icon: "👧" },
+  { id: "hair_color", label: "かみのいろ", icon: "🎨" },
+  { id: "shoes", label: "くつ", icon: "👟" },
+  { id: "shoes_color", label: "くつのいろ", icon: "🌈" },
+  { id: "hat", label: "ぼうし", icon: "🎩" },
+  { id: "glasses", label: "めがね", icon: "👓" },
+  { id: "gloves", label: "てぶくろ", icon: "🧤" },
+  { id: "accessory", label: "アクセ", icon: "✨" },
+];
+
 interface CharacterDressUpModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,7 +39,7 @@ interface CharacterDressUpModalProps {
 
 export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModalProps) {
   const [activeTab, setActiveTab] = useState<AccessoryCategory>("clothes");
-  const [equipped, setEquipped] = useState<EquippedAccessories>(DEFAULT_EQUIPPED_FALLBACK);
+  const [equipped, setEquipped] = useState<EquippedAccessories>(DEFAULT_EQUIPPED);
   const [progress, setProgress] = useState<CharacterProgress | null>(null);
 
   useEffect(() => {
@@ -118,46 +131,19 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
             <div className={styles.dressUpPickerSection}>
               {/* Category Tabs */}
               <div className={styles.dressUpTabs}>
-                <button
-                  type="button"
-                  className={`${styles.dressUpTab} ${activeTab === "clothes" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => {
-                    soundManager.playTap();
-                    setActiveTab("clothes");
-                  }}
-                >
-                  👕 ふく
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.dressUpTab} ${activeTab === "hat" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => {
-                    soundManager.playTap();
-                    setActiveTab("hat");
-                  }}
-                >
-                  🎩 ぼうし
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.dressUpTab} ${activeTab === "glasses" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => {
-                    soundManager.playTap();
-                    setActiveTab("glasses");
-                  }}
-                >
-                  👓 めがね
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.dressUpTab} ${activeTab === "gloves" ? styles.dressUpTabActive : ""}`}
-                  onClick={() => {
-                    soundManager.playTap();
-                    setActiveTab("gloves");
-                  }}
-                >
-                  🧤 てぶくろ
-                </button>
+                {DRESS_UP_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`${styles.dressUpTab} ${activeTab === tab.id ? styles.dressUpTabActive : ""}`}
+                    onClick={() => {
+                      soundManager.playTap();
+                      setActiveTab(tab.id);
+                    }}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
               </div>
 
               {/* Items List */}
@@ -226,10 +212,3 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
     </AnimatePresence>
   );
 }
-
-const DEFAULT_EQUIPPED_FALLBACK: EquippedAccessories = {
-  hat: "hat_none",
-  glasses: "glasses_none",
-  gloves: "gloves_none",
-  clothes: "clothes_tshirt",
-};

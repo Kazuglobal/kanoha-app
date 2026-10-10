@@ -24,7 +24,17 @@ import { uuid } from "@/lib/utils/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const category = z.enum(["hat", "glasses", "gloves", "clothes"]);
+const category = z.enum([
+  "hat",
+  "glasses",
+  "gloves",
+  "clothes",
+  "hairstyle",
+  "hair_color",
+  "shoes",
+  "shoes_color",
+  "accessory",
+]);
 const equipInput = z.object({ category, itemId: z.string().trim().min(1).max(64) });
 
 /** 取り込みの上限: これより多い正解数は旧データとして不自然なので受け付けない。 */

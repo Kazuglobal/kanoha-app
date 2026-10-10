@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Coins, Shirt } from "lucide-react";
+import { Coins, Shirt, Gift } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { getRewardState, type RewardState } from "@/lib/rewards/rewardStore";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/rewards/characterGrowthStore";
 import { FiveYenRewardModal } from "./FiveYenRewardModal";
 import { CharacterDressUpModal } from "./CharacterDressUpModal";
+import { RealRewardExchangeModal } from "./RealRewardExchangeModal";
 import { LevelUpModal } from "./LevelUpModal";
 import { CELEBRATION_GATE_EVENT, areCelebrationsDeferred } from "@/lib/rewards/celebrationGate";
 
@@ -25,6 +26,7 @@ export function RewardMeter() {
   const [pulsing, setPulsing] = useState(false);
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [showDressUpModal, setShowDressUpModal] = useState(false);
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
   const [levelUpInfo, setLevelUpInfo] = useState<GrowthLevelInfo | null>(null);
   const [fiveYenPending, setFiveYenPending] = useState(false);
   // 問題を解いている途中は、お祝いモーダルを出さずに待たせる(celebrationGate)
@@ -120,6 +122,22 @@ export function RewardMeter() {
           </div>
         </motion.div>
 
+        {/* ごほうび こうかんボタン */}
+        <motion.button
+          type="button"
+          className={styles.rewardExchangeOpenButton}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowExchangeModal(true)}
+          title="おこづかいをごほうびにこうかん！"
+          aria-label="ごほうびこうかんじょをひらく"
+        >
+          <div className={styles.rewardExchangeIconWrap}>
+            <Gift size={16} />
+          </div>
+          <strong className={styles.rewardExchangeActionLabel}>ごほうび</strong>
+        </motion.button>
+
         {/* きがえ & 成長バッジ (クローゼットボタン) */}
         <motion.button
           type="button"
@@ -149,6 +167,17 @@ export function RewardMeter() {
           setShowRewardModal(false);
           setFiveYenPending(false);
         }}
+        onOpenExchange={() => {
+          setShowRewardModal(false);
+          setFiveYenPending(false);
+          setShowExchangeModal(true);
+        }}
+      />
+
+      {/* 実物ごほうび（シール・お菓子）交換モーダル */}
+      <RealRewardExchangeModal
+        isOpen={showExchangeModal}
+        onClose={() => setShowExchangeModal(false)}
       />
 
       {/* きがえクローゼットモーダル */}

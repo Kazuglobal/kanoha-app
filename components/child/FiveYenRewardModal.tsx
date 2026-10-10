@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Trophy, X } from "lucide-react";
+import { Sparkles, Trophy, X, Gift } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { getRewardState } from "@/lib/rewards/rewardStore";
 
@@ -10,12 +10,14 @@ interface FiveYenRewardModalProps {
   isOpen: boolean;
   onClose: () => void;
   earnedAmountYen?: number;
+  onOpenExchange?: () => void;
 }
 
 export function FiveYenRewardModal({
   isOpen,
   onClose,
   earnedAmountYen = 5,
+  onOpenExchange,
 }: FiveYenRewardModalProps) {
   const [totalYen, setTotalYen] = useState(0);
 
@@ -138,15 +140,35 @@ export function FiveYenRewardModal({
               </div>
             </div>
 
-            <button
-              className={styles.primaryButton}
-              style={{ width: "100%", marginTop: "20px" }}
-              type="button"
-              onClick={onClose}
-            >
-              <Sparkles size={20} />
-              つぎの 5えんを めざして つづける！
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px", width: "100%" }}>
+              {onOpenExchange && (
+                <button
+                  className={styles.secondaryButton}
+                  style={{
+                    width: "100%",
+                    background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                    borderColor: "#f59e0b",
+                    color: "#b45309",
+                    fontWeight: 900,
+                  }}
+                  type="button"
+                  onClick={onOpenExchange}
+                >
+                  <Gift size={18} />
+                  🎁 シールやおかしと こうかんする！
+                </button>
+              )}
+
+              <button
+                className={styles.primaryButton}
+                style={{ width: "100%" }}
+                type="button"
+                onClick={onClose}
+              >
+                <Sparkles size={18} />
+                つぎの 5えんを めざして つづける！
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>

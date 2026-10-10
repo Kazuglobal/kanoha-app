@@ -55,6 +55,32 @@
   50% { transform: translateY(-8px) rotate(1deg); }
 }
 
+.accessoryLayer {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.wingsLayer {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 40%;
+  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: wingFlutter 2.4s ease-in-out infinite;
+}
+
+@keyframes wingFlutter {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.06, 0.96); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sprite, .celebrate .sprite { animation: none; }
+  .sprite, .celebrate .sprite, .wingsLayer { animation: none; }
 }

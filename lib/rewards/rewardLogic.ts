@@ -98,7 +98,17 @@ export function describeRewardChange(previousState: RewardState, newState: Rewar
   };
 }
 
-const CATEGORIES: readonly AccessoryCategory[] = ["hat", "glasses", "gloves", "clothes"];
+export const CATEGORIES: readonly AccessoryCategory[] = [
+  "clothes",
+  "hairstyle",
+  "hair_color",
+  "shoes",
+  "shoes_color",
+  "hat",
+  "glasses",
+  "gloves",
+  "accessory",
+];
 
 const itemInCategory = (category: AccessoryCategory, itemId: unknown): itemId is string =>
   typeof itemId === "string" && ACCESSORY_CATALOG.some((item) => item.id === itemId && item.category === category);
