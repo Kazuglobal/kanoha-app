@@ -3,6 +3,7 @@ import { ChildProfiles } from "@/components/parent/ChildProfiles";
 import { MaterialManager } from "@/components/parent/MaterialManager";
 import { PinSettings } from "@/components/parent/PinSettings";
 import { SettingsForm } from "@/components/parent/SettingsForm";
+import { ParentRewardManager } from "@/components/parent/ParentRewardManager";
 import styles from "@/components/kanoha.module.css";
 import { parentHasPin } from "@/lib/auth/pin";
 import { getServerSession } from "@/lib/auth/session";
@@ -26,6 +27,7 @@ export default async function ParentSettingsPage() {
         <SettingsForm />
         <ChildProfiles />
       </div>
+      <ParentRewardManager />
       <PinSettings hasPin={hasPin} />
       <MaterialManager />
     </ParentShell>

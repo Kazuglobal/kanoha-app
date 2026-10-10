@@ -90,3 +90,32 @@ export function applyServerReward(raw: unknown): RecordCorrectResult | null {
   const next = normalizeRewardState(raw as Partial<Record<keyof RewardState, unknown>>);
   return announce(describeRewardChange(previousOfCorrectAnswer(next), next));
 }
+
+/**
+ * 実物ごほうび（シール・お菓子など）と交換する際におこづかいを消費する。
+ * 残高が足りていれば true を返し、残高を減らす。
+ */
+export function spendRewardYen(amount: number): boolean {
+  if (amount <= 0) return false;
+  const current = getRewardState();
+  if (current.totalRewardYen < amount) return false;
+  const next: RewardState = {
+    ...current,
+    totalRewardYen: current.totalRewardYen - amount,
+  };
+  saveRewardState(next);
+  return true;
+}
+
+/**
+ * チケット取り消し等で返金する場合
+ */
+export function refundRewardYen(amount: number): void {
+  if (amount <= 0) return;
+  const current = getRewardState();
+  const next: RewardState = {
+    ...current,
+    totalRewardYen: current.totalRewardYen + amount,
+  };
+  saveRewardState(next);
+}

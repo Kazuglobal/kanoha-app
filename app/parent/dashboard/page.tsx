@@ -2,6 +2,7 @@ import { CheckCircle2, Clock3, Flame, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { ParentShell } from "@/components/parent/ParentShell";
+import { ParentRewardManager } from "@/components/parent/ParentRewardManager";
 import styles from "@/components/kanoha.module.css";
 import { buildDashboard, loadDashboardInput } from "@/lib/reports/dashboard";
 import { getServerSession } from "@/lib/auth/session";
@@ -151,6 +152,7 @@ export default async function ParentDashboardPage({
         <ReportMetric index={7} label="学習時間" value={`${report.studyMinutes}分`} />
         <ReportMetric index={8} label="連続学習日数" value={`${report.streakDays}日`} />
       </div>
+      <ParentRewardManager />
     </ParentShell>
   );
 }
