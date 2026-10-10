@@ -10,6 +10,14 @@ import {
   type EquippedAccessories,
   type AccessoryCategory,
 } from "@/lib/rewards/characterGrowthStore";
+import {
+  RibbonBow,
+  StarHairPin,
+  HeartEarring,
+  MagicWand,
+  BearPochette,
+  AngelWings,
+} from "./CharacterAccessories";
 
 type Mood = "happy" | "think" | "celebrate";
 
@@ -38,10 +46,10 @@ const SPRITES = {
 
 const HAIR_COLOR_FILTERS: Record<string, string> = {
   hair_color_brown: "none",
-  hair_color_black: "brightness(0.4) contrast(1.3) saturate(0.2)",
-  hair_color_pink: "sepia(0.65) hue-rotate(295deg) saturate(2.4) brightness(1.05)",
-  hair_color_gold: "sepia(0.85) hue-rotate(15deg) saturate(3.2) brightness(1.2)",
-  hair_color_blue: "sepia(0.65) hue-rotate(170deg) saturate(2.5) brightness(1.1)",
+  hair_color_black: "brightness(0.35) contrast(1.2) saturate(0.3)",
+  hair_color_pink: "hue-rotate(295deg) saturate(3) brightness(1.2)",
+  hair_color_gold: "hue-rotate(30deg) saturate(4) brightness(1.35)",
+  hair_color_blue: "hue-rotate(185deg) saturate(3) brightness(1.25)",
 };
 
 const HAIRSTYLE_SPRITES: Record<string, { src: string; clip: string }> = {
@@ -53,11 +61,11 @@ const HAIRSTYLE_SPRITES: Record<string, { src: string; clip: string }> = {
 };
 
 const SHOES_COLOR_FILTERS: Record<string, string> = {
-  shoes_color_pink: "sepia(0.55) hue-rotate(295deg) saturate(2.5) brightness(1.05)",
-  shoes_color_white: "brightness(2.2) saturate(0.1)",
-  shoes_color_brown: "sepia(0.9) hue-rotate(-25deg) brightness(0.65) contrast(1.2)",
-  shoes_color_blue: "sepia(0.65) hue-rotate(185deg) saturate(2.6) brightness(1.05)",
-  shoes_color_gold: "sepia(0.85) hue-rotate(20deg) saturate(3.5) brightness(1.25)",
+  shoes_color_pink: "hue-rotate(295deg) saturate(2.8) brightness(1.15)",
+  shoes_color_white: "brightness(2.4) contrast(0.9) saturate(0.1)",
+  shoes_color_brown: "sepia(0.95) hue-rotate(-25deg) brightness(0.65) contrast(1.2)",
+  shoes_color_blue: "hue-rotate(185deg) saturate(2.8) brightness(1.15)",
+  shoes_color_gold: "hue-rotate(25deg) saturate(4) brightness(1.3)",
 };
 
 const SHOES_SPRITES: Record<string, string> = {
@@ -178,8 +186,7 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
         {/* レイヤー0: 天使の翼 (背中アクセサリ) */}
         {accessoryType === "acc_wings" && (
           <div className={styles.wingsLayer} aria-hidden="true">
-            <span style={{ fontSize: "52px", transform: "scaleX(-1) rotate(-15deg)" }}>🪽</span>
-            <span style={{ fontSize: "52px", transform: "rotate(-15deg)" }}>🪽</span>
+            <AngelWings />
           </div>
         )}
 
@@ -211,11 +218,11 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           />
         )}
 
-        {/* レイヤー1c: 髪型＆髪色オーバーレイ */}
+        {/* レイヤー1c: 髪型＆髪色オーバーレイ (顔の肌を除外するシームレスマスク) */}
         {hairFilter !== "none" && (
           <Image
             key={`hair-color-${hairColor}-${hairStyle}`}
-            className={styles.overlaySprite}
+            className={styles.hairColorOverlay}
             src={HAIRSTYLE_SPRITES[hairStyle]?.src ?? SPRITES.happy}
             width={1024}
             height={1536}
@@ -225,19 +232,16 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
             style={{
               clipPath: HAIRSTYLE_SPRITES[hairStyle]?.clip ?? "polygon(18% 2%, 82% 2%, 82% 35%, 18% 35%)",
               filter: hairFilter,
-              mixBlendMode: "multiply",
-              opacity: 0.85,
             }}
           />
         )}
 
-        {/* レイヤー1d: 靴＆靴色オーバーレイ (足元 74%〜100%) */}
-        {/* レイヤー1d: 靴＆靴色オーバーレイ (カスタム指定時のみ描画) */}
+        {/* レイヤー1d: 靴＆靴色オーバーレイ (足元フェードマスク) */}
         {((activeAccessories.shoes && activeAccessories.shoes !== "shoes_sneaker") ||
           (activeAccessories.shoes_color && activeAccessories.shoes_color !== "shoes_color_pink")) && (
           <Image
             key={`shoes-${shoesType}-${shoesColor}`}
-            className={styles.overlaySprite}
+            className={styles.shoesOverlay}
             src={shoesBaseSrc}
             width={1024}
             height={1536}
@@ -251,11 +255,11 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           />
         )}
 
-        {/* レイヤー2: 手袋オーバーレイ (左手・右手の両方を1枚のレイヤーでカバーして素手のはみ出しを防止) */}
+        {/* レイヤー2: 手袋オーバーレイ (袖口とソフトに繋がるフェードマスク) */}
         {glovesSrc && (
           <Image
             key={`gloves-${glovesSrc}`}
-            className={styles.overlaySprite}
+            className={styles.glovesOverlay}
             src={glovesSrc}
             width={1024}
             height={1536}
@@ -269,11 +273,11 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           />
         )}
 
-        {/* レイヤー3: メガネオーバーレイ */}
+        {/* レイヤー3: メガネオーバーレイ (目元ソフトマスク) */}
         {glassesSrc && (
           <Image
             key={`glasses-${glassesSrc}`}
-            className={styles.overlaySprite}
+            className={styles.glassesOverlay}
             src={glassesSrc}
             width={1024}
             height={1536}
@@ -299,61 +303,61 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           />
         )}
 
-        {/* ピンクのリボン装飾 */}
+        {/* ピンクのサテンリボン装飾 */}
         {activeAccessories.hat === "hat_ribbon" && (
           <div
             className={styles.accessoryLayer}
-            style={{ top: "8%", left: "48%", transform: "translate(-50%, -50%)", fontSize: "38px" }}
+            style={{ top: "8%", left: "50%", transform: "translate(-50%, -50%)" }}
             aria-hidden="true"
           >
-            🎀
+            <RibbonBow />
           </div>
         )}
 
-        {/* レイヤー5: アクセサリー (星ピン, イヤリング, ステッキ, くまポシェット) */}
+        {/* レイヤー5: ベクターアクセサリー */}
         {accessoryType === "acc_pin_star" && (
           <div
             className={styles.accessoryLayer}
-            style={{ top: "16%", left: "62%", transform: "translate(-50%, -50%)", fontSize: "24px" }}
+            style={{ top: "15%", left: "64%", transform: "translate(-50%, -50%) rotate(15deg)" }}
             aria-hidden="true"
           >
-            ⭐
+            <StarHairPin />
           </div>
         )}
         {accessoryType === "acc_heart_earring" && (
           <>
             <div
               className={styles.accessoryLayer}
-              style={{ top: "26%", left: "30%", transform: "translate(-50%, -50%)", fontSize: "18px" }}
+              style={{ top: "27%", left: "29%", transform: "translate(-50%, -50%)" }}
               aria-hidden="true"
             >
-              💖
+              <HeartEarring />
             </div>
             <div
               className={styles.accessoryLayer}
-              style={{ top: "26%", left: "70%", transform: "translate(-50%, -50%)", fontSize: "18px" }}
+              style={{ top: "27%", left: "72%", transform: "translate(-50%, -50%) scaleX(-1)" }}
               aria-hidden="true"
             >
-              💖
+              <HeartEarring />
             </div>
           </>
         )}
         {accessoryType === "acc_wand" && (
           <div
             className={styles.accessoryLayer}
-            style={{ top: "34%", left: "22%", transform: "translate(-50%, -50%) rotate(-20deg)", fontSize: "36px" }}
+            style={{ top: "34%", left: "20%", transform: "translate(-50%, -50%) rotate(-18deg)" }}
             aria-hidden="true"
           >
-            🪄
+            <MagicWand />
           </div>
         )}
         {accessoryType === "acc_bag_bear" && (
           <div
             className={styles.accessoryLayer}
-            style={{ top: "54%", left: "54%", transform: "translate(-50%, -50%)", fontSize: "34px" }}
+            style={{ top: "54%", left: "53%", transform: "translate(-50%, -50%)" }}
             aria-hidden="true"
           >
-            👜
+            <BearPochette />
           </div>
         )}
       </div>
