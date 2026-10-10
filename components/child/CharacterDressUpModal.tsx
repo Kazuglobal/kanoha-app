@@ -57,7 +57,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
 
   const handleSelect = (item: AccessoryItem) => {
     if (!isAccessoryUnlocked(item, totalCorrect)) return;
-    soundManager.playTap();
+    soundManager.playCorrect();
     const updated = equipAccessory(item.category, item.id);
     setEquipped(updated);
     void saveEquipToServer(item.category, item.id);
@@ -97,11 +97,19 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
             {/* Full-body illustrated preview */}
             <div className={styles.dressUpPreviewStage}>
               <div className={styles.dressUp3DContainer}>
-                <KanohaCharacter
-                  mood="happy"
-                  accessories={equipped}
-                  previewCategory={activeTab}
-                />
+                <motion.div
+                  key={JSON.stringify(equipped)}
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 24 }}
+                  style={{ width: "100%", height: "100%" }}
+                >
+                  <KanohaCharacter
+                    mood="happy"
+                    accessories={equipped}
+                    previewCategory={activeTab}
+                  />
+                </motion.div>
               </div>
 
               {progress && (
