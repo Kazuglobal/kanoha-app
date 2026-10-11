@@ -6,7 +6,6 @@ import styles from "./KanohaCharacter.module.css";
 import {
   DEFAULT_EQUIPPED,
   getEquippedAccessories,
-  getLastEquippedCategory,
   type EquippedAccessories,
   type AccessoryCategory,
 } from "@/lib/rewards/characterGrowthStore";
@@ -18,6 +17,7 @@ import {
   BearPochette,
   AngelWings,
   HairstyleExtension,
+  HAIR_COLOR_FILTERS,
 } from "./CharacterAccessories";
 
 type Mood = "happy" | "think" | "celebrate";
@@ -44,14 +44,6 @@ const SPRITES = {
   mittens: "/images/character/kanoha-ref-mittens.png",
   glovesGold: "/images/character/kanoha-ref-gloves-gold.png",
 } as const;
-
-const HAIR_COLOR_FILTERS: Record<string, string> = {
-  hair_color_brown: "none",
-  hair_color_black: "saturate(0.2) brightness(0.42) contrast(1.3)",
-  hair_color_pink: "sepia(0.55) hue-rotate(295deg) saturate(2.6) brightness(1.1)",
-  hair_color_gold: "sepia(0.85) hue-rotate(16deg) saturate(3.2) brightness(1.25)",
-  hair_color_blue: "sepia(0.65) hue-rotate(175deg) saturate(2.8) brightness(1.1)",
-};
 
 // 前髪・こめかみ領域のみを精密にカバーし、襟元(y>=34.5%)・頭頂部リボン・顔の目口肌を完全に除外するポリゴン
 const BANGS_HAIR_CLIP =
@@ -94,25 +86,27 @@ const NATIVE_OUTFIT_SHOES: Record<string, string> = {
 function buildBaseClipPath({
   clipTopHead,
   clipGloves,
+  clipLeftHand,
   clipShoes,
 }: {
   clipTopHead: boolean;
   clipGloves: boolean;
+  clipLeftHand?: boolean;
   clipShoes: boolean;
 }): string | undefined {
-  if (!clipTopHead && !clipGloves && !clipShoes) {
+  if (!clipTopHead && !clipGloves && !clipLeftHand && !clipShoes) {
     return undefined;
   }
 
   const points: string[] = [];
 
-  // 1. 上辺 (x: 0% -> 100%, y <= 35.5%)
+  // 1. 上辺 (x: 0% -> 100%, y <= 34.5%)
   if (clipTopHead) {
     points.push(
       "0% 0%",
       "14% 0%",
-      "14% 35.5%",
-      "31.5% 35.5%",
+      "14% 34.5%",
+      "31.5% 34.5%",
       "31.5% 22%",
       "35% 20.5%",
       "38% 17.5%",
@@ -121,8 +115,8 @@ function buildBaseClipPath({
       "65% 17.5%",
       "68.5% 21%",
       "71% 22.5%",
-      "71% 35.5%",
-      "98% 35.5%",
+      "71% 34.5%",
+      "98% 34.5%",
       "98% 0%",
       "100% 0%",
     );
@@ -158,8 +152,8 @@ function buildBaseClipPath({
     points.push("0% 100%");
   }
 
-  // 4. 左辺 (y: 100% -> 0%, 手袋着用時は左側の素手 y:36.5%..50.5% を切り抜く)
-  if (clipGloves) {
+  // 4. 左辺 (y: 100% -> 0%, 手袋または魔法のステッキ着用時は左側の素手 y:36.5%..50.5% を切り抜く)
+  if (clipGloves || clipLeftHand) {
     points.push(
       "0% 50.5%",
       "33% 50.5%",
@@ -252,7 +246,7 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
   }
 
   // ベーススプライトに描き込まれた元のおだんご・ピンクリボン・内蔵帽子・サイドカールは常にクリップ除去し、
-  // 選択中の髪型(HairstyleExtension)と選択中の帽子・アクセサリのみをクリーンに描画する
+  // 選択中の3D髪型(HairstyleExtension)と選択中の帽子・アクセサリのみをクリーンに描画する
   const clipTopHead = true;
 
   const hatCoversBun =
@@ -276,15 +270,16 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
     shoesColor === "shoes_color_pink";
   const showShoesOverlay = hasExplicitShoes && !isNativeShoeUncolored;
 
+  // 7. アクセサリー (Accessory)
+  const accessoryType = activeAccessories.accessory ?? "acc_none";
+
   // ベーススプライトの複合クリップパス（元の髪型・元の帽子・元の素手・元の靴を完全に除去）
   const baseClipPath = buildBaseClipPath({
     clipTopHead,
     clipGloves: Boolean(glovesSrc),
+    clipLeftHand: accessoryType === "acc_wand",
     clipShoes: showShoesOverlay,
   });
-
-  // 7. アクセサリー (Accessory)
-  const accessoryType = activeAccessories.accessory ?? "acc_none";
 
   return (
     <div
@@ -302,11 +297,15 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
     >
       <div className={styles.characterContainer}>
         {/* レイヤー0: 天使の翼 (背中アクセサリ) */}
-        {accessoryType === "acc_wings" && (
-          <div className={styles.wingsLayer} aria-hidden="true">
-            <AngelWings />
-          </div>
-        )}
+        {accessoryType === "acc_wings" && <AngelWings />}
+
+        {/* レイヤー0b: 3D髪型 背面レイヤー（肩・襟元・腕の後ろに自然に回り込む髪） */}
+        <HairstyleExtension
+          hairstyle={hairStyle}
+          hairColor={hairColor}
+          showCleanBun={showCleanBun}
+          layer="back"
+        />
 
         {/* レイヤー1: ベース全身衣装（元の靴・素手・頭頂部おだんご/帽子を必要に応じてクリップ除去） */}
         <Image
@@ -321,11 +320,12 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           style={baseClipPath ? { clipPath: baseClipPath } : undefined}
         />
 
-        {/* レイヤー1c: 髪型エクステンション (ツインテール・ポニーテール・ボブ・ウェーブ・クリーンおだんご) */}
+        {/* レイヤー1c: 3D髪型 前面レイヤー（頭頂部・前髪・顔周りのサイド髪） */}
         <HairstyleExtension
           hairstyle={hairStyle}
           hairColor={hairColor}
           showCleanBun={showCleanBun}
+          layer="front"
         />
 
         {/* レイヤー1d: 地毛の前髪カラーオーバーレイ (襟やリボンを含めず前髪のみを着色) */}
@@ -422,52 +422,11 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           </div>
         )}
 
-        {/* レイヤー5: ベクターアクセサリー */}
-        {accessoryType === "acc_pin_star" && (
-          <div
-            className={styles.accessoryLayer}
-            style={{ top: "15%", left: "64%", transform: "translate(-50%, -50%) rotate(15deg)" }}
-            aria-hidden="true"
-          >
-            <StarHairPin />
-          </div>
-        )}
-        {accessoryType === "acc_heart_earring" && (
-          <>
-            <div
-              className={styles.accessoryLayer}
-              style={{ top: "27%", left: "29%", transform: "translate(-50%, -50%)" }}
-              aria-hidden="true"
-            >
-              <HeartEarring />
-            </div>
-            <div
-              className={styles.accessoryLayer}
-              style={{ top: "27%", left: "72%", transform: "translate(-50%, -50%) scaleX(-1)" }}
-              aria-hidden="true"
-            >
-              <HeartEarring />
-            </div>
-          </>
-        )}
-        {accessoryType === "acc_wand" && (
-          <div
-            className={styles.accessoryLayer}
-            style={{ top: "34%", left: "20%", transform: "translate(-50%, -50%) rotate(-18deg)" }}
-            aria-hidden="true"
-          >
-            <MagicWand />
-          </div>
-        )}
-        {accessoryType === "acc_bag_bear" && (
-          <div
-            className={styles.accessoryLayer}
-            style={{ top: "54%", left: "53%", transform: "translate(-50%, -50%)" }}
-            aria-hidden="true"
-          >
-            <BearPochette />
-          </div>
-        )}
+        {/* レイヤー5: 3D生成アクセサリー */}
+        {accessoryType === "acc_pin_star" && <StarHairPin />}
+        {accessoryType === "acc_heart_earring" && <HeartEarring />}
+        {accessoryType === "acc_wand" && <MagicWand />}
+        {accessoryType === "acc_bag_bear" && <BearPochette />}
       </div>
     </div>
   );
