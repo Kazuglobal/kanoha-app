@@ -85,16 +85,16 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
       img.style.clipPath.includes("78%")
     )!;
 
-    // ベース衣装は頭頂部(15.5%)・素手(36.5%/58%)・元の靴(78%/84%)がすべてクリップ除去されていること
+    // ベース衣装は頭頂部(15.5%)・素手(36%/56%)・元の靴(78%/85.5%)がすべてクリップ除去されていること
     expect(baseImg.style.clipPath).toContain("15.5%");
-    expect(baseImg.style.clipPath).toContain("36.5%");
-    expect(baseImg.style.clipPath).toContain("58%");
+    expect(baseImg.style.clipPath).toContain("36%");
+    expect(baseImg.style.clipPath).toContain("56%");
     expect(baseImg.style.clipPath).toContain("78%");
-    expect(baseImg.style.clipPath).toContain("84%");
+    expect(baseImg.style.clipPath).toContain("85.5%");
 
     // 手袋オーバーレイは両手領域のみを切り出し、元のくまパーカー胴体(28%..70%全域)を含まないこと
-    expect(glovesImg.style.clipPath).toContain("18% 36.5%");
-    expect(glovesImg.style.clipPath).toContain("74% 58%");
+    expect(glovesImg.style.clipPath).toContain("18% 36%");
+    expect(glovesImg.style.clipPath).toContain("69.5% 56%");
     expect(glovesImg.style.clipPath).not.toContain("12% 28%");
 
     // 靴オーバーレイはスニーカー(happy)の膝下領域を描画していること
