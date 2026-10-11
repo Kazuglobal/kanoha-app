@@ -90,6 +90,32 @@ describe("characterGrowthStore", () => {
         expect.objectContaining({ type: "kanoha-accessory-update" })
       );
     });
+
+    it("preserves all 9 dress-up categories when equipping new items sequentially", () => {
+      equipAccessory("hairstyle", "hair_twintail");
+      equipAccessory("hair_color", "hair_color_pink");
+      equipAccessory("shoes", "shoes_boots");
+      equipAccessory("shoes_color", "shoes_color_white");
+      equipAccessory("accessory", "acc_wings");
+      equipAccessory("hat", "hat_crown");
+      equipAccessory("glasses", "glasses_star");
+      equipAccessory("gloves", "gloves_gold");
+      const finalState = equipAccessory("clothes", "clothes_wizard");
+
+      expect(finalState).toEqual({
+        clothes: "clothes_wizard",
+        hairstyle: "hair_twintail",
+        hair_color: "hair_color_pink",
+        shoes: "shoes_boots",
+        shoes_color: "shoes_color_white",
+        hat: "hat_crown",
+        glasses: "glasses_star",
+        gloves: "gloves_gold",
+        accessory: "acc_wings",
+      });
+      expect(getEquippedAccessories()).toEqual(finalState);
+      expect(getLastEquippedCategory()).toBe("clothes");
+    });
   });
 
   describe("level-up event on recordCorrectAnswer", () => {

@@ -315,15 +315,17 @@ export const HAIR_COLOR_PALETTES: Record<
 export function HairstyleExtension({
   hairstyle,
   hairColor = "hair_color_brown",
+  showCleanBun = false,
 }: {
   hairstyle: string;
   hairColor?: string;
+  showCleanBun?: boolean;
 }) {
   const palette = HAIR_COLOR_PALETTES[hairColor] ?? HAIR_COLOR_PALETTES.hair_color_brown;
   const gradId = `hairGrad_${hairstyle}_${hairColor}`;
-  const shadowGradId = `hairShadow_${hairstyle}_${hairColor}`;
+  const crownGradId = `hairCrown_${hairstyle}_${hairColor}`;
 
-  if (hairstyle === "hair_bun") return null;
+  if (hairstyle === "hair_bun" && !showCleanBun) return null;
 
   return (
     <svg
@@ -346,15 +348,83 @@ export function HairstyleExtension({
           <stop offset="45%" stopColor={palette.base} />
           <stop offset="100%" stopColor={palette.dark} />
         </linearGradient>
-        <linearGradient id={shadowGradId} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={palette.base} />
+        <linearGradient id={crownGradId} x1="50%" y1="0%" x2="50%" y2="100%">
+          <stop offset="0%" stopColor={palette.light} />
+          <stop offset="55%" stopColor={palette.base} />
           <stop offset="100%" stopColor={palette.dark} />
         </linearGradient>
       </defs>
 
+      {/* 0. おだんごアップ（元の帽子やリボンを消去した際のクリーンなおだんご頭頂部） */}
+      {hairstyle === "hair_bun" && showCleanBun && (
+        <g>
+          <ellipse
+            cx="512"
+            cy="102"
+            rx="104"
+            ry="66"
+            fill={`url(#${crownGradId})`}
+            stroke={palette.dark}
+            strokeWidth="3.5"
+          />
+          <path
+            d="M440 82 C480 56, 545 56, 585 82"
+            stroke={palette.highlight}
+            strokeWidth="7"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.6"
+          />
+          <path
+            d="M275 265 C250 345, 255 455, 315 540 C332 515, 320 420, 326 275 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3"
+          />
+          <path
+            d="M748 260 C773 340, 768 450, 708 535 C691 510, 703 415, 698 270 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3"
+          />
+        </g>
+      )}
+
+      {/* 共通頭頂部ドーム：元のおだんご・ピンクリボン・帽子をクリップした境界(y:15.5%..22%)と隙間なく重なる丸い頭頂部 */}
+      <g>
+        <path
+          d="M270 345 C260 180, 375 120, 512 120 C649 120, 760 180, 750 345 C700 290, 625 262, 512 262 C399 262, 320 290, 270 345 Z"
+          fill={`url(#${crownGradId})`}
+          stroke={palette.dark}
+          strokeWidth="3.5"
+        />
+        {/* 天使の輪ハイライト */}
+        <path
+          d="M360 185 C435 148, 590 146, 665 182"
+          stroke={palette.highlight}
+          strokeWidth="8"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.55"
+        />
+      </g>
+
       {/* 1. ふわふわツインテール */}
       {hairstyle === "hair_twintail" && (
         <g>
+          {/* 左右のすっきりサイド髪（元のカール毛先を置き換え） */}
+          <path
+            d="M275 265 C255 340, 265 445, 318 520 C332 500, 320 415, 326 275 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3"
+          />
+          <path
+            d="M748 260 C768 335, 758 440, 706 515 C692 495, 704 410, 698 270 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3"
+          />
           {/* 左ツインテール */}
           <path
             d="M280 280 C160 270, 95 380, 125 530 C145 630, 210 680, 255 640 C220 580, 230 480, 290 380 Z"
@@ -400,6 +470,19 @@ export function HairstyleExtension({
       {/* 2. すっきりポニーテール */}
       {hairstyle === "hair_pony" && (
         <g>
+          {/* 左右のタイトなサイド髪（元のカール毛先を置き換え） */}
+          <path
+            d="M276 265 C258 340, 268 440, 318 512 C332 492, 320 410, 326 275 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3"
+          />
+          <path
+            d="M746 260 C764 335, 754 435, 706 508 C692 488, 704 405, 698 270 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3"
+          />
           <path
             d="M620 160 C770 110, 920 200, 910 380 C900 490, 820 550, 770 500 C810 430, 780 310, 650 250 Z"
             fill={`url(#${gradId})`}
@@ -422,30 +505,30 @@ export function HairstyleExtension({
       {/* 3. さらさらボブ */}
       {hairstyle === "hair_bob" && (
         <g>
-          {/* 左サイド内巻きボブ */}
+          {/* 左サイド内巻きボブ（こめかみ〜顎下まで一体成型） */}
           <path
-            d="M275 310 C220 400, 235 530, 345 595 C380 615, 415 590, 395 555 C345 510, 330 420, 345 340 Z"
+            d="M280 225 C215 335, 222 515, 345 595 C382 615, 415 590, 395 555 C342 505, 322 395, 336 255 Z"
             fill={`url(#${gradId})`}
             stroke={palette.dark}
             strokeWidth="3.5"
           />
           <path
-            d="M285 360 C260 440, 280 520, 350 565"
+            d="M275 330 C252 425, 275 515, 350 565"
             stroke={palette.highlight}
             strokeWidth="7"
             strokeLinecap="round"
             fill="none"
             opacity="0.6"
           />
-          {/* 右サイド内巻きボブ */}
+          {/* 右サイド内巻きボブ（こめかみ〜顎下まで一体成型） */}
           <path
-            d="M750 300 C805 390, 790 520, 680 585 C645 605, 610 580, 630 545 C680 500, 695 410, 680 330 Z"
+            d="M745 220 C810 330, 803 505, 680 585 C643 605, 610 580, 630 545 C683 495, 703 385, 689 250 Z"
             fill={`url(#${gradId})`}
             stroke={palette.dark}
             strokeWidth="3.5"
           />
           <path
-            d="M740 350 C765 430, 745 510, 675 555"
+            d="M750 320 C773 415, 750 505, 675 555"
             stroke={palette.highlight}
             strokeWidth="7"
             strokeLinecap="round"
@@ -460,13 +543,13 @@ export function HairstyleExtension({
         <g>
           {/* 左ロングウェーブ */}
           <path
-            d="M270 300 C170 380, 190 500, 150 610 C120 690, 190 770, 280 730 C240 660, 280 560, 260 470 C250 400, 310 360, 330 320 Z"
+            d="M278 230 C168 350, 190 490, 150 610 C120 690, 190 770, 280 730 C240 660, 280 560, 262 465 C252 395, 315 350, 335 265 Z"
             fill={`url(#${gradId})`}
             stroke={palette.dark}
             strokeWidth="4"
           />
           <path
-            d="M245 350 C195 430, 225 530, 185 630 C170 675, 200 715, 245 705"
+            d="M245 335 C195 425, 225 530, 185 630 C170 675, 200 715, 245 705"
             stroke={palette.highlight}
             strokeWidth="8"
             strokeLinecap="round"
@@ -475,13 +558,13 @@ export function HairstyleExtension({
           />
           {/* 右ロングウェーブ */}
           <path
-            d="M755 290 C855 370, 835 490, 875 600 C905 680, 835 760, 745 720 C785 650, 745 550, 765 460 C775 390, 715 350, 695 310 Z"
+            d="M747 225 C857 345, 835 480, 875 600 C905 680, 835 760, 745 720 C785 650, 745 550, 763 455 C773 385, 710 340, 690 255 Z"
             fill={`url(#${gradId})`}
             stroke={palette.dark}
             strokeWidth="4"
           />
           <path
-            d="M780 340 C830 420, 800 520, 840 620 C855 665, 825 705, 780 695"
+            d="M780 325 C830 415, 800 520, 840 620 C855 665, 825 705, 780 695"
             stroke={palette.highlight}
             strokeWidth="8"
             strokeLinecap="round"
