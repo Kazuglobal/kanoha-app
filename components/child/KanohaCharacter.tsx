@@ -17,6 +17,7 @@ import {
   MagicWand,
   BearPochette,
   AngelWings,
+  HairstyleExtension,
 } from "./CharacterAccessories";
 
 type Mood = "happy" | "think" | "celebrate";
@@ -46,19 +47,18 @@ const SPRITES = {
 
 const HAIR_COLOR_FILTERS: Record<string, string> = {
   hair_color_brown: "none",
-  hair_color_black: "brightness(0.35) contrast(1.2) saturate(0.3)",
-  hair_color_pink: "hue-rotate(295deg) saturate(3) brightness(1.2)",
-  hair_color_gold: "hue-rotate(30deg) saturate(4) brightness(1.35)",
-  hair_color_blue: "hue-rotate(185deg) saturate(3) brightness(1.25)",
+  hair_color_black: "saturate(0.2) brightness(0.42) contrast(1.3)",
+  hair_color_pink: "sepia(0.55) hue-rotate(295deg) saturate(2.6) brightness(1.1)",
+  hair_color_gold: "sepia(0.85) hue-rotate(16deg) saturate(3.2) brightness(1.25)",
+  hair_color_blue: "sepia(0.65) hue-rotate(175deg) saturate(2.8) brightness(1.1)",
 };
 
-const HAIRSTYLE_SPRITES: Record<string, { src: string; clip: string }> = {
-  hair_bun: { src: SPRITES.happy, clip: "polygon(18% 2%, 82% 2%, 82% 35%, 18% 35%)" },
-  hair_bob: { src: SPRITES.hoodie, clip: "polygon(22% 4%, 78% 4%, 78% 34%, 22% 34%)" },
-  hair_twintail: { src: SPRITES.school, clip: "polygon(15% 2%, 85% 2%, 85% 36%, 15% 36%)" },
-  hair_pony: { src: SPRITES.safari, clip: "polygon(20% 2%, 82% 2%, 82% 35%, 20% 35%)" },
-  hair_long_wave: { src: SPRITES.wizard, clip: "polygon(16% 2%, 84% 2%, 84% 38%, 16% 38%)" },
-};
+// 頭頂部おだんご(1%)から前髪、左右の毛先(40.5%)まで髪の毛全体をカバーし、顔の目・口・肌を除外する精密ポリゴン
+const FULL_HAIR_CLIP =
+  "polygon(27% 1%, 62% 1%, 76% 14%, 77% 39.5%, 66% 39.5%, 66% 25.5%, 40% 25.5%, 41% 40.5%, 33% 40.5%, 25% 34%, 25% 14%)";
+// ボブ用（頭頂部のおだんごを除外）
+const BOB_HAIR_CLIP =
+  "polygon(27% 11%, 68% 11%, 76% 14%, 77% 39.5%, 66% 39.5%, 66% 25.5%, 40% 25.5%, 41% 40.5%, 33% 40.5%, 25% 34%, 25% 14%)";
 
 const SHOES_COLOR_FILTERS: Record<string, string> = {
   shoes_color_pink: "hue-rotate(295deg) saturate(2.8) brightness(1.15)",
@@ -158,6 +158,7 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
   const hairStyle = activeAccessories.hairstyle ?? "hair_bun";
   const hairColor = activeAccessories.hair_color ?? "hair_color_brown";
   const hairFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
+  const hideBunForBob = hairStyle === "hair_bob";
 
   // 6. 靴レイヤー (Shoes & Shoes Color)
   const shoesType = activeAccessories.shoes ?? "shoes_sneaker";
@@ -200,7 +201,13 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           alt=""
           draggable={false}
           unoptimized
-          style={hideBakedHat ? { clipPath: "polygon(0% 36%, 100% 36%, 100% 100%, 0% 100%)" } : undefined}
+          style={
+            hideBakedHat
+              ? { clipPath: "polygon(0% 36%, 100% 36%, 100% 100%, 0% 100%)" }
+              : hideBunForBob
+                ? { clipPath: "polygon(0% 11.5%, 100% 11.5%, 100% 100%, 0% 100%)" }
+                : undefined
+          }
         />
 
         {/* レイヤー1b: 服に描かれた帽子を消すための帽子なしの頭 */}
@@ -218,19 +225,22 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           />
         )}
 
-        {/* レイヤー1c: 髪型＆髪色オーバーレイ (顔の肌を除外するシームレスマスク) */}
+        {/* レイヤー1c: 髪型エクステンション (ツインテール・ポニーテール・ボブ・ウェーブ) */}
+        <HairstyleExtension hairstyle={hairStyle} hairColor={hairColor} />
+
+        {/* レイヤー1d: 地毛の髪色オーバーレイ (頭頂部おだんごから前髪・左右の毛先まで髪全体をカバー) */}
         {hairFilter !== "none" && (
           <Image
             key={`hair-color-${hairColor}-${hairStyle}`}
             className={styles.hairColorOverlay}
-            src={HAIRSTYLE_SPRITES[hairStyle]?.src ?? SPRITES.happy}
+            src={SPRITES.happy}
             width={1024}
             height={1536}
             alt=""
             draggable={false}
             unoptimized
             style={{
-              clipPath: HAIRSTYLE_SPRITES[hairStyle]?.clip ?? "polygon(18% 2%, 82% 2%, 82% 35%, 18% 35%)",
+              clipPath: hideBunForBob ? BOB_HAIR_CLIP : FULL_HAIR_CLIP,
               filter: hairFilter,
             }}
           />
