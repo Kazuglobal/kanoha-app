@@ -59,4 +59,45 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
     const sprite = getKanohaSprite("happy", accessories);
     expect(sprite).toContain("hero");
   });
+
+  it("completely clips out original hands, original shoes, and original headgear when replacing them", () => {
+    const accessories: EquippedAccessories = {
+      clothes: "clothes_wizard",
+      hairstyle: "hair_twintail",
+      hair_color: "hair_color_pink",
+      shoes: "shoes_sneaker",
+      shoes_color: "shoes_color_white",
+      hat: "hat_crown",
+      glasses: "glasses_round",
+      gloves: "gloves_mitten",
+      accessory: "acc_pin_star",
+    };
+
+    const { container } = render(
+      <KanohaCharacter mood="happy" accessories={accessories} />
+    );
+
+    const images = Array.from(container.querySelectorAll("img"));
+    const baseImg = images.find((img) => img.getAttribute("src")?.includes("wizard"))!;
+    const glovesImg = images.find((img) => img.getAttribute("src")?.includes("mittens"))!;
+    const shoesImg = images.find((img) =>
+      img.getAttribute("src")?.includes("happy") &&
+      img.style.clipPath.includes("78%")
+    )!;
+
+    // ベース衣装は頭頂部(15.5%)・素手(36.5%/58%)・元の靴(78%/84%)がすべてクリップ除去されていること
+    expect(baseImg.style.clipPath).toContain("15.5%");
+    expect(baseImg.style.clipPath).toContain("36.5%");
+    expect(baseImg.style.clipPath).toContain("58%");
+    expect(baseImg.style.clipPath).toContain("78%");
+    expect(baseImg.style.clipPath).toContain("84%");
+
+    // 手袋オーバーレイは両手領域のみを切り出し、元のくまパーカー胴体(28%..70%全域)を含まないこと
+    expect(glovesImg.style.clipPath).toContain("18% 36.5%");
+    expect(glovesImg.style.clipPath).toContain("74% 58%");
+    expect(glovesImg.style.clipPath).not.toContain("12% 28%");
+
+    // 靴オーバーレイはスニーカー(happy)の膝下領域を描画していること
+    expect(shoesImg).toBeTruthy();
+  });
 });

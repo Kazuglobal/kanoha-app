@@ -9,6 +9,7 @@ import {
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
+import { CATEGORIES, normalizeEquipped } from "./rewardLogic";
 
 export {
   ACCESSORY_CATALOG,
@@ -63,19 +64,14 @@ export function getCharacterProgress(): CharacterProgress {
 }
 
 export function getEquippedAccessories(): EquippedAccessories {
-  if (typeof window === "undefined") return DEFAULT_EQUIPPED;
+  if (typeof window === "undefined") return { ...DEFAULT_EQUIPPED };
   try {
     const raw = localStorage.getItem(ACCESSORY_STORAGE_KEY);
-    if (!raw) return DEFAULT_EQUIPPED;
-    const parsed = JSON.parse(raw) as Partial<EquippedAccessories>;
-    return {
-      hat: typeof parsed.hat === "string" ? parsed.hat : DEFAULT_EQUIPPED.hat,
-      glasses: typeof parsed.glasses === "string" ? parsed.glasses : DEFAULT_EQUIPPED.glasses,
-      gloves: typeof parsed.gloves === "string" ? parsed.gloves : DEFAULT_EQUIPPED.gloves,
-      clothes: typeof parsed.clothes === "string" ? parsed.clothes : DEFAULT_EQUIPPED.clothes,
-    };
+    if (!raw) return { ...DEFAULT_EQUIPPED };
+    const parsed = JSON.parse(raw) as unknown;
+    return normalizeEquipped(parsed);
   } catch {
-    return DEFAULT_EQUIPPED;
+    return { ...DEFAULT_EQUIPPED };
   }
 }
 
@@ -95,7 +91,9 @@ export function getLastEquippedCategory(): AccessoryCategory {
   if (typeof window === "undefined") return "clothes";
   try {
     const category = localStorage.getItem(ACCESSORY_FOCUS_KEY);
-    if (category === "hat" || category === "glasses" || category === "gloves") return category;
+    if (category && (CATEGORIES as readonly string[]).includes(category)) {
+      return category as AccessoryCategory;
+    }
   } catch {
     // ignore
   }
