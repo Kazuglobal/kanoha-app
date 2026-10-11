@@ -275,3 +275,221 @@ export function AngelWings({ className, style }: { className?: string; style?: R
     </div>
   );
 }
+
+export const HAIR_COLOR_PALETTES: Record<
+  string,
+  { base: string; dark: string; light: string; highlight: string }
+> = {
+  hair_color_brown: {
+    base: "#7d4e38",
+    dark: "#4d2c1d",
+    light: "#a66c50",
+    highlight: "#d9a389",
+  },
+  hair_color_black: {
+    base: "#27272a",
+    dark: "#09090b",
+    light: "#52525b",
+    highlight: "#a1a1aa",
+  },
+  hair_color_pink: {
+    base: "#ec4899",
+    dark: "#be185d",
+    light: "#f472b6",
+    highlight: "#fbcfe8",
+  },
+  hair_color_gold: {
+    base: "#eab308",
+    dark: "#a16207",
+    light: "#facc15",
+    highlight: "#fef08a",
+  },
+  hair_color_blue: {
+    base: "#0ea5e9",
+    dark: "#0369a1",
+    light: "#38bdf8",
+    highlight: "#bae6fd",
+  },
+};
+
+export function HairstyleExtension({
+  hairstyle,
+  hairColor = "hair_color_brown",
+}: {
+  hairstyle: string;
+  hairColor?: string;
+}) {
+  const palette = HAIR_COLOR_PALETTES[hairColor] ?? HAIR_COLOR_PALETTES.hair_color_brown;
+  const gradId = `hairGrad_${hairstyle}_${hairColor}`;
+  const shadowGradId = `hairShadow_${hairstyle}_${hairColor}`;
+
+  if (hairstyle === "hair_bun") return null;
+
+  return (
+    <svg
+      viewBox="0 0 1024 1536"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+        zIndex: 4,
+        filter: "drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18))",
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={palette.light} />
+          <stop offset="45%" stopColor={palette.base} />
+          <stop offset="100%" stopColor={palette.dark} />
+        </linearGradient>
+        <linearGradient id={shadowGradId} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={palette.base} />
+          <stop offset="100%" stopColor={palette.dark} />
+        </linearGradient>
+      </defs>
+
+      {/* 1. ふわふわツインテール */}
+      {hairstyle === "hair_twintail" && (
+        <g>
+          {/* 左ツインテール */}
+          <path
+            d="M280 280 C160 270, 95 380, 125 530 C145 630, 210 680, 255 640 C220 580, 230 480, 290 380 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="4"
+          />
+          {/* 左ツインテール毛流れハイライト */}
+          <path
+            d="M245 310 C165 340, 140 440, 165 550"
+            stroke={palette.highlight}
+            strokeWidth="8"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.65"
+          />
+          {/* 左ツインテール結び目リボン */}
+          <circle cx="275" cy="285" r="24" fill="#f43f5e" />
+          <circle cx="268" cy="278" r="8" fill="#fda4af" />
+
+          {/* 右ツインテール */}
+          <path
+            d="M745 270 C865 260, 930 370, 900 520 C880 620, 815 670, 770 630 C805 570, 795 470, 735 370 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="4"
+          />
+          {/* 右ツインテール毛流れハイライト */}
+          <path
+            d="M780 300 C860 330, 885 430, 860 540"
+            stroke={palette.highlight}
+            strokeWidth="8"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.65"
+          />
+          {/* 右ツインテール結び目リボン */}
+          <circle cx="750" cy="275" r="24" fill="#f43f5e" />
+          <circle cx="743" cy="268" r="8" fill="#fda4af" />
+        </g>
+      )}
+
+      {/* 2. すっきりポニーテール */}
+      {hairstyle === "hair_pony" && (
+        <g>
+          <path
+            d="M620 160 C770 110, 920 200, 910 380 C900 490, 820 550, 770 500 C810 430, 780 310, 650 250 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="4"
+          />
+          <path
+            d="M680 185 C800 175, 870 260, 855 390"
+            stroke={palette.highlight}
+            strokeWidth="10"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.7"
+          />
+          {/* ポニーテールシュシュ */}
+          <ellipse cx="635" cy="195" rx="22" ry="30" transform="rotate(-25 635 195)" fill="#fbbf24" />
+        </g>
+      )}
+
+      {/* 3. さらさらボブ */}
+      {hairstyle === "hair_bob" && (
+        <g>
+          {/* 左サイド内巻きボブ */}
+          <path
+            d="M275 310 C220 400, 235 530, 345 595 C380 615, 415 590, 395 555 C345 510, 330 420, 345 340 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3.5"
+          />
+          <path
+            d="M285 360 C260 440, 280 520, 350 565"
+            stroke={palette.highlight}
+            strokeWidth="7"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.6"
+          />
+          {/* 右サイド内巻きボブ */}
+          <path
+            d="M750 300 C805 390, 790 520, 680 585 C645 605, 610 580, 630 545 C680 500, 695 410, 680 330 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="3.5"
+          />
+          <path
+            d="M740 350 C765 430, 745 510, 675 555"
+            stroke={palette.highlight}
+            strokeWidth="7"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.6"
+          />
+        </g>
+      )}
+
+      {/* 4. プリンセスウェーブ (ロングウェーブ) */}
+      {hairstyle === "hair_long_wave" && (
+        <g>
+          {/* 左ロングウェーブ */}
+          <path
+            d="M270 300 C170 380, 190 500, 150 610 C120 690, 190 770, 280 730 C240 660, 280 560, 260 470 C250 400, 310 360, 330 320 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="4"
+          />
+          <path
+            d="M245 350 C195 430, 225 530, 185 630 C170 675, 200 715, 245 705"
+            stroke={palette.highlight}
+            strokeWidth="8"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.65"
+          />
+          {/* 右ロングウェーブ */}
+          <path
+            d="M755 290 C855 370, 835 490, 875 600 C905 680, 835 760, 745 720 C785 650, 745 550, 765 460 C775 390, 715 350, 695 310 Z"
+            fill={`url(#${gradId})`}
+            stroke={palette.dark}
+            strokeWidth="4"
+          />
+          <path
+            d="M780 340 C830 420, 800 520, 840 620 C855 665, 825 705, 780 695"
+            stroke={palette.highlight}
+            strokeWidth="8"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.65"
+          />
+        </g>
+      )}
+    </svg>
+  );
+}
