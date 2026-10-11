@@ -17,7 +17,6 @@ import {
   BearPochette,
   AngelWings,
   HairstyleExtension,
-  HAIR_COLOR_FILTERS,
 } from "./CharacterAccessories";
 
 type Mood = "happy" | "think" | "celebrate";
@@ -45,20 +44,20 @@ const SPRITES = {
   glovesGold: "/images/character/kanoha-ref-gloves-gold.png",
 } as const;
 
-// 前髪・こめかみ領域のみを精密にカバーし、襟元(y>=34.5%)・頭頂部リボン・顔の目口肌を完全に除外するポリゴン
-const BANGS_HAIR_CLIP =
-  "polygon(31.5% 21%, 35% 20.5%, 38% 17%, 44% 15.5%, 58% 15.5%, 65% 17%, 68.5% 21%, 71% 22%, 71% 34.5%, 66% 34.5%, 66% 25%, 40% 25%, 40% 34.5%, 31.5% 34.5%)";
-
-// 手袋領域のみを厳密に切り出し（上端 y=0% の透明領域を経由することで服・袖・リュック・スカートを一切含めない）
+// 手袋領域のみを厳密に切り出し（上端 y=0% の透明領域を経由し、両手首のもこもこボアカフスを100%保持しつつ茶髪の毛先や胴体を除外）
 const GLOVES_CLIP =
-  "polygon(18% 0%, 18% 36.5%, 37.5% 36.5%, 37.5% 48%, 33% 50.5%, 18% 50.5%, 18% 0%, 74% 0%, 74% 58%, 89% 58%, 89% 67%, 74% 67%, 74% 0%)";
+  "polygon(18% 0%, 18% 36%, 32% 36%, 35% 39.5%, 41.5% 39.8%, 41.5% 49%, 33% 50.5%, 18% 50.5%, 18% 0%, 69.5% 0%, 69.5% 56%, 89.5% 56%, 89.5% 68%, 69.5% 68%, 69.5% 0%)";
 
-// 膝下の靴下・靴・ブーツ領域（素足の膝 y:74%..78%/84% を除外し、元の靴を100%差し替える）
+// 膝下の靴下・靴・ブーツ領域（左足のふくらはぎを斜めに避けつつ元の靴を100%差し替える）
 const SHOE_REGION_CLIP =
-  "polygon(24% 78%, 46.5% 78%, 46.5% 84%, 76% 84%, 76% 100%, 24% 100%)";
+  "polygon(24% 79.5%, 35% 78%, 49.5% 82.5%, 49.5% 85.5%, 76% 85.5%, 76% 100%, 24% 100%)";
+
+// 靴カラー変更時は白い靴下や素足の肌を変色させず、靴本体のみを着色するポリゴン
+const SHOE_LEATHER_CLIP =
+  "polygon(25% 81%, 35.5% 81%, 45.5% 85.5%, 45.5% 98%, 25% 98%, 25% 81%, 48.5% 88.5%, 65.5% 88%, 73% 99.5%, 48.5% 99.5%, 48.5% 88.5%)";
 
 const SHOES_COLOR_FILTERS: Record<string, string> = {
-  shoes_color_pink: "sepia(0.55) hue-rotate(295deg) saturate(2.6) brightness(1.1)",
+  shoes_color_pink: "none",
   shoes_color_white: "brightness(2.4) contrast(0.9) saturate(0.1)",
   shoes_color_brown: "sepia(0.95) hue-rotate(-25deg) brightness(0.65) contrast(1.2)",
   shoes_color_blue: "hue-rotate(185deg) saturate(2.8) brightness(1.15)",
@@ -100,23 +99,32 @@ function buildBaseClipPath({
 
   const points: string[] = [];
 
-  // 1. 上辺 (x: 0% -> 100%, y <= 34.5%)
+  // 1. 上辺 (x: 0% -> 100%, 元の頭頂部おだんご・ピンクリボン・耳下の茶髪サイドカール先端まで完全にクリップ除去)
   if (clipTopHead) {
     points.push(
       "0% 0%",
       "14% 0%",
-      "14% 34.5%",
-      "31.5% 34.5%",
+      "14% 36.5%",
+      "34% 36.5%",
+      "41.2% 39.0%",
+      "41.2% 35.6%",
+      "38% 35.2%",
+      "38% 33.8%",
+      "33.5% 33.5%",
+      "31.5% 28%",
       "31.5% 22%",
       "35% 20.5%",
       "38% 17.5%",
       "44% 15.5%",
       "58% 15.5%",
       "65% 17.5%",
-      "68.5% 21%",
-      "71% 22.5%",
-      "71% 34.5%",
-      "98% 34.5%",
+      "67.5% 23%",
+      "68% 28%",
+      "70.5% 29%",
+      "70.5% 32.5%",
+      "66.5% 33.8%",
+      "66.5% 38.5%",
+      "98% 38.5%",
       "98% 0%",
       "100% 0%",
     );
@@ -124,27 +132,28 @@ function buildBaseClipPath({
     points.push("0% 0%", "100% 0%");
   }
 
-  // 2. 右辺 (y: 0% -> 100%, 手袋着用時は右側の素手 y:58%..67% を切り抜く)
+  // 2. 右辺 (y: 0% -> 100%, 手袋着用時は右側の素手 y:56%..68% を切り抜く)
   if (clipGloves) {
     points.push(
-      "100% 58%",
-      "74% 58%",
-      "74% 67%",
-      "100% 67%",
+      "100% 56%",
+      "69.5% 56%",
+      "69.5% 68%",
+      "100% 68%",
       "100% 100%",
     );
   } else {
     points.push("100% 100%");
   }
 
-  // 3. 下辺 (x: 100% -> 0%, 靴オーバーレイ時は元の靴 y:78%/84%..100% を切り抜く)
+  // 3. 下辺 (x: 100% -> 0%, 靴オーバーレイ時は元の靴をふくらはぎに沿って切り抜く)
   if (clipShoes) {
     points.push(
       "76% 100%",
-      "76% 84%",
-      "46.5% 84%",
-      "46.5% 78%",
-      "24% 78%",
+      "76% 85.5%",
+      "49.5% 85.5%",
+      "49.5% 82.5%",
+      "35% 78%",
+      "24% 79.5%",
       "24% 100%",
       "0% 100%",
     );
@@ -152,14 +161,16 @@ function buildBaseClipPath({
     points.push("0% 100%");
   }
 
-  // 4. 左辺 (y: 100% -> 0%, 手袋または魔法のステッキ着用時は左側の素手 y:36.5%..50.5% を切り抜く)
+  // 4. 左辺 (y: 100% -> 0%, 手袋または魔法のステッキ着用時は左側の素手を切り抜く)
   if (clipGloves || clipLeftHand) {
     points.push(
       "0% 50.5%",
       "33% 50.5%",
-      "37.5% 48%",
-      "37.5% 36.5%",
-      "0% 36.5%",
+      "41.5% 49%",
+      "41.5% 39.8%",
+      "35% 39.5%",
+      "32% 36%",
+      "0% 36%",
     );
   }
 
@@ -224,7 +235,6 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
   // 4. 髪型・髪色レイヤー (Hairstyle & Hair Color)
   const hairStyle = activeAccessories.hairstyle ?? "hair_bun";
   const hairColor = activeAccessories.hair_color ?? "hair_color_brown";
-  const hairFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
 
   // 5. 帽子レイヤー (Hat)
   const hatType = activeAccessories.hat ?? "hat_none";
@@ -257,12 +267,7 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
   const shoesType = activeAccessories.shoes ?? "shoes_sneaker";
   const shoesColor = activeAccessories.shoes_color ?? "shoes_color_pink";
   const shoesBaseSrc = SHOES_SPRITES[shoesType] ?? SPRITES.happy;
-  const shoesFilter =
-    shoesColor === "shoes_color_pink"
-      ? shoesType === "shoes_sneaker"
-        ? "none"
-        : SHOES_COLOR_FILTERS.shoes_color_pink
-      : (SHOES_COLOR_FILTERS[shoesColor] ?? "none");
+  const shoesFilter = SHOES_COLOR_FILTERS[shoesColor] ?? "none";
 
   const hasExplicitShoes = Boolean(activeAccessories.shoes || activeAccessories.shoes_color);
   const isNativeShoeUncolored =
@@ -328,40 +333,41 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
           layer="front"
         />
 
-        {/* レイヤー1d: 地毛の前髪カラーオーバーレイ (襟やリボンを含めず前髪のみを着色) */}
-        {hairFilter !== "none" && (
-          <Image
-            key={`hair-color-${hairColor}-${hairStyle}`}
-            className={styles.hairColorOverlay}
-            src={SPRITES.happy}
-            width={1024}
-            height={1536}
-            alt=""
-            draggable={false}
-            unoptimized
-            style={{
-              clipPath: BANGS_HAIR_CLIP,
-              filter: hairFilter,
-            }}
-          />
-        )}
-
-        {/* レイヤー1e: 靴＆靴色オーバーレイ (元の靴をクリップ除去した上に100%不透明で描画) */}
+        {/* レイヤー1e: 靴＆靴色オーバーレイ (元の靴をクリップ除去した上に100%不透明で描画し、色変更時は靴本体のみ着色) */}
         {showShoesOverlay && (
-          <Image
-            key={`shoes-${shoesType}-${shoesColor}`}
-            className={styles.shoesOverlay}
-            src={shoesBaseSrc}
-            width={1024}
-            height={1536}
-            alt=""
-            draggable={false}
-            unoptimized
-            style={{
-              clipPath: SHOE_REGION_CLIP,
-              filter: shoesFilter !== "none" ? shoesFilter : undefined,
-            }}
-          />
+          <>
+            <Image
+              key={`shoes-${shoesType}-${shoesColor}`}
+              className={styles.shoesOverlay}
+              src={shoesBaseSrc}
+              width={1024}
+              height={1536}
+              alt=""
+              draggable={false}
+              unoptimized
+              style={{
+                clipPath: SHOE_REGION_CLIP,
+              }}
+            />
+            {shoesFilter !== "none" && (
+              <svg
+                viewBox="0 0 1024 1536"
+                className={styles.shoesOverlay}
+                style={{ pointerEvents: "none" }}
+                aria-hidden="true"
+              >
+                <image
+                  href={shoesBaseSrc}
+                  width="1024"
+                  height="1536"
+                  style={{
+                    clipPath: SHOE_LEATHER_CLIP,
+                    filter: shoesFilter,
+                  }}
+                />
+              </svg>
+            )}
+          </>
         )}
 
         {/* レイヤー2: 手袋オーバーレイ (元の素手をクリップ除去した上に両手領域のみを描画) */}

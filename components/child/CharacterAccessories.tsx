@@ -42,7 +42,7 @@ const FULL_STAGE_SVG_STYLE: React.CSSProperties = {
 };
 
 const FRONT_HAIR_CLIP =
-  "polygon(0% 0%, 100% 0%, 100% 39.5%, 63.5% 39.5%, 63.5% 34.2%, 38.5% 34.2%, 38.5% 39.5%, 0% 39.5%)";
+  "polygon(0% 0%, 100% 0%, 100% 39.5%, 63.5% 39.5%, 63.5% 34.2%, 41.2% 34.2%, 41.2% 39.5%, 0% 39.5%)";
 
 export function RibbonBow({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
