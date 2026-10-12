@@ -87,7 +87,7 @@ export function LevelUpModal({
             </h2>
 
             <p className={styles.levelUpSubtitle}>
-              たくさん せいかい して、さゆきちゃんが おおきく せいちょう したよ！
+              たくさん せいかい して、かのはちゃんが おおきく せいちょう したよ！
             </p>
 
             <div className={styles.levelUpRewardBox}>

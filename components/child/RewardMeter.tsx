@@ -145,8 +145,8 @@ export function RewardMeter() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowDressUpModal(true)}
-          title="さゆきちゃんの きがえ & せいちょう"
-          aria-label="さゆきちゃんの きがえ をひらく"
+          title="かのはちゃんの きがえ & せいちょう"
+          aria-label="かのはちゃんの きがえ をひらく"
         >
           <div className={styles.dressUpIconWrap}>
             <Shirt size={16} />

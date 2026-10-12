@@ -65,9 +65,9 @@ export function ChildHeader({ progress, childId }: { progress?: string; childId?
 
   return (
     <header className={styles.topbar}>
-      <Link className={styles.brand} href="/child/home" aria-label="さゆき ホームへ">
-        <span className={styles.brandMark}>さ</span>
-        <span className={styles.brandText}>さゆき</span>
+      <Link className={styles.brand} href="/child/home" aria-label="かのは ホームへ">
+        <span className={styles.brandMark}>か</span>
+        <span className={styles.brandText}>かのは</span>
       </Link>
       {progress ? (
         <div className={styles.topProgress}>

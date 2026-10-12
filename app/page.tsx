@@ -23,8 +23,8 @@ export default function HomePage() {
     <main className={styles.shell}>
       <header className={styles.header}>
         <span className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true">さ</span>
-          さゆき
+          <span className={styles.brandMark} aria-hidden="true">か</span>
+          かのは
         </span>
         <span className={styles.timePill}>
           <span aria-hidden="true">⏱️</span>
@@ -32,7 +32,7 @@ export default function HomePage() {
         </span>
       </header>
 
-      <section className={styles.hero} aria-label="さゆきコーチ">
+      <section className={styles.hero} aria-label="かのはコーチ">
         <div className={styles.orb}>
           {FLOATERS.map(({ text, className }) => (
             <span key={text} className={`${styles.floater} ${className}`} aria-hidden="true">
@@ -42,7 +42,7 @@ export default function HomePage() {
           {/* 静的なキャラクター画像(public/images/character)。 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            alt="さゆきちゃん"
+            alt="かのはちゃん"
             className={styles.character}
             src="/images/character/kanoha-ref-happy.png"
             fetchPriority="high"
@@ -60,7 +60,7 @@ export default function HomePage() {
         </h1>
         <p className={styles.lead}>{LANDING_TEXT.lead}</p>
 
-        <ul className={styles.points} aria-label="さゆきの とくちょう">
+        <ul className={styles.points} aria-label="かのはの とくちょう">
           {POINTS.map(({ icon, label, tone }) => (
             <li key={label} className={`${styles.point} ${tone}`}>
               <span aria-hidden="true" className={styles.pointIcon}>{icon}</span>

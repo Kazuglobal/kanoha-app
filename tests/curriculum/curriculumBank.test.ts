@@ -36,15 +36,15 @@ describe("Curriculum Bank", () => {
 
     const kanji1 = getCurriculumProblemById("kanji-1");
     expect(kanji1).toBeDefined();
-    expect(kanji1?.correctAnswer).toBe("努力");
+    expect(kanji1?.correctAnswer).toBe("青空");
   });
 
   it("finds problems by unit", () => {
-    const decimalProblems = getCurriculumProblemsByUnit("小数のしくみと計算");
-    expect(decimalProblems.length).toBeGreaterThanOrEqual(3);
+    const volumeProblems = getCurriculumProblemsByUnit("水のかさ");
+    expect(volumeProblems.length).toBeGreaterThanOrEqual(3);
 
-    const rulesProblems = getCurriculumProblemsByUnit("計算のきまり");
-    expect(rulesProblems.length).toBeGreaterThanOrEqual(3);
+    const additionProblems = getCurriculumProblemsByUnit("たし算");
+    expect(additionProblems.length).toBeGreaterThanOrEqual(3);
   });
 
   it("provides continuous next problem progression", () => {
@@ -60,9 +60,9 @@ describe("Curriculum Bank", () => {
   it("calculates stage progress label correctly", () => {
     const progress = getCurriculumStageProgress("volume-1");
     expect(progress).toBeDefined();
-    expect(progress?.unit).toBe("小数のしくみと計算");
-    expect(progress?.index).toBe(4);
-    expect(progress?.label).toContain("小数のしくみと計算 4 /");
+    expect(progress?.unit).toBe("水のかさ");
+    expect(progress?.index).toBe(1);
+    expect(progress?.label).toContain("水のかさ 1 /");
   });
 
   it("returns stage cards for math and japanese", () => {

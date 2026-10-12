@@ -66,7 +66,7 @@ describe("curriculum (stage map) problems join the real learning loop", () => {
     expect(first).toMatch(/^[0-9a-f-]{36}$/);
 
     const row = await db.select().from(schema.problems).where(eq(schema.problems.id, first)).get();
-    expect(row).toMatchObject({ subject: "english", unit: "ほしいものとお買い物", correctAnswer: "なにが ほしいですか？", curriculumProblemId: bank.id });
+    expect(row).toMatchObject({ subject: "english", unit: "どうぶつ", correctAnswer: "cat", curriculumProblemId: bank.id });
     expect(JSON.parse(row!.explanationJson).hint1).toBe(bank.hints.hint1);
   });
 

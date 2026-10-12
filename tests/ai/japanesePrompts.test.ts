@@ -43,7 +43,7 @@ describe("Japanese AI prompts", () => {
       mistakeType: "reading_error",
     });
 
-    expect(prompt).toContain("小学4年生向け国語教材を作るAI");
+    expect(prompt).toContain("小学2年生向け国語教材を作るAI");
     expect(prompt).toContain("単元: 漢字 / 漢字の読み");
     expect(prompt).toContain("改善したい間違え方: reading_error");
     expect(prompt).toContain("類題をちょうど5問");

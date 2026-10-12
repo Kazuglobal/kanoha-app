@@ -53,7 +53,7 @@ describe("scrub helpers", () => {
       correctAnswer: "1000mL",
       subject: "math",
       grade: 2,
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
       subUnit: "LとmL",
       difficulty: "standard",
       mistakeReason: undefined,
@@ -66,7 +66,7 @@ describe("scrub helpers", () => {
     expect(scrubbed.problemText).toBe("〇〇の 〇〇で くばられた もんだい。1Lは何mLですか。");
     expect(scrubbed.hints.hint1).toBe("〇〇で ならったね。");
     expect(scrubbed.correctAnswer).toBe("1000mL");
-    expect(scrubbed.unit).toBe("小数のしくみと計算");
+    expect(scrubbed.unit).toBe("水のかさ");
     expect(scrubbed.mistakeReason).toBeUndefined();
     // 元オブジェクトは変更しない(イミュータブル)
     expect(problem.problemText).toContain("小学校");
@@ -80,7 +80,7 @@ describe("scrub helpers", () => {
       isCorrect: false,
       subject: "math",
       grade: 2,
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
       subUnit: "LとmL",
       difficulty: "standard",
       mistakeType: "unit_conversion_error",
@@ -97,7 +97,7 @@ describe("scrub helpers", () => {
     const draft: SimilarProblemDraft = {
       problemText: "ひがし小の プールに 2Lの 水を いれます。何mLですか。",
       answer: "2000mL",
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
       subUnit: "LとmL",
       difficulty: "standard",
       explanation: "みどり小学校でも ならう かんがえ方です。",

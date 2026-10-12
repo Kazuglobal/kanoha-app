@@ -10,8 +10,8 @@ export default function OfflinePage() {
           <Link className="primary-link" href="/child/home">もういちど ためす</Link>
         </div>
       </section>
-      <aside className="landing-orb" aria-label="さゆきコーチ">
-        <span>さ</span>
+      <aside className="landing-orb" aria-label="かのはコーチ">
+        <span>か</span>
         <small>つながるまで ひとやすみ</small>
       </aside>
     </main>

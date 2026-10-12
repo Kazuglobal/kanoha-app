@@ -11,7 +11,7 @@ describe("getAiProvider", () => {
 
     expect(provider.name).toBe("mock");
     expect(problems).toHaveLength(3);
-    expect(problems.map(({ unit }) => unit)).toEqual(["小数のしくみと計算", "計算のきまり", "わり算の筆算"]);
+    expect(problems.map(({ unit }) => unit)).toEqual(["水のかさ", "たし算", "かけ算"]);
     expect(problems[0].recommendedVisualTemplate).toBe("volume");
   });
 
@@ -54,11 +54,11 @@ describe("getAiProvider", () => {
       difficulty: "standard",
       problemText: "1Lは何mLですか。",
       subUnit: "LとmL",
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
     });
 
     expect(problems).toHaveLength(5);
-    expect(problems.every((item) => item.unit === "小数のしくみと計算")).toBe(true);
+    expect(problems.every((item) => item.unit === "水のかさ")).toBe(true);
     expect(problems.every((item) => item.subUnit === "LとmL")).toBe(true);
     expect(problems.every((item) => item.difficulty === "standard")).toBe(true);
     expect(problems.every((item) => item.answer.length > 0)).toBe(true);

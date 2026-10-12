@@ -33,8 +33,8 @@ export async function ParentShell({
     <div className={styles.parentShell}>
       <aside className={styles.sidebar}>
         <Link className={styles.brand} href="/parent/dashboard">
-          <span className={styles.brandMark}>さ</span>
-          さゆき 保護者用
+          <span className={styles.brandMark}>か</span>
+          かのは 保護者用
         </Link>
         <nav className={styles.nav}>
           {links.map(({ id, href, label, icon: Icon }) => (

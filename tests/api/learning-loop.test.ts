@@ -856,7 +856,7 @@ describe("learning loop: repeated mistakes lower similar-problem difficulty", ()
         materialId: "m-loop-1",
         problemText: "1L は なんmL ですか？",
         correctAnswer: "1000mL",
-        unit: "小数のしくみと計算",
+        unit: "水のかさ",
         subUnit: "LとmL",
         difficulty: "standard",
         explanationJson: JSON.stringify({ mistakeType: "unit_conversion_error" }),
@@ -933,7 +933,7 @@ describe("learning loop: repeated mistakes lower similar-problem difficulty", ()
       expect.objectContaining({
         difficulty: "basic",
         mistakeType: "unit_conversion_error",
-        unit: "小数のしくみと計算",
+        unit: "水のかさ",
       }),
     );
 

@@ -299,7 +299,7 @@ describe("POST /api/problems/[id]/hint (demo without database)", () => {
     const firstBody = await first.json();
 
     expect(first.status).toBe(200);
-    expect(firstBody.data).toMatchObject({ level: 1, text: "0.1Lは 100mL だね。それが 10こ 集まると 何mLかな。", maxLevel: 1 });
+    expect(firstBody.data).toMatchObject({ level: 1, text: "1Lの中には、100mLがいくつあるかな。", maxLevel: 1 });
     expect(JSON.stringify(firstBody)).not.toContain("1000mL");
     expect(first.headers.get("set-cookie")).toContain("kanoha_demo_hint=volume-1%3A1");
 

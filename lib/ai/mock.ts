@@ -26,7 +26,7 @@ interface MockProblemSpec {
 const makeProblem = (spec: MockProblemSpec): ParsedProblem => ({
   correctAnswer: spec.correctAnswer,
   difficulty: "standard",
-  grade: 4,
+  grade: 2,
   hints: {
     answer: spec.correctAnswer,
     hint1: "わかるところから、ゆっくり考えよう。",
@@ -44,7 +44,7 @@ const makeProblem = (spec: MockProblemSpec): ParsedProblem => ({
   unit: spec.unit,
 });
 
-/** Deterministic problems using canonical curriculum units (lib/curriculum/grade4Math.ts). */
+/** Deterministic problems using canonical curriculum units (lib/curriculum/grade2Math.ts). */
 export const mockProblems: readonly ParsedProblem[] = [
   makeProblem({
     correctAnswer: "1000mL",
@@ -56,34 +56,34 @@ export const mockProblems: readonly ParsedProblem[] = [
     },
     problemText: "1Lは何mLですか。",
     recommendedVisualTemplate: "volume",
-    subUnit: "小数の位としくみ",
-    unit: "小数のしくみと計算",
+    subUnit: "LとmL",
+    unit: "水のかさ",
   }),
   makeProblem({
-    correctAnswer: "10",
-    problemText: "20-(6+4)はいくつですか。",
-    subUnit: "かっこのある計算",
-    unit: "計算のきまり",
+    correctAnswer: "43",
+    problemText: "28+15はいくつですか。",
+    subUnit: "くり上がり",
+    unit: "たし算",
   }),
   makeProblem({
-    correctAnswer: "20",
-    problemText: "80÷4はいくつですか。",
-    subUnit: "何十・何百のわり算",
-    unit: "わり算の筆算",
+    correctAnswer: "12こ",
+    problemText: "3こずつ4さらで、ぜんぶで何こですか。",
+    subUnit: "九九",
+    unit: "かけ算",
   }),
 ];
 
 export const mockJapaneseProblems: readonly ParsedProblem[] = [
   makeProblem({
     subject: "japanese",
-    correctAnswer: "努力",
+    correctAnswer: "青空",
     hints: {
-      hint1: "目標に向かって一生けんめいがんばることだよ。",
-      hint2: "「努」と「力」の２文字を組み合わせるよ。",
+      hint1: "「あお」と「ぞら」をそれぞれ漢字で思い出してみよう。",
+      hint2: "「青」と「空」の２文字を組み合わせるよ。",
       praise: "漢字をよく思い出せたね！",
-      solution: "「どりょく」は「努力」と書きます。",
+      solution: "「あお」は「青」、「ぞら」は「空」で「青空」と書きます。",
     },
-    problemText: "つぎの ことばを 漢字で 書きましょう。「どりょく」",
+    problemText: "つぎの ことばを かん字で かきましょう。「あおぞら」",
     subUnit: "漢字の書き",
     unit: "漢字",
   }),
@@ -97,7 +97,7 @@ export const mockJapaneseProblems: readonly ParsedProblem[] = [
       solution: "友だちに喜んでもらえて、たけしさんは『うれしい気持ち』になりました。",
     },
     problemText: "たけしさんは、どんな気持ちでしたか。文の中からさがしましょう。",
-    subUnit: "登場人物の気持ちの変化",
+    subUnit: "登場人物の気持ち",
     unit: "お話の読解",
   }),
 ];
@@ -113,7 +113,7 @@ export const demoProblemById = (id: string) => {
     const parsed: ParsedProblem = {
       correctAnswer: bankProblem.correctAnswer,
       difficulty: "standard",
-      grade: 4,
+      grade: 2,
       hints: bankProblem.hints,
       problemText: bankProblem.problemText,
       recommendedVisualTemplate: bankProblem.recommendedVisualTemplate ?? null,
@@ -205,11 +205,11 @@ const VERY_EASY_MOCK_HINTS: Hints = {
 };
 
 const JAPANESE_MOCK_HINTS: Hints = {
-  answer: "どりょく",
+  answer: "あおぞら",
   hint1: "漢字の１文字ずつに注目してみよう。",
-  hint2: "「努」と「力」の読み方を思い出そう。",
+  hint2: "「青」と「空」の読み方を思い出そう。",
   praise: "よく気づけたね！",
-  solution: "「努」は「ど」、「力」は「りょく」で「どりょく」と読みます。",
+  solution: "「青」は「あお」、「空」はにごって「ぞら」と読みます。",
 };
 
 export const mockAiProvider: AiProvider = {
@@ -227,7 +227,7 @@ export const mockAiProvider: AiProvider = {
     if (bankMatch) {
       return bankMatch.hints;
     }
-    if (prompt.includes("こくご") || prompt.includes("漢字") || prompt.includes("努力") || prompt.includes("青空")) {
+    if (prompt.includes("こくご") || prompt.includes("漢字") || prompt.includes("青空")) {
       return JAPANESE_MOCK_HINTS;
     }
     return STANDARD_MOCK_HINTS;
@@ -245,17 +245,14 @@ export const mockAiProvider: AiProvider = {
     if (bankMatch) {
       return { answer: bankMatch.correctAnswer };
     }
-    if (problemText.includes("青空") || problemText.includes("あおぞら")) {
-      return { answer: "青空" };
-    }
     if (
       subject === "japanese" ||
       problemText.includes("漢字") ||
-      problemText.includes("努力") ||
+      problemText.includes("青空") ||
       problemText.includes("ことば") ||
       problemText.includes("こくご")
     ) {
-      return { answer: "努力" };
+      return { answer: "青空" };
     }
     return { answer: "1000mL" };
   },

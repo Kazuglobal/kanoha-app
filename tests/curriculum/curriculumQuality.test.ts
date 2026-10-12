@@ -42,20 +42,20 @@ describe("小2の学びに合わせた問題の見直し", () => {
     }
   });
 
-  it("国語の慣用句問題の答えを正しく判定する", () => {
-    expect(getCurriculumProblemById("vocabulary-1")?.correctAnswer).toBe("頭をひねる");
-    expect(checkDemoAnswer("vocabulary-1", "頭をひねる")?.correct).toBe(true);
+  it("国語の答えに 2年で習わない「低」を使わない", () => {
+    expect(getCurriculumProblemById("vocabulary-1")?.correctAnswer).toBe("ひくい");
+    expect(checkDemoAnswer("vocabulary-1", "低い")?.correct).toBe(true);
   });
 
   it.each([
     ["fractions-2", "1/4"],
     ["fractions-2", "4ぶんの1"],
-    ["fractions-3", "8分の3"],
-    ["angles-3", "360度"],
-    ["area-4", "7cm"],
-    ["cuboids-2", "12ほん"],
+    ["fractions-3", "8分の1"],
+    ["time-3", "24"],
+    ["length-4", "5cm9mm"],
+    ["boxes-2", "12ほん"],
     ["kanji-5", "新しい"],
-    ["large-numbers-3", "450"],
+    ["large-numbers-3", "307"],
   ])("%s は「%s」を正解にする", (id, answer) => {
     expect(checkDemoAnswer(id, answer)?.correct).toBe(true);
   });

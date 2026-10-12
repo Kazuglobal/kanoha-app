@@ -53,7 +53,7 @@ export const parsedProblemSchema = z
     correctAnswer: answerText,
     isCorrect: z.boolean().optional(),
     subject: subjectSchema,
-    grade: z.number().int().min(1).max(6),
+    grade: z.literal(2),
     unit: allUnitSchema,
     subUnit: subUnitText,
     difficulty: difficultySchema,

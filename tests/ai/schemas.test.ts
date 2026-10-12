@@ -27,7 +27,7 @@ describe("AI output schemas", () => {
       isCorrect: false,
       subject: "math",
       grade: 2,
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
       subUnit: "LとmL",
       difficulty: "standard",
       mistakeType: "unit_conversion_error",
@@ -38,7 +38,7 @@ describe("AI output schemas", () => {
       similarProblemCount: 5,
     });
 
-    expect(result.unit).toBe("小数のしくみと計算");
+    expect(result.unit).toBe("水のかさ");
   });
 
   it("derives unit and mistakeType enums from the curriculum constants", () => {
@@ -54,7 +54,7 @@ describe("AI output schemas", () => {
       correctAnswer: "1000mL",
       subject: "math",
       grade: 2,
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
       subUnit: "LとmL",
       difficulty: "standard",
       hints: validHints,
@@ -77,7 +77,7 @@ describe("AI output schemas", () => {
         isCorrect: false,
         subject: "math",
         grade: 2,
-        unit: "小数のしくみと計算",
+        unit: "水のかさ",
         subUnit: "LとmL",
         difficulty: "standard",
         hints: validHints,
@@ -96,7 +96,7 @@ describe("AI output schemas", () => {
     const problem = {
       problemText: "2Lは何mLですか。",
       answer: "2000mL",
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
       subUnit: "LとmL",
       difficulty: "standard",
       explanation: "1Lは1000mLです。",

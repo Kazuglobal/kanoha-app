@@ -140,7 +140,7 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitsPe
   return Buffer.concat([header, pcmBuffer]);
 }
 
-/** 英会話れんしゅうの英語セリフ用の読み上げ指示(9〜10さいの日本の子どもが聞き取りやすい英語)。 */
+/** 英会話れんしゅうの英語セリフ用の読み上げ指示(7さいの日本の子どもが聞き取りやすい英語)。 */
 function buildEnglishInstruction(mood: GeminiTtsOptions["mood"]): string {
   const tone =
     mood === "celebrate"
@@ -149,7 +149,7 @@ function buildEnglishInstruction(mood: GeminiTtsOptions["mood"]): string {
       ? "Sound gentle and reassuring."
       : "Sound warm, cheerful and friendly.";
   return [
-    "You are Sayuki, a cheerful English conversation partner for a 10-year-old Japanese child.",
+    "You are Kanoha, a cheerful English conversation partner for a 7-year-old Japanese child.",
     "Read the line below slowly and clearly in natural American English, with short pauses between words.",
     "Speak loudly enough for a small tablet speaker. Read only the line, with no extra words.",
     tone,
@@ -180,8 +180,8 @@ export async function generateGeminiSpeech({
       ? "優しく安心させるように、ゆっくり丁寧に語りかけてあげてください。子どもの耳にはっきりと届く声量で発声してください。"
       : "明るく親しみやすく、笑顔でいっしょに頑張ろうと励ましてください。元気いっぱいに、はっきりと聞き取りやすい声量で発声してください。";
 
-  const systemInstruction = lang === "en" ? buildEnglishInstruction(mood) : `あなたは小学生の自立学習を応援する愛されマスコット「さゆき」です。
-子どもが安心できるよう、温かく可愛らしい小学4年生の女の子の声で、以下のセリフだけを元気にハキハキと読み上げてください。
+  const systemInstruction = lang === "en" ? buildEnglishInstruction(mood) : `あなたは小学生の自立学習を応援する愛されマスコット「かのは」です。
+子どもが安心できるよう、温かく可愛らしい小学2年生の女の子の声で、以下のセリフだけを元気にハキハキと読み上げてください。
 タブレットやスマホのスピーカーでも子どもの耳にはっきりと届くよう、大きめのしっかりした声量で発声してください。
 余計な前置きや説明は一切含めず、セリフのみを発声してください。
 【演出指示】: ${moodPrompt}`;

@@ -14,9 +14,8 @@ alter table public.problems
   drop constraint if exists problems_unit_check;
 alter table public.problems
   add constraint problems_unit_check check (unit in (
-    '大きい数のしくみ', 'わり算の筆算', '角の大きさ', '垂直・平行と四角形',
-    '折れ線グラフと表', '小数のしくみと計算', '面積', 'がい数とその計算',
-    '計算のきまり', '分数', '変わり方調べ', '直方体と立方体',
+    '表とグラフ', '整理する力', '時こくと時間', 'たし算', 'ひき算', '長さ', '水のかさ',
+    '三角形と四角形', 'かけ算', '1000より大きい数', '分数', 'はこの形',
     '漢字', 'ことばのきまり', '文の組み立て', 'お話の読解', '説明文の読解', '作文と表現'
   ));
 
@@ -24,9 +23,8 @@ alter table public.generated_similar_problems
   drop constraint if exists generated_similar_problems_unit_check;
 alter table public.generated_similar_problems
   add constraint generated_similar_problems_unit_check check (unit in (
-    '大きい数のしくみ', 'わり算の筆算', '角の大きさ', '垂直・平行と四角形',
-    '折れ線グラフと表', '小数のしくみと計算', '面積', 'がい数とその計算',
-    '計算のきまり', '分数', '変わり方調べ', '直方体と立方体',
+    '表とグラフ', '整理する力', '時こくと時間', 'たし算', 'ひき算', '長さ', '水のかさ',
+    '三角形と四角形', 'かけ算', '1000より大きい数', '分数', 'はこの形',
     '漢字', 'ことばのきまり', '文の組み立て', 'お話の読解', '説明文の読解', '作文と表現'
   ));
 
@@ -34,9 +32,8 @@ alter table public.weakness_map
   drop constraint if exists weakness_map_unit_check;
 alter table public.weakness_map
   add constraint weakness_map_unit_check check (unit in (
-    '大きい数のしくみ', 'わり算の筆算', '角の大きさ', '垂直・平行と四角形',
-    '折れ線グラフと表', '小数のしくみと計算', '面積', 'がい数とその計算',
-    '計算のきまり', '分数', '変わり方調べ', '直方体と立方体',
+    '表とグラフ', '整理する力', '時こくと時間', 'たし算', 'ひき算', '長さ', '水のかさ',
+    '三角形と四角形', 'かけ算', '1000より大きい数', '分数', 'はこの形',
     '漢字', 'ことばのきまり', '文の組み立て', 'お話の読解', '説明文の読解', '作文と表現'
   ));
 
@@ -44,9 +41,8 @@ alter table public.review_schedule
   drop constraint if exists review_schedule_unit_check;
 alter table public.review_schedule
   add constraint review_schedule_unit_check check (unit in (
-    '大きい数のしくみ', 'わり算の筆算', '角の大きさ', '垂直・平行と四角形',
-    '折れ線グラフと表', '小数のしくみと計算', '面積', 'がい数とその計算',
-    '計算のきまり', '分数', '変わり方調べ', '直方体と立方体',
+    '表とグラフ', '整理する力', '時こくと時間', 'たし算', 'ひき算', '長さ', '水のかさ',
+    '三角形と四角形', 'かけ算', '1000より大きい数', '分数', 'はこの形',
     '漢字', 'ことばのきまり', '文の組み立て', 'お話の読解', '説明文の読解', '作文と表現'
   ));
 

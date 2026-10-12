@@ -19,7 +19,7 @@ export default async function EnglishTalkListPage({
       <ChildHeader childId={childId} />
       <header className={talkStyles.listHeader}>
         <h1>えいごで おはなし</h1>
-        <p>さゆきちゃんと いっしょに、いろいろな ばしょで えいごを はなしてみよう！</p>
+        <p>かのはちゃんと いっしょに、いろいろな ばしょで えいごを はなしてみよう！</p>
       </header>
       <main className={talkStyles.sceneList}>
         {TALK_SCENES.map((scene) => (

@@ -1,6 +1,6 @@
-import { GRADE_4_MATH_UNITS, type Grade4MathUnit } from "./grade4Math";
-import { GRADE_4_JAPANESE_UNITS, type Grade4JapaneseUnit } from "./grade4Japanese";
-import { GRADE_4_ENGLISH_UNITS, type Grade4EnglishUnit } from "./grade4English";
+import { GRADE_2_MATH_UNITS, type Grade2MathUnit } from "./grade2Math";
+import { GRADE_2_JAPANESE_UNITS, type Grade2JapaneseUnit } from "./grade2Japanese";
+import { GRADE_2_ENGLISH_UNITS, type Grade2EnglishUnit } from "./grade2English";
 
 export const SUBJECTS = ["math", "japanese", "english"] as const;
 export type Subject = (typeof SUBJECTS)[number];
@@ -31,34 +31,34 @@ export const SUBJECT_CONFIG: Readonly<Record<Subject, SubjectConfig>> = Object.f
     ja: "算数",
     child: "さんすう",
     emoji: "🧮",
-    units: GRADE_4_MATH_UNITS,
-    defaultProblemId: "large-numbers-1",
-    demoLabel: "大きい数のしくみ(億と兆)",
+    units: GRADE_2_MATH_UNITS,
+    defaultProblemId: "volume-1",
+    demoLabel: "水のかさ(LとmL)",
     answerMode: "numeric",
     speechLang: "ja-JP",
-    fallbackHints: { hint1: "図や 数字の 関係を 見てみよう。", hint2: "順を追って 少しずつ 考えてみよう。" },
+    fallbackHints: { hint1: "え や すうじ を みてみよう。", hint2: "すこしずつ かんがえてみよう。" },
   },
   japanese: {
     ja: "国語",
     child: "こくご",
     emoji: "📖",
-    units: GRADE_4_JAPANESE_UNITS,
+    units: GRADE_2_JAPANESE_UNITS,
     defaultProblemId: "kanji-1",
     demoLabel: "漢字の書き取り",
     answerMode: "text",
     speechLang: "ja-JP",
-    fallbackHints: { hint1: "かん字の 形や 意味を よく 見てみよう。", hint2: "１文字ずつ 思い出して みよう。" },
+    fallbackHints: { hint1: "かん字の かたちを よく みてみよう。", hint2: "１もじずつ おもいだして みよう。" },
   },
   english: {
     ja: "英語",
     child: "えいご",
     emoji: "🔤",
-    units: GRADE_4_ENGLISH_UNITS,
+    units: GRADE_2_ENGLISH_UNITS,
     defaultProblemId: "english-alphabet-1",
-    demoLabel: "アルファベットとことば",
+    demoLabel: "アルファベット",
     answerMode: "choice",
     speechLang: "en-US",
-    fallbackHints: { hint1: "おとを もういちど きいてみよう。", hint2: "場面を おもいうかべて みよう。" },
+    fallbackHints: { hint1: "おとを もういちど きいてみよう。", hint2: "えを おもいうかべて みよう。" },
   },
 });
 
@@ -69,16 +69,13 @@ export const SUBJECT_LABELS: Readonly<Record<Subject, { ja: string; child: strin
 export const isSubject = (value: string): value is Subject =>
   SUBJECTS.includes(value as Subject);
 
-export type Grade4Unit = Grade4MathUnit | Grade4JapaneseUnit | Grade4EnglishUnit;
-export type Grade2Unit = Grade4Unit;
+export type Grade2Unit = Grade2MathUnit | Grade2JapaneseUnit | Grade2EnglishUnit;
 
-export const GRADE_4_ALL_UNITS = [
-  ...GRADE_4_MATH_UNITS,
-  ...GRADE_4_JAPANESE_UNITS,
-  ...GRADE_4_ENGLISH_UNITS,
+export const GRADE_2_ALL_UNITS = [
+  ...GRADE_2_MATH_UNITS,
+  ...GRADE_2_JAPANESE_UNITS,
+  ...GRADE_2_ENGLISH_UNITS,
 ] as const;
-
-export const GRADE_2_ALL_UNITS = GRADE_4_ALL_UNITS;
 
 export function getUnitsBySubject(subject: Subject): readonly string[] {
   return SUBJECT_CONFIG[subject].units;
@@ -86,12 +83,7 @@ export function getUnitsBySubject(subject: Subject): readonly string[] {
 
 /** 単元名から教科を判定する(未知の単元は算数)。 */
 export function detectSubjectFromUnit(unit: string): Subject {
-  const matched = SUBJECTS.find((subject) => SUBJECT_CONFIG[subject].units.includes(unit));
-  if (matched) return matched;
-  if (["いろ", "どうぶつ", "たべもの", "からだ", "あいさつ", "えいごのかず", "アルファベット"].includes(unit)) {
-    return "english";
-  }
-  return "math";
+  return SUBJECTS.find((subject) => SUBJECT_CONFIG[subject].units.includes(unit)) ?? "math";
 }
 
 /**

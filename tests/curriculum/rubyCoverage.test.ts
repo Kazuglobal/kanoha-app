@@ -44,7 +44,7 @@ describe("ruby dictionary coverage (W6)", () => {
       difficulty: "standard",
       problemText: "1Lは何mLですか。",
       subUnit: "LとmL",
-      unit: "小数のしくみと計算",
+      unit: "水のかさ",
     });
     for (const similar of similars) {
       expectCovered(similar.problemText);
