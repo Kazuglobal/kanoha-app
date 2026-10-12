@@ -394,7 +394,71 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
   },
 ] as const;
 
+export type CharacterId =
+  | "char_luna"
+  | "char_koharu"
+  | "char_noa"
+  | "char_leaf"
+  | "char_pico"
+  | "char_sayuki";
+
+export interface CharacterOption {
+  id: CharacterId;
+  name: string;
+  icon: string;
+  description: string;
+  previewImage: string;
+}
+
+export const DEFAULT_CHARACTER_ID: CharacterId = "char_luna";
+
+export const CHARACTER_CATALOG: readonly CharacterOption[] = [
+  {
+    id: "char_luna",
+    name: "ルナ",
+    icon: "🌟",
+    description: "きんぱつおだんごの げんきいっぱいな おんなのこ",
+    previewImage: "/images/character/char-luna-happy.png",
+  },
+  {
+    id: "char_koharu",
+    name: "コハル",
+    icon: "🌻",
+    description: "あかげの みつあみと オーバーオールが にあう おんなのこ",
+    previewImage: "/images/character/char-koharu-happy.png",
+  },
+  {
+    id: "char_noa",
+    name: "ノア",
+    icon: "📚",
+    description: "まるめがねと ほんが だいすきな ものしり ガール",
+    previewImage: "/images/character/char-noa-happy.png",
+  },
+  {
+    id: "char_leaf",
+    name: "リーフ",
+    icon: "🌿",
+    description: "もりの おはなと しぜんが ともだちの エルフの こ",
+    previewImage: "/images/character/char-leaf-happy.png",
+  },
+  {
+    id: "char_pico",
+    name: "ピコ",
+    icon: "🤖",
+    description: "みらいから やってきた キュートな AI ロボット",
+    previewImage: "/images/character/char-pico-happy.png",
+  },
+  {
+    id: "char_sayuki",
+    name: "さゆき",
+    icon: "🌸",
+    description: "ピンクのリボンと くまパーカーが おきにいりの おんなのこ",
+    previewImage: "/images/character/kanoha-ref-happy.png",
+  },
+] as const;
+
 export interface EquippedAccessories {
+  character?: CharacterId;
   hat: string;
   glasses: string;
   gloves: string;

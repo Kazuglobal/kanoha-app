@@ -6,8 +6,12 @@ import { KanohaCharacter } from "./KanohaCharacter";
 import { speakCoachVoice } from "@/lib/audio/coachSpeech";
 import {
   getEquippedAccessories,
+  getSelectedCharacter,
   DEFAULT_EQUIPPED,
+  DEFAULT_CHARACTER_ID,
+  CHARACTER_CATALOG,
   type EquippedAccessories,
+  type CharacterId,
 } from "@/lib/rewards/characterGrowthStore";
 
 const TAP_REACTIONS = [
@@ -34,14 +38,32 @@ export function CharacterCoach({
     }
     return DEFAULT_EQUIPPED;
   });
+  const [characterId, setCharacterId] = useState<CharacterId>(() => {
+    if (typeof window !== "undefined") {
+      return getSelectedCharacter();
+    }
+    return DEFAULT_CHARACTER_ID;
+  });
 
   useEffect(() => {
     setAccessories(getEquippedAccessories());
+    setCharacterId(getSelectedCharacter());
 
     const handleAccessoryChange = (e: Event) => {
       const customEvent = e as CustomEvent<EquippedAccessories>;
       if (customEvent.detail) {
         setAccessories(customEvent.detail);
+      } else {
+        setAccessories(getEquippedAccessories());
+      }
+    };
+
+    const handleCharacterChange = (e: Event) => {
+      const customEvent = e as CustomEvent<CharacterId>;
+      if (customEvent.detail) {
+        setCharacterId(customEvent.detail);
+      } else {
+        setCharacterId(getSelectedCharacter());
       }
     };
 
@@ -71,11 +93,13 @@ export function CharacterCoach({
     };
 
     window.addEventListener("kanoha-accessory-update", handleAccessoryChange);
+    window.addEventListener("kanoha-character-update", handleCharacterChange);
     window.addEventListener("kanoha-problem-solved", handleProblemSolved);
     window.addEventListener("kanoha-coach-praise", handleCoachPraise);
 
     return () => {
       window.removeEventListener("kanoha-accessory-update", handleAccessoryChange);
+      window.removeEventListener("kanoha-character-update", handleCharacterChange);
       window.removeEventListener("kanoha-problem-solved", handleProblemSolved);
       window.removeEventListener("kanoha-coach-praise", handleCoachPraise);
     };
@@ -100,9 +124,11 @@ export function CharacterCoach({
 
   const activeMood = tapMood || mood;
   const displayMessage = tapMessage || message;
+  const currentCharName =
+    CHARACTER_CATALOG.find((c) => c.id === characterId)?.name ?? "ルナ";
 
   return (
-    <aside className={styles.coach} aria-label={`さゆきコーチ: ${displayMessage}`}>
+    <aside className={styles.coach} aria-label={`${currentCharName}コーチ: ${displayMessage}`}>
       <div
         className={styles.speechBubble}
         onClick={() => void speakCoachVoice(displayMessage, activeMood)}
@@ -143,6 +169,7 @@ export function CharacterCoach({
         <KanohaCharacter
           mood={activeMood}
           accessories={accessories}
+          characterId={characterId}
         />
       </div>
     </aside>

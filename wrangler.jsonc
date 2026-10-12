@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kanoha-app",
+  "name": "sayuki",
   "main": ".open-next/worker.js",
   "compatibility_date": "2024-09-23",
   "compatibility_flags": ["nodejs_compat"],
@@ -11,8 +11,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "kanoha-db",
-      "database_id": "2606f4a5-169a-4587-a8fb-092b4c4aaa7f",
+      "database_name": "sayuki-db",
+      "database_id": "bf88781c-7269-4910-9300-e916d41a4932",
       "migrations_dir": "drizzle/migrations"
     }
   ],
@@ -23,8 +23,8 @@
     }
   ],
   "vars": {
-    "BETTER_AUTH_URL": "https://kanoha-app.globalbunny.workers.dev",
-    "NEXT_PUBLIC_APP_URL": "https://kanoha-app.globalbunny.workers.dev",
+    "BETTER_AUTH_URL": "https://sayuki.globalbunny.workers.dev",
+    "NEXT_PUBLIC_APP_URL": "https://sayuki.globalbunny.workers.dev",
     "AI_PROVIDER_TEXT": "auto",
     "GEMINI_TEXT_MODEL": "gemini-2.5-flash",
     "GEMINI_VISION_MODEL": "gemini-2.5-flash",
@@ -44,8 +44,8 @@
   },
   "previews": {
     "vars": {
-      "BETTER_AUTH_URL": "https://kanoha-app.globalbunny.workers.dev",
-      "NEXT_PUBLIC_APP_URL": "https://kanoha-app.globalbunny.workers.dev",
+      "BETTER_AUTH_URL": "https://sayuki.globalbunny.workers.dev",
+      "NEXT_PUBLIC_APP_URL": "https://sayuki.globalbunny.workers.dev",
       "AI_PROVIDER_TEXT": "auto",
       "GEMINI_TEXT_MODEL": "gemini-2.5-flash",
       "GEMINI_VISION_MODEL": "gemini-2.5-flash",
@@ -66,7 +66,7 @@
     "d1_databases": [
       {
         "binding": "DB",
-        "database_id": "2606f4a5-169a-4587-a8fb-092b4c4aaa7f"
+        "database_id": "bf88781c-7269-4910-9300-e916d41a4932"
       }
     ],
     "r2_buckets": [

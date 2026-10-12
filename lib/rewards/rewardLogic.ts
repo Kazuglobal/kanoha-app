@@ -1,9 +1,11 @@
 import {
   ACCESSORY_CATALOG,
+  CHARACTER_CATALOG,
   DEFAULT_EQUIPPED,
   getCharacterLevel,
   isAccessoryUnlocked,
   type AccessoryCategory,
+  type CharacterId,
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
@@ -113,16 +115,23 @@ export const CATEGORIES: readonly AccessoryCategory[] = [
 const itemInCategory = (category: AccessoryCategory, itemId: unknown): itemId is string =>
   typeof itemId === "string" && ACCESSORY_CATALOG.some((item) => item.id === itemId && item.category === category);
 
+const isValidCharacterId = (value: unknown): value is CharacterId =>
+  typeof value === "string" && CHARACTER_CATALOG.some((char) => char.id === value);
+
 /** カタログに無いアイテムは既定に戻す。 */
 export function normalizeEquipped(raw: unknown): EquippedAccessories {
   const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  return CATEGORIES.reduce<EquippedAccessories>(
+  const normalized = CATEGORIES.reduce<EquippedAccessories>(
     (acc, category) => ({
       ...acc,
       [category]: itemInCategory(category, source[category]) ? source[category] : DEFAULT_EQUIPPED[category],
     }),
     DEFAULT_EQUIPPED,
   );
+  if (isValidCharacterId(source.character)) {
+    return { ...normalized, character: source.character };
+  }
+  return normalized;
 }
 
 export function parseEquippedJson(json: string | null | undefined): EquippedAccessories {

@@ -100,4 +100,44 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
     // 靴オーバーレイはスニーカー(happy)の膝下領域を描画していること
     expect(shoesImg).toBeTruthy();
   });
+
+  it("renders all 5 new selectable characters with their custom 3D outfits and dress-up items", () => {
+    const newCharacters = [
+      { id: "char_luna", key: "luna" },
+      { id: "char_koharu", key: "koharu" },
+      { id: "char_noa", key: "noa" },
+      { id: "char_leaf", key: "leaf" },
+      { id: "char_pico", key: "pico" },
+    ] as const;
+
+    for (const char of newCharacters) {
+      const accessories: EquippedAccessories = {
+        character: char.id,
+        clothes: "clothes_wizard",
+        hairstyle: "hair_twintail",
+        hair_color: "hair_color_pink",
+        shoes: "shoes_magical",
+        shoes_color: "shoes_color_blue",
+        hat: "hat_wizard",
+        glasses: "glasses_star",
+        gloves: "gloves_mitten",
+        accessory: "acc_wings",
+      };
+
+      const { container } = render(
+        <KanohaCharacter mood="happy" characterId={char.id} accessories={accessories} />
+      );
+
+      const images = Array.from(container.querySelectorAll("img"));
+      const sources = images.map((img) => img.getAttribute("src") ?? "");
+
+      expect(sources.some((s) => s.includes(`char-${char.key}-wizard.png`))).toBe(true);
+      expect(sources.some((s) => s.includes(`char-${char.key}-hair.png`))).toBe(true);
+      expect(sources.some((s) => s.includes(`char-${char.key}-shoes.png`))).toBe(true);
+      expect(sources.some((s) => s.includes("item-hair-twintail.png"))).toBe(true);
+      expect(sources.some((s) => s.includes("item-hat-wizard.png"))).toBe(true);
+      expect(sources.some((s) => s.includes("item-gloves-mitten.png"))).toBe(true);
+      expect(sources.some((s) => s.includes("item-acc-wings-trimmed.png"))).toBe(true);
+    }
+  });
 });

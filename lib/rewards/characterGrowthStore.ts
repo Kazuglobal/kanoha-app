@@ -2,10 +2,14 @@
 
 import { getRewardState } from "./rewardStore";
 import {
+  CHARACTER_CATALOG,
+  DEFAULT_CHARACTER_ID,
   DEFAULT_EQUIPPED,
   GROWTH_LEVELS,
   getCharacterLevel,
   type AccessoryCategory,
+  type CharacterId,
+  type CharacterOption,
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
@@ -13,18 +17,23 @@ import { CATEGORIES, normalizeEquipped } from "./rewardLogic";
 
 export {
   ACCESSORY_CATALOG,
+  CHARACTER_CATALOG,
+  DEFAULT_CHARACTER_ID,
   DEFAULT_EQUIPPED,
   GROWTH_LEVELS,
   getCharacterLevel,
   isAccessoryUnlocked,
   type AccessoryCategory,
   type AccessoryItem,
+  type CharacterId,
+  type CharacterOption,
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
 
 const ACCESSORY_STORAGE_KEY = "kanoha_child_equipped_accessories_v1";
 const ACCESSORY_FOCUS_KEY = "kanoha_child_accessory_focus_v1";
+const CHARACTER_STORAGE_KEY = "kanoha_child_selected_character_v1";
 
 export interface CharacterProgress {
   currentLevel: GrowthLevelInfo;
@@ -116,4 +125,39 @@ export function equipAccessory(
   }
   saveEquippedAccessories(updated);
   return updated;
+}
+
+export function getSelectedCharacter(): CharacterId {
+  if (typeof window === "undefined") return DEFAULT_CHARACTER_ID;
+  try {
+    const stored = localStorage.getItem(CHARACTER_STORAGE_KEY);
+    if (stored && CHARACTER_CATALOG.some((c) => c.id === stored)) {
+      return stored as CharacterId;
+    }
+    const equipped = getEquippedAccessories();
+    if (equipped.character && CHARACTER_CATALOG.some((c) => c.id === equipped.character)) {
+      return equipped.character;
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_CHARACTER_ID;
+}
+
+export function selectCharacter(characterId: CharacterId): CharacterId {
+  const valid = CHARACTER_CATALOG.some((c) => c.id === characterId)
+    ? characterId
+    : DEFAULT_CHARACTER_ID;
+  if (typeof window === "undefined") return valid;
+  try {
+    localStorage.setItem(CHARACTER_STORAGE_KEY, valid);
+    const current = getEquippedAccessories();
+    saveEquippedAccessories({
+      ...current,
+      character: valid,
+    });
+  } catch {
+    // ignore
+  }
+  return valid;
 }
