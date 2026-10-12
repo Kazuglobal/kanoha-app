@@ -102,7 +102,7 @@ export function CharacterCoach({
   const displayMessage = tapMessage || message;
 
   return (
-    <aside className={styles.coach} aria-label={`かのはコーチ: ${displayMessage}`}>
+    <aside className={styles.coach} aria-label={`さゆきコーチ: ${displayMessage}`}>
       <div
         className={styles.speechBubble}
         onClick={() => void speakCoachVoice(displayMessage, activeMood)}

@@ -13,7 +13,7 @@ import { useEnglishTalk, type TalkTeach } from "./useEnglishTalk";
 import styles from "./englishTalk.module.css";
 
 /**
- * 英会話れんしゅうの舞台: 背景のシーンの中で、かのはちゃんが英語で話しかける。
+ * 英会話れんしゅうの舞台: 背景のシーンの中で、さゆきちゃんが英語で話しかける。
  * こたえは「こえ(en-US)」か「4択」。まちがえたら正しい言い方を教えて、まねして2回いう。
  */
 export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; childId?: string }) {

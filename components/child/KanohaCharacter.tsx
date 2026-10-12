@@ -291,7 +291,7 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
       className={`${styles.stage} ${mood === "celebrate" ? styles.celebrate : ""}`}
       role={onClick ? "button" : "img"}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={`かのはちゃん（${mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり"}）`}
+      aria-label={`さゆきちゃん（${mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり"}）`}
       onClick={onClick}
       onKeyDown={(event) => {
         if (onClick && (event.key === "Enter" || event.key === " ")) {

@@ -18,7 +18,7 @@ describe("VoiceButton", () => {
 
     render(<VoiceButton text="りんごが 3こ あります。" />);
 
-    const button = screen.getByRole("button", { name: /もんだいを かのはちゃんの声で よみあげる/i });
+    const button = screen.getByRole("button", { name: /もんだいを さゆきちゃんの声で よみあげる/i });
     expect(button).toBeDefined();
     expect(button.textContent).toContain("よみあげる");
 

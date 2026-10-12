@@ -32,7 +32,7 @@ export function VoiceButton({ text }: { text: string }) {
       className={styles.ghostButton}
       type="button"
       onClick={() => void handleSpeak()}
-      aria-label="もんだいを かのはちゃんの声で よみあげる"
+      aria-label="もんだいを さゆきちゃんの声で よみあげる"
     >
       {isPlaying ? <VolumeX size={20} aria-hidden="true" /> : <Volume2 size={20} aria-hidden="true" />}
       {status}

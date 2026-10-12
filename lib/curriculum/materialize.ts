@@ -24,7 +24,7 @@ export async function ensureCurriculumProblem(
       materialId: null,
       problemText: bank.problemText,
       subject: bank.subject,
-      grade: 2,
+      grade: 4,
       unit: bank.unit,
       subUnit: bank.subUnit,
       difficulty: "standard",

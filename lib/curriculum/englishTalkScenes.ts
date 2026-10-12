@@ -8,7 +8,7 @@
 
 export interface TalkTurn {
   readonly id: string;
-  /** かのはちゃんが英語で話すセリフ */
+  /** さゆきちゃんが英語で話すセリフ */
   readonly prompt: string;
   /** 英語が分からないときに日本語で聞きなおすセリフ */
   readonly promptJa: string;
@@ -42,7 +42,7 @@ const NUMBERS = [
 
 const FRUITS = [
   "apple", "apples", "banana", "bananas", "orange", "oranges", "melon", "melons",
-  "grape", "grapes", "strawberry", "strawberries", "peach", "peaches",
+  "grape", "grapes", "strawberry", "strawberries", "peach", "peaches", "tomato", "tomatoes",
 ] as const;
 
 const ANIMALS = [
@@ -54,16 +54,16 @@ const BYE = ["goodbye", "good bye", "bye", "see you"] as const;
 
 const greeting: TalkScene = {
   id: "greeting",
-  title: "あいさつ しよう",
-  titleEn: "Hello!",
-  description: "あさの こうえんで はじめて あった おともだちと あいさつ",
+  title: "あいさつと てんき",
+  titleEn: "Hello! How's the weather?",
+  description: "あさの こうえんで さゆきちゃんと あいさつして、てんきの おはなしを しよう",
   emoji: "👋",
   background: "/scenes/greeting.svg",
   turns: [
     {
       id: "greeting-name",
-      prompt: "Hello! I'm Kanoha. What's your name?",
-      promptJa: "こんにちは！わたしは かのは。あなたの おなまえは なあに？",
+      prompt: "Hello! I'm Sayuki. What's your name?",
+      promptJa: "こんにちは！わたしは さゆき。あなたの おなまえは なあに？",
       answerHintJa: "「My name is 〇〇.」で なまえを いってみよう",
       modelAnswer: "My name is Yuki.",
       modelAnswerJa: "わたしの なまえは ゆきです。",
@@ -75,25 +75,25 @@ const greeting: TalkScene = {
     },
     {
       id: "greeting-how-are-you",
-      prompt: "How are you?",
-      promptJa: "げんき？ ごきげんは どう？",
-      answerHintJa: "げんきなら「I'm fine.」って いうよ",
+      prompt: "How are you today?",
+      promptJa: "きょうの ごきげんは どう？",
+      answerHintJa: "げんきなら「I'm fine, thank you.」や「I'm great.」って いうよ",
       modelAnswer: "I'm fine, thank you.",
       modelAnswerJa: "げんきだよ、ありがとう。",
-      choices: ["I'm fine, thank you.", "I'm seven.", "It's a cat.", "See you."],
+      choices: ["I'm fine, thank you.", "I'm ten.", "It's a cat.", "See you."],
       accept: [["fine", "good", "great", "happy", "ok", "okay", "sleepy", "hungry", "tired"]],
       visual: "😊",
     },
     {
       id: "greeting-age",
-      prompt: "How old are you?",
-      promptJa: "あなたは なんさい？",
-      answerHintJa: "7さいなら「I'm seven.」って いうよ",
-      modelAnswer: "I'm seven.",
-      modelAnswerJa: "わたしは 7さいです。",
-      choices: ["I'm seven.", "I'm fine.", "It's blue.", "Thank you."],
-      accept: [[...NUMBERS]],
-      visual: "🎂",
+      prompt: "How's the weather today?",
+      promptJa: "きょうの てんきは どうかな？（はれ☀️だよ）",
+      answerHintJa: "はれなら「It's sunny.」って いうよ",
+      modelAnswer: "It's sunny.",
+      modelAnswerJa: "はれです。",
+      choices: ["It's sunny.", "I'm fine.", "It's blue.", "Thank you."],
+      accept: [["sunny", "rainy", "cloudy", "snowy", "ten", ...NUMBERS]],
+      visual: "☀️",
     },
     {
       id: "greeting-nice",
@@ -112,8 +112,8 @@ const greeting: TalkScene = {
 const shop: TalkScene = {
   id: "shop",
   title: "おみせで かいもの",
-  titleEn: "At the fruit shop",
-  description: "くだものやさんで ほしい ものを えいごで たのもう",
+  titleEn: "At the shop",
+  description: "オリジナルパフェや ピザの ざいりょうを えいごで たのもう",
   emoji: "🍎",
   background: "/scenes/shop.svg",
   turns: [
@@ -130,7 +130,7 @@ const shop: TalkScene = {
     },
     {
       id: "shop-how-many",
-      prompt: "How many apples?",
+      prompt: "How many apples do you want?",
       promptJa: "りんごは いくつ ほしいですか？",
       answerHintJa: "かずを えいごで いってみよう(3こなら three)",
       modelAnswer: "Three, please.",
@@ -146,7 +146,7 @@ const shop: TalkScene = {
       answerHintJa: "もらったら おれいを いおう",
       modelAnswer: "Thank you.",
       modelAnswerJa: "ありがとう。",
-      choices: ["Thank you.", "How are you?", "I'm seven.", "It's a pen."],
+      choices: ["Thank you.", "How are you?", "I'm ten.", "It's a pen."],
       accept: [["thank you", "thanks"]],
       visual: "🛍️",
     },
@@ -168,7 +168,7 @@ const park: TalkScene = {
   id: "park",
   title: "こうえんで あそぼう",
   titleEn: "At the park",
-  description: "こうえんで どうぶつや ボールを みながら おはなし",
+  description: "こうえんで すきな スポーツや どうぶつの おはなしを しよう",
   emoji: "⚽",
   background: "/scenes/park.svg",
   turns: [
@@ -179,7 +179,7 @@ const park: TalkScene = {
       answerHintJa: "すきなら「Yes, I do.」、すきじゃないなら「No, I don't.」",
       modelAnswer: "Yes, I do.",
       modelAnswerJa: "うん、すきだよ。",
-      choices: ["Yes, I do.", "I'm eight.", "Three, please.", "Good night."],
+      choices: ["Yes, I do.", "I'm ten.", "Three, please.", "Good night."],
       accept: [["yes", "no", "yeah"]],
       visual: "⚽",
     },
@@ -207,8 +207,8 @@ const park: TalkScene = {
     },
     {
       id: "park-see-you",
-      prompt: "It's time to go home. See you!",
-      promptJa: "そろそろ かえる じかんだね。またね！",
+      prompt: "It's five o'clock. Time to go home! See you!",
+      promptJa: "もう 5じだね。そろそろ かえる じかんだよ。またね！",
       answerHintJa: "「またね」は「See you!」だよ",
       modelAnswer: "See you!",
       modelAnswerJa: "またね！",
@@ -223,7 +223,7 @@ const school: TalkScene = {
   id: "school",
   title: "がっこうで",
   titleEn: "At school",
-  description: "きょうしつで あさの あいさつと もちものの おはなし",
+  description: "きょうしつで あさの あいさつや 授業の おはなしを しよう",
   emoji: "✏️",
   background: "/scenes/school.svg",
   turns: [
@@ -262,12 +262,12 @@ const school: TalkScene = {
     },
     {
       id: "school-sing",
-      prompt: "Let's sing a song!",
-      promptJa: "いっしょに うたを うたおう！",
+      prompt: "Let's go to the music room and sing a song!",
+      promptJa: "おんがくしつに いって いっしょに うたを うたおう！",
       answerHintJa: "さんせいなら「Yes, let's!」だよ",
       modelAnswer: "Yes, let's!",
-      modelAnswerJa: "うん、うたおう！",
-      choices: ["Yes, let's!", "It's a cat.", "I'm seven.", "Three, please."],
+      modelAnswerJa: "うん、いこう！",
+      choices: ["Yes, let's!", "It's a cat.", "I'm ten.", "Three, please."],
       accept: [["yes", "ok", "okay", "sure", "lets", "yeah"]],
       visual: "🎵",
     },
@@ -311,7 +311,7 @@ const zoo: TalkScene = {
       answerHintJa: "おおきいなら「Yes, it is.」だよ",
       modelAnswer: "Yes, it is.",
       modelAnswerJa: "うん、おおきいね。",
-      choices: ["Yes, it is.", "No, it isn't.", "I'm seven.", "Thank you."],
+      choices: ["Yes, it is.", "No, it isn't.", "I'm ten.", "Thank you."],
       accept: [["yes", "yeah", "big"]],
       visual: "🐘",
     },
@@ -322,7 +322,7 @@ const zoo: TalkScene = {
       answerHintJa: "「Bye! Thank you!」って いってみよう",
       modelAnswer: "Bye! Thank you!",
       modelAnswerJa: "バイバイ！ ありがとう！",
-      choices: ["Bye! Thank you!", "Apples, please.", "It's red.", "I'm eight."],
+      choices: ["Bye! Thank you!", "Apples, please.", "It's red.", "I'm ten."],
       accept: [[...BYE, "thank you", "thanks"]],
       visual: "👋",
     },

@@ -8,11 +8,11 @@
 /** Supabase 未設定時のデモ問題。ヒントは /api/problems/volume-1/hint(lib/ai/mock.ts)が返す。 */
 export const DEMO_PROBLEM_ID = "volume-1";
 export const DEMO_QUESTION = "1L は なんmL ですか？";
-export const DEMO_UNIT = "かさ";
+export const DEMO_UNIT = "小数のしくみと計算";
 export const DEMO_VISUAL_URL = "/visuals/volume.svg";
 
 export const DEMO_JAPANESE_PROBLEM_ID = "kanji-1";
-export const DEMO_JAPANESE_QUESTION = "つぎの ことばを かん字で かきましょう。「あおぞら」";
+export const DEMO_JAPANESE_QUESTION = "つぎの ことばを かん字で かきましょう。「どりょく」";
 export const DEMO_JAPANESE_UNIT = "漢字";
 
 /** 学習フロー(LearningFlow / PracticeFlow)の固定文言。 */
@@ -67,7 +67,7 @@ export const HOME_TEXT = Object.freeze({
   leadSuffix: "」の おすすめもんだい。ゆっくり かんがえれば だいじょうぶ。",
   demoAgainNote: "きのうの もんだい",
   demoReviewNote: "きょうは 1もん",
-  demoStartNote: "かさ · 5〜10ぷん",
+  demoStartNote: "小数と単位 · 5〜10ぷん",
 });
 
 /** けっか画面の固定文言。 */
@@ -92,7 +92,7 @@ export const LANDING_TEXT = Object.freeze({
   titleAccent: "わかった！",
   titleLine1Rest: "が",
   titleLine2: "ふえていく べんきょう",
-  lead: "かのはちゃんが ぴったりの ヒントを とどけるよ。",
+  lead: "さゆきちゃんが ぴったりの ヒントを とどけるよ。",
   childMode: "子どもモードではじめる",
   parentLink: "おうちの方はこちら",
   orbLabel: "いっしょに やろう！",

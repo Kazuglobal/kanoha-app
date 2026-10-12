@@ -131,14 +131,14 @@ async function loadRecentProblemId(
   return fallbackRow?.problemId ?? null;
 }
 
-/** えいごで おはなし(かのはちゃんと英会話れんしゅう)への入り口。 */
+/** えいごで おはなし(さゆきちゃんと英会話れんしゅう)への入り口。 */
 function EnglishTalkTile({ href }: { href: Route }) {
   return (
     <Link href={href} className={styles.quickTile}>
       <MessagesSquare size={32} className={styles.actionIcon} />
       <span>
         <strong>えいごで おはなし</strong>
-        <small>かのはちゃんと えいごで かいわしよう</small>
+        <small>さゆきちゃんと えいごで かいわしよう</small>
       </span>
     </Link>
   );
@@ -277,7 +277,7 @@ function DemoHome({ currentSubject }: { currentSubject: Subject }) {
 
         <section className={`${styles.card} ${styles.heroCard}`}>
           <div className={styles.heroContent}>
-            <h1 className={styles.pageTitle}>かのはアプリ</h1>
+            <h1 className={styles.pageTitle}>さゆきアプリ</h1>
             <p className={styles.lead}>
               <RubyAuto text={heroSubtitle} readingMode="kanji_with_ruby" />
             </p>

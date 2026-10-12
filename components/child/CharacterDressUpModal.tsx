@@ -87,7 +87,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
               <Shirt size={16} />
               <span>きがえ クローゼット</span>
             </div>
-            <h2 className={styles.dressUpTitle}>かのはちゃんを コーディネート！</h2>
+            <h2 className={styles.dressUpTitle}>さゆきちゃんを コーディネート！</h2>
             <p className={styles.dressUpSub}>
               すきな アクセサリーを えらんでね！ もんだいを とくと あたらしい アイテムが ふえるよ！
             </p>

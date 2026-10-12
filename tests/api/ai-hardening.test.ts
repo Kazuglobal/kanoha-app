@@ -55,8 +55,8 @@ const validParsedProblem = {
   problemText: "みどり小学校で くばられた もんだい。1Lは何mLですか。",
   correctAnswer: "1000mL",
   subject: "math",
-  grade: 2,
-  unit: "水のかさ",
+  grade: 4,
+  unit: "小数のしくみと計算",
   subUnit: "LとmL",
   difficulty: "standard",
   hints: {
