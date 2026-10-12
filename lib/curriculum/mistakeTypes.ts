@@ -6,8 +6,8 @@ export const MISTAKE_TYPES = [
   },
   {
     id: "place_value_error",
-    label: "位のまちがい",
-    description: "一の位、十の位、百の位を取りちがえた",
+    label: "位・がい数のまちがい",
+    description: "億・兆の位、小数の位、または四捨五入する位を取りちがえた",
   },
   {
     id: "carry_error",
@@ -21,13 +21,13 @@ export const MISTAKE_TYPES = [
   },
   {
     id: "operation_choice_error",
-    label: "式のえらびまちがい",
-    description: "たす、ひく、かけるの選び方をまちがえた",
+    label: "式・計算の順序まちがい",
+    description: "たす・ひく・かける・わるの選び方や、計算のきまり（順序）をまちがえた",
   },
   {
     id: "unit_conversion_error",
     label: "単位のまちがい",
-    description: "L、mL、cm、mmなどの単位を取りちがえた",
+    description: "面積（cm²・m²・a・ha）や角度（度）、L・mLなどの単位を取りちがえた",
   },
   {
     id: "reading_comprehension_error",
@@ -36,18 +36,18 @@ export const MISTAKE_TYPES = [
   },
   {
     id: "multiplication_fact_error",
-    label: "九九のまちがい",
-    description: "九九の答えを取りちがえた",
+    label: "かけ算・わり算の筆算まちがい",
+    description: "九九やわり算の筆算の商の見当づけ・手順を取りちがえた",
   },
   {
     id: "time_error",
-    label: "時こくと時間のまちがい",
-    description: "時こくと時間を取りちがえた",
+    label: "変わり方・グラフのまちがい",
+    description: "ともなって変わる数や折れ線グラフの目盛りを取りちがえた",
   },
   {
     id: "geometry_error",
-    label: "図形のまちがい",
-    description: "形、辺、頂点、直角などを取りちがえた",
+    label: "図形・角・面積のまちがい",
+    description: "角の大きさ、垂直・平行、四角形、面積、直方体・立方体などを取りちがえた",
   },
   {
     id: "careless_error",
@@ -79,8 +79,8 @@ export const MISTAKE_TYPE_IDS = MISTAKE_TYPES.map(({ id }) => id) as unknown as 
 export const JAPANESE_MISTAKE_TYPES = [
   {
     id: "kanji_stroke_error",
-    label: "漢字の形・とめ・はね",
-    description: "漢字の形や、とめ・はね・はらい、画数をまちがえた",
+    label: "漢字の形・熟語の組み立て",
+    description: "漢字の形や、とめ・はね・はらい、画数、熟語の構成をまちがえた",
   },
   {
     id: "okurigana_error",
@@ -94,18 +94,18 @@ export const JAPANESE_MISTAKE_TYPES = [
   },
   {
     id: "grammar_particle_error",
-    label: "助詞・文のまちがい",
-    description: "「は・を・へ」の助詞やつなぎ言葉をまちがえた",
+    label: "主語・述語・接続語のまちがい",
+    description: "主語・述語・修飾語や接続語（つなぎ言葉）・助詞をまちがえた",
   },
   {
     id: "context_comprehension_error",
-    label: "気持ち・場面の読み取り",
-    description: "登場人物の気持ちや場面の様子を取りちがえた",
+    label: "気持ちの変化・段落の読み取り",
+    description: "登場人物の気持ちの変化や説明文の段落の要旨を取りちがえた",
   },
   {
     id: "word_choice_error",
-    label: "ことばの選びまちがい",
-    description: "反対の言葉や似た言葉の選択をまちがえた",
+    label: "慣用句・ことわざ・語彙のまちがい",
+    description: "慣用句・ことわざや対義語・類義語・辞典の引き方をまちがえた",
   },
 ] as const;
 
@@ -114,18 +114,18 @@ export type JapaneseMistakeType = (typeof JAPANESE_MISTAKE_TYPES)[number]["id"];
 export const ENGLISH_MISTAKE_TYPES = [
   {
     id: "alphabet_error",
-    label: "アルファベットのまちがい",
+    label: "アルファベット・小文字のまちがい",
     description: "大文字・小文字や、にている文字を取りちがえた",
   },
   {
     id: "english_listening_error",
     label: "聞き取りのまちがい",
-    description: "英語の音を聞きちがえた",
+    description: "英語の音やフレーズを聞きちがえた",
   },
   {
     id: "english_word_error",
-    label: "英語のことばのまちがい",
-    description: "英語のことばと意味の組み合わせを取りちがえた",
+    label: "英語の表現・ことばのまちがい",
+    description: "天気・曜日・時刻・教科・道案内などの英語表現と意味を取りちがえた",
   },
 ] as const;
 
@@ -155,4 +155,3 @@ export const isAnyMistakeType = (value: string): value is AllMistakeType =>
 
 export const getAllMistakeType = (id: string) =>
   ALL_MISTAKE_TYPES.find((mistakeType) => mistakeType.id === id);
-

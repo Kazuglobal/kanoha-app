@@ -19,7 +19,7 @@ const problem: ParsedProblem = {
   similarProblemCount: 5,
   subUnit: "LとmL",
   subject: "math",
-  unit: "水のかさ",
+  unit: "小数のしくみと計算",
 };
 
 describe("buildProblemRecords", () => {
@@ -42,7 +42,7 @@ describe("buildProblemRecords", () => {
         status: "active",
         sub_unit: "LとmL",
         subject: "math",
-        unit: "水のかさ",
+        unit: "小数のしくみと計算",
       },
     ]);
   });
@@ -64,7 +64,7 @@ describe("buildProblemExplanation (A4: AI diagnosis must survive into problems.e
       isCorrect: false,
       subject: "math",
       grade: 2,
-      unit: "水のかさ",
+      unit: "小数のしくみと計算",
       subUnit: "LとmL",
       difficulty: "standard",
       mistakeType: "unit_conversion_error",
@@ -89,7 +89,7 @@ describe("buildProblemExplanation (A4: AI diagnosis must survive into problems.e
       correctAnswer: "2000mL",
       subject: "math",
       grade: 2,
-      unit: "水のかさ",
+      unit: "小数のしくみと計算",
       subUnit: "LとmL",
       difficulty: "standard",
       hints: { hint1: "h1", hint2: "h2", solution: "s", answer: "2000mL", praise: "p" },

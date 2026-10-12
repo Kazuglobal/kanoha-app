@@ -1,7 +1,7 @@
-import { SUBJECT_CONFIG, type Grade2Unit, type Subject } from "./subjects";
-import { GRADE_2_MATH_CURRICULUM } from "./grade2Math";
-import { GRADE_2_JAPANESE_CURRICULUM } from "./grade2Japanese";
-import { GRADE_2_ENGLISH_CURRICULUM } from "./grade2English";
+import { SUBJECT_CONFIG, type Grade4Unit, type Grade2Unit, type Subject } from "./subjects";
+import { GRADE_4_MATH_CURRICULUM } from "./grade4Math";
+import { GRADE_4_JAPANESE_CURRICULUM } from "./grade4Japanese";
+import { GRADE_4_ENGLISH_CURRICULUM } from "./grade4English";
 import { ENGLISH_CURRICULUM_PROBLEMS } from "./curriculumBankEnglish";
 import { JAPANESE_CURRICULUM_PROBLEMS } from "./curriculumBankJapanese";
 import { MATH_CURRICULUM_PROBLEMS } from "./curriculumBankMath";
@@ -10,7 +10,7 @@ export interface CurriculumProblem {
   id: string;
   subject: Subject;
   unitId: string;
-  unit: Grade2Unit;
+  unit: Grade4Unit;
   subUnit: string;
   problemText: string;
   correctAnswer: string;
@@ -80,7 +80,7 @@ export function getNextCurriculumProblem(currentId: string): CurriculumProblem |
 }
 
 /**
- * 単元内での進行度（例: "たし算 1 / 3"）を取得する
+ * 単元内での進行度（例: "大きい数のしくみ 1 / 4"）を取得する
  */
 export function getCurriculumStageProgress(problemId: string): {
   unit: string;
@@ -105,39 +105,39 @@ export function getCurriculumStageProgress(problemId: string): {
 
 /** 単元ごとのステージ絵文字(未登録は教科の絵文字)。 */
 const STAGE_EMOJI: Readonly<Record<string, string>> = {
-  "水のかさ": "🌊",
-  "たし算": "➕",
-  "ひき算": "➖",
-  "かけ算": "✖️",
-  "時こくと時間": "⏰",
-  "長さ": "📏",
-  "三角形と四角形": "📐",
-  "1000より大きい数": "🔢",
+  "大きい数のしくみ": "🔢",
+  "わり算の筆算": "➗",
+  "角の大きさ": "📐",
+  "垂直・平行と四角形": "📏",
+  "折れ線グラフと表": "📊",
+  "小数のしくみと計算": "💧",
+  "面積": "🟩",
+  "がい数とその計算": "🎯",
+  "計算のきまり": "🧮",
   "分数": "🍰",
-  "はこの形": "📦",
-  "表とグラフ": "📊",
-  "整理する力": "📁",
+  "変わり方調べ": "🔄",
+  "直方体と立方体": "📦",
   "漢字": "✍️",
   "ことばのきまり": "🔄",
   "文の組み立て": "🧩",
   "お話の読解": "📚",
   "説明文の読解": "🔍",
   "作文と表現": "📝",
-  "アルファベット": "🔤",
-  "あいさつ": "👋",
-  "えいごのかず": "🔢",
-  "いろ": "🎨",
-  "どうぶつ": "🐶",
-  "たべもの": "🍎",
-  "からだ": "🙌",
+  "あいさつと天気": "👋",
+  "曜日とすごし方": "📅",
+  "時刻と一日の生活": "⏰",
+  "すきな教科とスポーツ": "🎨",
+  "アルファベットとことば": "🔤",
+  "ほしいものとお買い物": "🍕",
+  "学校の場所と道案内": "🏫",
 };
 
 const CURRICULUM_BY_SUBJECT: Readonly<
   Record<Subject, readonly { id: string; unit: string; subUnits: readonly string[] }[]>
 > = {
-  math: GRADE_2_MATH_CURRICULUM,
-  japanese: GRADE_2_JAPANESE_CURRICULUM,
-  english: GRADE_2_ENGLISH_CURRICULUM,
+  math: GRADE_4_MATH_CURRICULUM,
+  japanese: GRADE_4_JAPANESE_CURRICULUM,
+  english: GRADE_4_ENGLISH_CURRICULUM,
 };
 
 /**
@@ -152,7 +152,7 @@ export function getCurriculumStages(subject: Subject): CurriculumStage[] {
       {
         id: unitDef.id,
         subject,
-        unit: unitDef.unit as Grade2Unit,
+        unit: unitDef.unit as Grade4Unit,
         title: unitDef.unit,
         emoji: STAGE_EMOJI[unitDef.unit] ?? SUBJECT_CONFIG[subject].emoji,
         description: unitDef.subUnits.join("・"),

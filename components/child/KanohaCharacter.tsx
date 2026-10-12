@@ -225,7 +225,7 @@ const NEW_CHARACTER_SPRITES: Record<Exclude<CharacterId, "char_kanoha">, Record<
 };
 
 export const CHARACTER_DISPLAY_NAMES: Record<CharacterId, string> = {
-  char_kanoha: "かのはちゃん",
+  char_kanoha: "さゆきちゃん",
   char_fuwari: "ふわりちゃん",
   char_hinata: "ひなたちゃん",
   char_ren: "レンくん",

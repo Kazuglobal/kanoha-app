@@ -26,7 +26,7 @@ describe("POST /api/ai/recognize-handwriting (Demo mode support)", () => {
   });
 
   it(
-    "recognizes handwriting for demo kanji problem (kanji-1) and returns 青空",
+    "recognizes handwriting for demo kanji problem (kanji-1) and returns 努力",
     async () => {
       const { POST } = await import("@/app/api/ai/recognize-handwriting/route");
       const response = await POST(
@@ -44,7 +44,7 @@ describe("POST /api/ai/recognize-handwriting (Demo mode support)", () => {
       const body = await response.json();
       expect(body).toEqual({
         success: true,
-        data: { answer: "青空" },
+        data: { answer: "努力" },
       });
     },
     15000,

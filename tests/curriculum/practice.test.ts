@@ -4,11 +4,11 @@ import { PRACTICE_COUNT, buildCurriculumPractice } from "@/lib/curriculum/practi
 
 describe("buildCurriculumPractice", () => {
   it("returns five items, same unit first, never the problem itself", () => {
-    const items = buildCurriculumPractice("addition-1");
+    const items = buildCurriculumPractice("order-of-operations-1");
     expect(items).toHaveLength(PRACTICE_COUNT);
-    expect(items.map((item) => item.sourceId)).not.toContain("addition-1");
-    expect(items[0].unit).toBe("たし算");
-    expect(items[1].unit).toBe("たし算");
+    expect(items.map((item) => item.sourceId)).not.toContain("order-of-operations-1");
+    expect(items[0].unit).toBe("計算のきまり");
+    expect(items[1].unit).toBe("計算のきまり");
   });
 
   it("stays within the same subject", () => {
@@ -30,7 +30,7 @@ describe("buildCurriculumPractice", () => {
   });
 
   it("builds numeric choices for math answers that look like numbers", () => {
-    const withChoices = buildCurriculumPractice("addition-1").filter((item) => item.choices);
+    const withChoices = buildCurriculumPractice("order-of-operations-1").filter((item) => item.choices);
     expect(withChoices.length).toBeGreaterThan(0);
     for (const item of withChoices) expect(item.choices).toContain(item.answer);
   });

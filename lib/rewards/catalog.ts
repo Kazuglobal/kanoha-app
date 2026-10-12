@@ -36,7 +36,7 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
   // キャラクター (Character)
   {
     id: "char_kanoha",
-    name: "かのは",
+    name: "さゆき",
     category: "character",
     icon: "🎀",
     unlockLevel: 1,
