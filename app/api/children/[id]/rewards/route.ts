@@ -25,6 +25,7 @@ import { uuid } from "@/lib/utils/schemas";
 type RouteContext = { params: Promise<{ id: string }> };
 
 const category = z.enum([
+  "character",
   "hat",
   "glasses",
   "gloves",

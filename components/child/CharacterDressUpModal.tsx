@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, Lock, Shirt } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
-import { KanohaCharacter } from "./KanohaCharacter";
+import Image from "next/image";
+import { KanohaCharacter, CHARACTER_DISPLAY_NAMES } from "./KanohaCharacter";
 import {
   ACCESSORY_CATALOG,
   DEFAULT_EQUIPPED,
@@ -15,12 +16,14 @@ import {
   isAccessoryUnlocked,
   type AccessoryCategory,
   type AccessoryItem,
+  type CharacterId,
   type EquippedAccessories,
   type CharacterProgress,
 } from "@/lib/rewards/characterGrowthStore";
 import { saveEquipToServer } from "@/lib/rewards/rewardSync";
 
 const DRESS_UP_TABS: { id: AccessoryCategory; label: string; icon: string }[] = [
+  { id: "character", label: "キャラ", icon: "🌟" },
   { id: "clothes", label: "ふく", icon: "👕" },
   { id: "hairstyle", label: "かみがた", icon: "👧" },
   { id: "hair_color", label: "かみのいろ", icon: "🎨" },
@@ -38,7 +41,7 @@ interface CharacterDressUpModalProps {
 }
 
 export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModalProps) {
-  const [activeTab, setActiveTab] = useState<AccessoryCategory>("clothes");
+  const [activeTab, setActiveTab] = useState<AccessoryCategory>("character");
   const [equipped, setEquipped] = useState<EquippedAccessories>(DEFAULT_EQUIPPED);
   const [progress, setProgress] = useState<CharacterProgress | null>(null);
 
@@ -52,6 +55,10 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
   if (!isOpen) return null;
 
   const totalCorrect = progress?.totalCorrect ?? 0;
+  const currentCharId = ((equipped.character ?? "char_kanoha") in CHARACTER_DISPLAY_NAMES
+    ? (equipped.character ?? "char_kanoha")
+    : "char_kanoha") as CharacterId;
+  const currentCharName = CHARACTER_DISPLAY_NAMES[currentCharId];
 
   const filteredItems = ACCESSORY_CATALOG.filter((item) => item.category === activeTab);
 
@@ -87,9 +94,9 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
               <Shirt size={16} />
               <span>きがえ クローゼット</span>
             </div>
-            <h2 className={styles.dressUpTitle}>かのはちゃんを コーディネート！</h2>
+            <h2 className={styles.dressUpTitle}>{currentCharName}を コーディネート！</h2>
             <p className={styles.dressUpSub}>
-              すきな アクセサリーを えらんでね！ もんだいを とくと あたらしい アイテムが ふえるよ！
+              すきな キャラクターと おようふくを えらんでね！ もんだいを とくと あたらしい アイテムが ふえるよ！
             </p>
           </div>
 
@@ -158,7 +165,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
               <div className={styles.dressUpItemsGrid}>
                 {filteredItems.map((item) => {
                   const unlocked = isAccessoryUnlocked(item, totalCorrect);
-                  const isCurrent = equipped[item.category] === item.id;
+                  const isCurrent = (equipped[item.category] ?? DEFAULT_EQUIPPED[item.category]) === item.id;
 
                   return (
                     <motion.button
@@ -171,7 +178,24 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
                       disabled={!unlocked}
                     >
                       <div className={styles.dressUpItemIconWrap}>
-                        <span className={styles.dressUpItemIcon}>{item.icon}</span>
+                        {item.previewImage ? (
+                          <Image
+                            src={item.previewImage}
+                            alt={item.name}
+                            width={48}
+                            height={48}
+                            unoptimized
+                            style={{
+                              width: "44px",
+                              height: "44px",
+                              objectFit: "cover",
+                              objectPosition: "top center",
+                              borderRadius: "50%",
+                            }}
+                          />
+                        ) : (
+                          <span className={styles.dressUpItemIcon}>{item.icon}</span>
+                        )}
                         {isCurrent && (
                           <span className={styles.dressUpCheckMark}>
                             <Check size={14} />

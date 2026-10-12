@@ -6,6 +6,7 @@ import styles from "./KanohaCharacter.module.css";
 import {
   DEFAULT_EQUIPPED,
   getEquippedAccessories,
+  type CharacterId,
   type EquippedAccessories,
   type AccessoryCategory,
 } from "@/lib/rewards/characterGrowthStore";
@@ -17,6 +18,7 @@ import {
   BearPochette,
   AngelWings,
   HairstyleExtension,
+  HAIR_COLOR_FILTERS,
 } from "./CharacterAccessories";
 
 type Mood = "happy" | "think" | "celebrate";
@@ -177,11 +179,160 @@ function buildBaseClipPath({
   return `polygon(${points.join(", ")})`;
 }
 
+type OutfitVariant = "base" | "school" | "safari" | "hoodie" | "wizard" | "hero";
+
+const NEW_CHARACTER_SPRITES: Record<Exclude<CharacterId, "char_kanoha">, Record<OutfitVariant, string>> = {
+  char_fuwari: {
+    base: "/images/character/chars/fuwari-base.png",
+    school: "/images/character/chars/fuwari-school.png",
+    safari: "/images/character/chars/fuwari-safari.png",
+    hoodie: "/images/character/chars/fuwari-hoodie.png",
+    wizard: "/images/character/chars/fuwari-wizard.png",
+    hero: "/images/character/chars/fuwari-hero.png",
+  },
+  char_hinata: {
+    base: "/images/character/chars/hinata-base.png",
+    school: "/images/character/chars/hinata-school.png",
+    safari: "/images/character/chars/hinata-safari.png",
+    hoodie: "/images/character/chars/hinata-hoodie.png",
+    wizard: "/images/character/chars/hinata-wizard.png",
+    hero: "/images/character/chars/hinata-hero.png",
+  },
+  char_ren: {
+    base: "/images/character/chars/ren-base.png",
+    school: "/images/character/chars/ren-school.png",
+    safari: "/images/character/chars/ren-safari.png",
+    hoodie: "/images/character/chars/ren-hoodie.png",
+    wizard: "/images/character/chars/ren-wizard.png",
+    hero: "/images/character/chars/ren-hero.png",
+  },
+  char_riku: {
+    base: "/images/character/chars/riku-base.png",
+    school: "/images/character/chars/riku-school.png",
+    safari: "/images/character/chars/riku-safari.png",
+    hoodie: "/images/character/chars/riku-hoodie.png",
+    wizard: "/images/character/chars/riku-wizard.png",
+    hero: "/images/character/chars/riku-hero.png",
+  },
+  char_mia: {
+    base: "/images/character/chars/mia-base.png",
+    school: "/images/character/chars/mia-school.png",
+    safari: "/images/character/chars/mia-safari.png",
+    hoodie: "/images/character/chars/mia-hoodie.png",
+    wizard: "/images/character/chars/mia-wizard.png",
+    hero: "/images/character/chars/mia-hero.png",
+  },
+};
+
+export const CHARACTER_DISPLAY_NAMES: Record<CharacterId, string> = {
+  char_kanoha: "かのはちゃん",
+  char_fuwari: "ふわりちゃん",
+  char_hinata: "ひなたちゃん",
+  char_ren: "レンくん",
+  char_riku: "リクくん",
+  char_mia: "ミアちゃん",
+};
+
+interface CharacterAnchorMeta {
+  ribbonTop: string;
+  ribbonLeft: string;
+  hairClip: string;
+  shoesClip: string;
+  hasBakedWingsInHero: boolean;
+}
+
+const CHARACTER_ANCHORS: Record<Exclude<CharacterId, "char_kanoha">, CharacterAnchorMeta> = {
+  char_fuwari: {
+    ribbonTop: "6%",
+    ribbonLeft: "49%",
+    hairClip: "polygon(22% 1%, 76% 1%, 78% 28%, 64% 30%, 62% 15%, 38% 17%, 36% 31%, 20% 28%)",
+    shoesClip: "polygon(24% 73%, 42% 73%, 42% 92%, 58% 87%, 58% 99%, 24% 99%)",
+    hasBakedWingsInHero: true,
+  },
+  char_hinata: {
+    ribbonTop: "5%",
+    ribbonLeft: "50%",
+    hairClip: "polygon(19% 2%, 75% 2%, 76% 35%, 64% 35%, 64% 17%, 35% 17%, 33% 33%, 19% 33%)",
+    shoesClip: "polygon(40% 74%, 74% 74%, 74% 99%, 40% 99%)",
+    hasBakedWingsInHero: true,
+  },
+  char_ren: {
+    ribbonTop: "4%",
+    ribbonLeft: "46%",
+    hairClip: "polygon(24% 0%, 65% 0%, 65% 19%, 56% 17%, 42% 9%, 42% 28%, 24% 28%)",
+    shoesClip: "polygon(22% 86%, 78% 86%, 78% 100%, 22% 100%)",
+    hasBakedWingsInHero: false,
+  },
+  char_riku: {
+    ribbonTop: "5%",
+    ribbonLeft: "55%",
+    hairClip: "polygon(35% 0%, 79% 0%, 79% 23%, 68% 16%, 52% 10%, 43% 16%, 35% 16%)",
+    shoesClip: "polygon(28% 65%, 42% 65%, 42% 83%, 75% 81%, 75% 99%, 28% 99%)",
+    hasBakedWingsInHero: false,
+  },
+  char_mia: {
+    ribbonTop: "4%",
+    ribbonLeft: "48%",
+    hairClip: "polygon(25% 0%, 70% 0%, 70% 23%, 58% 11%, 39% 11%, 37% 28%, 25% 28%)",
+    shoesClip: "polygon(43% 87%, 61% 87%, 61% 99%, 43% 99%)",
+    hasBakedWingsInHero: false,
+  },
+};
+
+function resolveNewCharacterVariant(
+  accessories: EquippedAccessories,
+  previewCategory?: AccessoryCategory,
+): OutfitVariant {
+  if (previewCategory === "hat") {
+    if (accessories.hat === "hat_safari") return "safari";
+    if (accessories.hat === "hat_beret") return "hoodie";
+    if (accessories.hat === "hat_wizard") return "wizard";
+    if (accessories.hat === "hat_crown") return "hero";
+  } else if (previewCategory === "shoes") {
+    if (accessories.shoes === "shoes_pumps") return "school";
+    if (accessories.shoes === "shoes_boots") return "safari";
+    if (accessories.shoes === "shoes_magical") return "wizard";
+    if (accessories.shoes === "shoes_hero") return "hero";
+    if (accessories.shoes === "shoes_sneaker") return "base";
+  } else if (previewCategory === "gloves") {
+    if (accessories.gloves === "gloves_mitten") return "hoodie";
+    if (accessories.gloves === "gloves_gold") return "hero";
+  }
+
+  switch (accessories.clothes) {
+    case "clothes_school":
+      return "school";
+    case "clothes_safari":
+      return "safari";
+    case "clothes_hoodie":
+      return "hoodie";
+    case "clothes_wizard":
+      return "wizard";
+    case "clothes_hero":
+      return "hero";
+    default: {
+      // デフォルト服のときに帽子・靴・手袋・アクセが選択された場合も対応する3D生成衣装を自然に表示
+      if (accessories.hat === "hat_safari" || accessories.shoes === "shoes_boots") return "safari";
+      if (accessories.hat === "hat_wizard" || accessories.shoes === "shoes_magical" || accessories.accessory === "acc_wand") return "wizard";
+      if (accessories.hat === "hat_crown" || accessories.gloves === "gloves_gold" || accessories.shoes === "shoes_hero") return "hero";
+      if (accessories.hat === "hat_beret" || accessories.gloves === "gloves_mitten" || accessories.accessory === "acc_bag_bear") return "hoodie";
+      if (accessories.shoes === "shoes_pumps") return "school";
+      return "base";
+    }
+  }
+}
+
 export function getKanohaSprite(
   mood: Mood,
   accessories: EquippedAccessories,
-  _previewCategory?: AccessoryCategory,
+  previewCategory?: AccessoryCategory,
 ): string {
+  const charId = (accessories.character ?? "char_kanoha") as CharacterId;
+  if (charId !== "char_kanoha" && charId in NEW_CHARACTER_SPRITES) {
+    const variant = resolveNewCharacterVariant(accessories, previewCategory);
+    return NEW_CHARACTER_SPRITES[charId][variant];
+  }
+
   switch (accessories.clothes) {
     case "clothes_school":
       return SPRITES.school;
@@ -198,7 +349,7 @@ export function getKanohaSprite(
   }
 }
 
-export function KanohaCharacter({ mood = "happy", accessories, onClick }: KanohaCharacterProps) {
+export function KanohaCharacter({ mood = "happy", accessories, previewCategory, onClick }: KanohaCharacterProps) {
   const [storedAccessories, setStoredAccessories] = useState<EquippedAccessories>(DEFAULT_EQUIPPED);
 
   useEffect(() => {
@@ -211,9 +362,118 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
   }, []);
 
   const activeAccessories = accessories ?? storedAccessories;
+  const charId = ((activeAccessories.character ?? "char_kanoha") in CHARACTER_DISPLAY_NAMES
+    ? (activeAccessories.character ?? "char_kanoha")
+    : "char_kanoha") as CharacterId;
+  const displayName = CHARACTER_DISPLAY_NAMES[charId];
+  const moodLabel = mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり";
 
-  // 1. ベース衣装
-  const baseSrc = getKanohaSprite(mood, activeAccessories);
+  // 新規5キャラクター選択時は、各キャラクター専用の3D生成フルボディスプライトと調整済みアクセサリを描画
+  if (charId !== "char_kanoha") {
+    const variant = resolveNewCharacterVariant(activeAccessories, previewCategory);
+    const charSrc = NEW_CHARACTER_SPRITES[charId][variant];
+    const anchor = CHARACTER_ANCHORS[charId];
+    const hairColor = activeAccessories.hair_color ?? "hair_color_brown";
+    const hairFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
+    const shoesColor = activeAccessories.shoes_color ?? "shoes_color_pink";
+    const shoesFilter = SHOES_COLOR_FILTERS[shoesColor] ?? "none";
+    const hatType = activeAccessories.hat ?? "hat_none";
+    const accessoryType = activeAccessories.accessory ?? "acc_none";
+    const showWings =
+      accessoryType === "acc_wings" ||
+      (variant === "hero" && !anchor.hasBakedWingsInHero);
+
+    return (
+      <div
+        className={`${styles.stage} ${mood === "celebrate" ? styles.celebrate : ""}`}
+        role={onClick ? "button" : "img"}
+        tabIndex={onClick ? 0 : undefined}
+        aria-label={`${displayName}（${moodLabel}）`}
+        onClick={onClick}
+        onKeyDown={(event) => {
+          if (onClick && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        <div className={styles.characterContainer}>
+          {showWings && <AngelWings />}
+
+          <Image
+            key={`char-${charId}-${charSrc}`}
+            className={styles.sprite}
+            src={charSrc}
+            width={768}
+            height={1024}
+            alt=""
+            draggable={false}
+            unoptimized
+          />
+
+          {hairFilter !== "none" && (
+            <svg
+              viewBox="0 0 768 1024"
+              className={styles.shoesOverlay}
+              style={{ pointerEvents: "none" }}
+              aria-hidden="true"
+            >
+              <image
+                href={charSrc}
+                width="768"
+                height="1024"
+                style={{
+                  clipPath: anchor.hairClip,
+                  filter: hairFilter,
+                }}
+              />
+            </svg>
+          )}
+
+          {shoesFilter !== "none" && (
+            <svg
+              viewBox="0 0 768 1024"
+              className={styles.shoesOverlay}
+              style={{ pointerEvents: "none" }}
+              aria-hidden="true"
+            >
+              <image
+                href={charSrc}
+                width="768"
+                height="1024"
+                style={{
+                  clipPath: anchor.shoesClip,
+                  filter: shoesFilter,
+                }}
+              />
+            </svg>
+          )}
+
+          {hatType === "hat_ribbon" && (
+            <div
+              className={styles.accessoryLayer}
+              style={{
+                top: anchor.ribbonTop,
+                left: anchor.ribbonLeft,
+                transform: "translate(-50%, -50%)",
+              }}
+              aria-hidden="true"
+            >
+              <RibbonBow />
+            </div>
+          )}
+
+          {accessoryType === "acc_pin_star" && <StarHairPin />}
+          {accessoryType === "acc_heart_earring" && <HeartEarring />}
+          {accessoryType === "acc_wand" && variant !== "wizard" && <MagicWand />}
+          {accessoryType === "acc_bag_bear" && variant !== "hoodie" && <BearPochette />}
+        </div>
+      </div>
+    );
+  }
+
+  // 1. ベース衣装 (かのはちゃん)
+  const baseSrc = getKanohaSprite(mood, activeAccessories, previewCategory);
   const currentClothes = activeAccessories.clothes ?? "clothes_casual";
 
   // 2. メガネレイヤー
@@ -291,7 +551,7 @@ export function KanohaCharacter({ mood = "happy", accessories, onClick }: Kanoha
       className={`${styles.stage} ${mood === "celebrate" ? styles.celebrate : ""}`}
       role={onClick ? "button" : "img"}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={`かのはちゃん（${mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり"}）`}
+      aria-label={`${displayName}（${moodLabel}）`}
       onClick={onClick}
       onKeyDown={(event) => {
         if (onClick && (event.key === "Enter" || event.key === " ")) {

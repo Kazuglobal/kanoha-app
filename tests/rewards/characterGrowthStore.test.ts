@@ -91,7 +91,8 @@ describe("characterGrowthStore", () => {
       );
     });
 
-    it("preserves all 9 dress-up categories when equipping new items sequentially", () => {
+    it("preserves all dress-up categories including character when equipping new items sequentially", () => {
+      equipAccessory("character", "char_fuwari");
       equipAccessory("hairstyle", "hair_twintail");
       equipAccessory("hair_color", "hair_color_pink");
       equipAccessory("shoes", "shoes_boots");
@@ -103,6 +104,7 @@ describe("characterGrowthStore", () => {
       const finalState = equipAccessory("clothes", "clothes_wizard");
 
       expect(finalState).toEqual({
+        character: "char_fuwari",
         clothes: "clothes_wizard",
         hairstyle: "hair_twintail",
         hair_color: "hair_color_pink",

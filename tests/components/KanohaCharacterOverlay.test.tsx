@@ -100,4 +100,18 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
     // 靴オーバーレイはスニーカー(happy)の膝下領域を描画していること
     expect(shoesImg).toBeTruthy();
   });
+
+  it("renders newly selectable characters with their dedicated generated dress-up sprites", () => {
+    const newCharIds = ["char_fuwari", "char_hinata", "char_ren", "char_riku", "char_mia"] as const;
+    for (const charId of newCharIds) {
+      const sprite = getKanohaSprite("happy", {
+        character: charId,
+        clothes: "clothes_wizard",
+        hat: "hat_none",
+        glasses: "glasses_none",
+        gloves: "gloves_none",
+      });
+      expect(sprite).toContain("-wizard.png");
+    }
+  });
 });

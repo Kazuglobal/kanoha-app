@@ -2,7 +2,16 @@
  * 着せかえアイテムと成長レベルの定義(クライアント・サーバー共通の純粋データ)。
  */
 
+export type CharacterId =
+  | "char_kanoha"
+  | "char_fuwari"
+  | "char_hinata"
+  | "char_ren"
+  | "char_riku"
+  | "char_mia";
+
 export type AccessoryCategory =
+  | "character"
   | "clothes"
   | "hairstyle"
   | "hair_color"
@@ -20,9 +29,66 @@ export interface AccessoryItem {
   icon: string;
   unlockLevel: number;
   description: string;
+  previewImage?: string;
 }
 
 export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
+  // キャラクター (Character)
+  {
+    id: "char_kanoha",
+    name: "かのは",
+    category: "character",
+    icon: "🎀",
+    unlockLevel: 1,
+    description: "げんきいっぱい！おだんごヘアの女の子",
+    previewImage: "/images/character/kanoha-ref-happy.png",
+  },
+  {
+    id: "char_fuwari",
+    name: "ふわり",
+    category: "character",
+    icon: "🌸",
+    unlockLevel: 1,
+    description: "ふわふわシルバーヘアとお花のピンがチャームポイント",
+    previewImage: "/images/character/chars/fuwari-base.png",
+  },
+  {
+    id: "char_hinata",
+    name: "ひなた",
+    category: "character",
+    icon: "🌻",
+    unlockLevel: 1,
+    description: "さらさらボブとあたたかい笑顔の女の子",
+    previewImage: "/images/character/chars/hinata-base.png",
+  },
+  {
+    id: "char_ren",
+    name: "レン",
+    category: "character",
+    icon: "⚡",
+    unlockLevel: 1,
+    description: "クールなシルバーヘアのおしゃれマスター",
+    previewImage: "/images/character/chars/ren-base.png",
+  },
+  {
+    id: "char_riku",
+    name: "リク",
+    category: "character",
+    icon: "🏀",
+    unlockLevel: 1,
+    description: "走るの大好き！スポーティな男の子",
+    previewImage: "/images/character/chars/riku-base.png",
+  },
+  {
+    id: "char_mia",
+    name: "ミア",
+    category: "character",
+    icon: "📚",
+    unlockLevel: 1,
+    description: "ふわふわツインおだんごと丸メガネの女の子",
+    previewImage: "/images/character/chars/mia-base.png",
+  },
+
   // ぼうし (Hat)
   {
     id: "hat_none",
@@ -395,6 +461,7 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
 ] as const;
 
 export interface EquippedAccessories {
+  character?: string;
   hat: string;
   glasses: string;
   gloves: string;
@@ -407,6 +474,7 @@ export interface EquippedAccessories {
 }
 
 export const DEFAULT_EQUIPPED: EquippedAccessories = {
+  character: "char_kanoha",
   hat: "hat_none",
   glasses: "glasses_none",
   gloves: "gloves_none",
