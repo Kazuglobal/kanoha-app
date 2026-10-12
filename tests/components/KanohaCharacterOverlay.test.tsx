@@ -85,8 +85,8 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
       img.style.clipPath.includes("78%")
     )!;
 
-    // ベース衣装は頭頂部(15.5%)・素手(36%/56%)・元の靴(78%/85.5%)がすべてクリップ除去されていること
-    expect(baseImg.style.clipPath).toContain("15.5%");
+    // ベース衣装は頭頂部(21.2%)・素手(36%/56%)・元の靴(78%/85.5%)がすべてクリップ除去されていること
+    expect(baseImg.style.clipPath).toContain("21.2%");
     expect(baseImg.style.clipPath).toContain("36%");
     expect(baseImg.style.clipPath).toContain("56%");
     expect(baseImg.style.clipPath).toContain("78%");
@@ -99,9 +99,13 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
 
     // 靴オーバーレイはスニーカー(happy)の膝下領域を描画していること
     expect(shoesImg).toBeTruthy();
+
+    // 帽子オーバーレイは茶髪おだんごを含まないクリーン単体スプライト(kanoha-hat-crown.png)を使用していること
+    const crownImg = images.find((img) => img.getAttribute("src")?.includes("kanoha-hat-crown.png"));
+    expect(crownImg).toBeTruthy();
   });
 
-  it("renders newly selectable characters with their dedicated generated dress-up sprites", () => {
+  it("renders newly selectable characters with their dedicated generated dress-up sprites and per-variant hair layers", () => {
     const newCharIds = ["char_fuwari", "char_hinata", "char_ren", "char_riku", "char_mia"] as const;
     for (const charId of newCharIds) {
       const sprite = getKanohaSprite("happy", {
@@ -112,6 +116,22 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
         gloves: "gloves_none",
       });
       expect(sprite).toContain("-wizard.png");
+
+      const { container } = render(
+        <KanohaCharacter
+          mood="happy"
+          accessories={{
+            character: charId,
+            clothes: "clothes_wizard",
+            hair_color: "hair_color_pink",
+            hat: "hat_none",
+            glasses: "glasses_none",
+            gloves: "gloves_none",
+          }}
+        />
+      );
+      const imgs = Array.from(container.querySelectorAll("img"));
+      expect(imgs.some((img) => img.getAttribute("src")?.includes("-wizard-hair.png"))).toBe(true);
     }
   });
 });

@@ -10,6 +10,7 @@ import React from "react";
 
 export const HAIRSTYLE_SPRITES: Record<string, string> = {
   hair_bun: "/images/character/kanoha-ref-hair-bun.png",
+  hair_bun_underhat: "/images/character/kanoha-ref-hair-bun-underhat.png",
   hair_bob: "/images/character/kanoha-ref-hair-bob.png",
   hair_twintail: "/images/character/kanoha-ref-hair-twintail.png",
   hair_pony: "/images/character/kanoha-ref-hair-pony.png",
@@ -160,18 +161,12 @@ export function HairstyleExtension({
   showCleanBun?: boolean;
   layer?: "back" | "front";
 }) {
-  if (hairstyle === "hair_bun" && !showCleanBun) return null;
-
-  const spriteHref = HAIRSTYLE_SPRITES[hairstyle] ?? HAIRSTYLE_SPRITES.hair_bun;
+  const spriteKey =
+    hairstyle === "hair_bun" && !showCleanBun ? "hair_bun_underhat" : hairstyle;
+  const spriteHref = HAIRSTYLE_SPRITES[spriteKey] ?? HAIRSTYLE_SPRITES.hair_bun;
   const colorFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
 
-  // 大きな帽子を被っている場合は頭頂部(y < 18%)をクリップして帽子の外にはみ出さないようにする
-  const clipPath =
-    layer === "front"
-      ? showCleanBun || hairstyle !== "hair_bun"
-        ? FRONT_HAIR_CLIP
-        : undefined
-      : undefined;
+  const clipPath = layer === "front" ? FRONT_HAIR_CLIP : undefined;
 
   return (
     <svg

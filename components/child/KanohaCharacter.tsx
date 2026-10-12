@@ -44,6 +44,10 @@ const SPRITES = {
   beret: "/images/character/kanoha-ref-beret.png",
   mittens: "/images/character/kanoha-ref-mittens.png",
   glovesGold: "/images/character/kanoha-ref-gloves-gold.png",
+  hatBeret: "/images/character/kanoha-hat-beret.png",
+  hatSafari: "/images/character/kanoha-hat-safari.png",
+  hatWizard: "/images/character/kanoha-hat-wizard.png",
+  hatCrown: "/images/character/kanoha-hat-crown.png",
 } as const;
 
 // 手袋領域のみを厳密に切り出し（上端 y=0% の透明領域を経由し、両手首のもこもこボアカフスを100%保持しつつ茶髪の毛先や胴体を除外）
@@ -101,7 +105,7 @@ function buildBaseClipPath({
 
   const points: string[] = [];
 
-  // 1. 上辺 (x: 0% -> 100%, 元の頭頂部おだんご・ピンクリボン・耳下の茶髪サイドカール先端まで完全にクリップ除去)
+  // 1. 上辺 (x: 0% -> 100%, 元の頭頂部おだんご・ピンクリボン・頭頂部の茶髪・耳下の茶髪サイドカール先端まで完全にクリップ除去)
   if (clipTopHead) {
     points.push(
       "0% 0%",
@@ -113,14 +117,12 @@ function buildBaseClipPath({
       "38% 35.2%",
       "38% 33.8%",
       "33.5% 33.5%",
-      "31.5% 28%",
-      "31.5% 22%",
-      "35% 20.5%",
-      "38% 17.5%",
-      "44% 15.5%",
-      "58% 15.5%",
-      "65% 17.5%",
-      "67.5% 23%",
+      "32.5% 28%",
+      "33.5% 23%",
+      "36% 21.8%",
+      "41% 21.2%",
+      "61% 21.2%",
+      "66.5% 22.8%",
       "68% 28%",
       "70.5% 29%",
       "70.5% 32.5%",
@@ -236,46 +238,70 @@ export const CHARACTER_DISPLAY_NAMES: Record<CharacterId, string> = {
 interface CharacterAnchorMeta {
   ribbonTop: string;
   ribbonLeft: string;
-  hairClip: string;
   shoesClip: string;
   hasBakedWingsInHero: boolean;
+  pinTransform: string;
+  earringTransform: string;
+  wandTransform: string;
+  bagTransform: string;
+  wingsTransform: string;
 }
 
 const CHARACTER_ANCHORS: Record<Exclude<CharacterId, "char_kanoha">, CharacterAnchorMeta> = {
   char_fuwari: {
     ribbonTop: "6%",
     ribbonLeft: "49%",
-    hairClip: "polygon(22% 1%, 76% 1%, 78% 28%, 64% 30%, 62% 15%, 38% 17%, 36% 31%, 20% 28%)",
-    shoesClip: "polygon(24% 73%, 42% 73%, 42% 92%, 58% 87%, 58% 99%, 24% 99%)",
+    shoesClip: "polygon(26% 74%, 42% 74%, 42% 88%, 58% 85%, 58% 99.5%, 26% 99.5%)",
     hasBakedWingsInHero: true,
+    pinTransform: "translate(0%, -5%)",
+    earringTransform: "translate(-1%, -7%) scale(0.88)",
+    wandTransform: "translate(-2%, -10%) scale(0.9)",
+    bagTransform: "translate(-2%, -10%) scale(0.9)",
+    wingsTransform: "translate(0%, -8%) scale(0.95)",
   },
   char_hinata: {
     ribbonTop: "5%",
     ribbonLeft: "50%",
-    hairClip: "polygon(19% 2%, 75% 2%, 76% 35%, 64% 35%, 64% 17%, 35% 17%, 33% 33%, 19% 33%)",
-    shoesClip: "polygon(40% 74%, 74% 74%, 74% 99%, 40% 99%)",
+    shoesClip: "polygon(36% 81%, 69% 81%, 69% 99.5%, 36% 99.5%)",
     hasBakedWingsInHero: true,
+    pinTransform: "translate(0%, -4%)",
+    earringTransform: "translate(-2%, -5%) scale(0.88)",
+    wandTransform: "translate(-2%, -6%) scale(0.9)",
+    bagTransform: "translate(2%, -8%) scale(0.9)",
+    wingsTransform: "translate(0%, -6%) scale(0.95)",
   },
   char_ren: {
     ribbonTop: "4%",
     ribbonLeft: "46%",
-    hairClip: "polygon(24% 0%, 65% 0%, 65% 19%, 56% 17%, 42% 9%, 42% 28%, 24% 28%)",
-    shoesClip: "polygon(22% 86%, 78% 86%, 78% 100%, 22% 100%)",
-    hasBakedWingsInHero: false,
+    shoesClip: "polygon(28% 87%, 70% 87%, 70% 99.8%, 28% 99.8%)",
+    hasBakedWingsInHero: true,
+    pinTransform: "translate(-6%, -9%) scale(0.85)",
+    earringTransform: "translate(-3%, -16%) scale(0.75)",
+    wandTransform: "translate(2%, -8%) scale(0.88)",
+    bagTransform: "translate(2%, -10%) scale(0.88)",
+    wingsTransform: "translate(-1%, -12%) scale(0.95)",
   },
   char_riku: {
     ribbonTop: "5%",
     ribbonLeft: "55%",
-    hairClip: "polygon(35% 0%, 79% 0%, 79% 23%, 68% 16%, 52% 10%, 43% 16%, 35% 16%)",
-    shoesClip: "polygon(28% 65%, 42% 65%, 42% 83%, 75% 81%, 75% 99%, 28% 99%)",
-    hasBakedWingsInHero: false,
+    shoesClip: "polygon(24% 68%, 39% 68%, 39% 84%, 67% 82%, 67% 99.5%, 24% 99.5%)",
+    hasBakedWingsInHero: true,
+    pinTransform: "translate(1%, -8%) scale(0.85)",
+    earringTransform: "translate(4%, -10%) scale(0.82)",
+    wandTransform: "translate(-2%, -10%) scale(0.88)",
+    bagTransform: "translate(-1%, -12%) scale(0.88)",
+    wingsTransform: "translate(2%, -10%) scale(0.95)",
   },
   char_mia: {
     ribbonTop: "4%",
     ribbonLeft: "48%",
-    hairClip: "polygon(25% 0%, 70% 0%, 70% 23%, 58% 11%, 39% 11%, 37% 28%, 25% 28%)",
-    shoesClip: "polygon(43% 87%, 61% 87%, 61% 99%, 43% 99%)",
-    hasBakedWingsInHero: false,
+    shoesClip: "polygon(38% 85%, 62% 85%, 62% 99.5%, 38% 99.5%)",
+    hasBakedWingsInHero: true,
+    pinTransform: "translate(-3%, -8%) scale(0.85)",
+    earringTransform: "translate(-2%, -13%) scale(0.78)",
+    wandTransform: "translate(4%, -10%) scale(0.88)",
+    bagTransform: "translate(2%, -11%) scale(0.88)",
+    wingsTransform: "translate(-1%, -11%) scale(0.95)",
   },
 };
 
@@ -368,10 +394,11 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
   const displayName = CHARACTER_DISPLAY_NAMES[charId];
   const moodLabel = mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり";
 
-  // 新規5キャラクター選択時は、各キャラクター専用の3D生成フルボディスプライトと調整済みアクセサリを描画
+  // 新規5キャラクター選択時は、各キャラクター専用の3D生成フルボディスプライト・ピクセル精密髪色レイヤー・調整済みアクセサリを描画
   if (charId !== "char_kanoha") {
     const variant = resolveNewCharacterVariant(activeAccessories, previewCategory);
     const charSrc = NEW_CHARACTER_SPRITES[charId][variant];
+    const hairSrc = charSrc.replace(/\.png$/, "-hair.png");
     const anchor = CHARACTER_ANCHORS[charId];
     const hairColor = activeAccessories.hair_color ?? "hair_color_brown";
     const hairFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
@@ -380,8 +407,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
     const hatType = activeAccessories.hat ?? "hat_none";
     const accessoryType = activeAccessories.accessory ?? "acc_none";
     const showWings =
-      accessoryType === "acc_wings" ||
-      (variant === "hero" && !anchor.hasBakedWingsInHero);
+      accessoryType === "acc_wings" && !(variant === "hero" && anchor.hasBakedWingsInHero);
 
     return (
       <div
@@ -398,7 +424,9 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
         }}
       >
         <div className={styles.characterContainer}>
-          {showWings && <AngelWings />}
+          {showWings && (
+            <AngelWings style={{ transform: anchor.wingsTransform, transformOrigin: "50% 40%" }} />
+          )}
 
           <Image
             key={`char-${charId}-${charSrc}`}
@@ -412,22 +440,20 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
           />
 
           {hairFilter !== "none" && (
-            <svg
-              viewBox="0 0 768 1024"
+            <Image
+              key={`hair-${charId}-${variant}-${hairColor}`}
               className={styles.shoesOverlay}
-              style={{ pointerEvents: "none" }}
-              aria-hidden="true"
-            >
-              <image
-                href={charSrc}
-                width="768"
-                height="1024"
-                style={{
-                  clipPath: anchor.hairClip,
-                  filter: hairFilter,
-                }}
-              />
-            </svg>
+              src={hairSrc}
+              width={768}
+              height={1024}
+              alt=""
+              draggable={false}
+              unoptimized
+              style={{
+                filter: hairFilter,
+                pointerEvents: "none",
+              }}
+            />
           )}
 
           {shoesFilter !== "none" && (
@@ -463,10 +489,18 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
             </div>
           )}
 
-          {accessoryType === "acc_pin_star" && <StarHairPin />}
-          {accessoryType === "acc_heart_earring" && <HeartEarring />}
-          {accessoryType === "acc_wand" && variant !== "wizard" && <MagicWand />}
-          {accessoryType === "acc_bag_bear" && variant !== "hoodie" && <BearPochette />}
+          {accessoryType === "acc_pin_star" && (
+            <StarHairPin style={{ transform: anchor.pinTransform, transformOrigin: "60% 20%" }} />
+          )}
+          {accessoryType === "acc_heart_earring" && (
+            <HeartEarring style={{ transform: anchor.earringTransform, transformOrigin: "50% 30%" }} />
+          )}
+          {accessoryType === "acc_wand" && variant !== "wizard" && (
+            <MagicWand style={{ transform: anchor.wandTransform, transformOrigin: "25% 40%" }} />
+          )}
+          {accessoryType === "acc_bag_bear" && variant !== "hoodie" && (
+            <BearPochette style={{ transform: anchor.bagTransform, transformOrigin: "45% 60%" }} />
+          )}
         </div>
       </div>
     );
@@ -496,23 +530,18 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
   const hairStyle = activeAccessories.hairstyle ?? "hair_bun";
   const hairColor = activeAccessories.hair_color ?? "hair_color_brown";
 
-  // 5. 帽子レイヤー (Hat)
+  // 5. 帽子レイヤー (Hat: 茶髪おだんごやピンクリボンの残骸を除去したクリーンな単体帽子スプライトを使用)
   const hatType = activeAccessories.hat ?? "hat_none";
 
   let hatSrc: string | null = null;
-  let hatClip = "polygon(20% 0%, 82% 0%, 82% 23.5%, 68.5% 21%, 65% 17.5%, 38% 17.5%, 34% 20.5%, 20% 23.5%)";
   if (hatType === "hat_beret") {
-    hatSrc = SPRITES.beret;
+    hatSrc = SPRITES.hatBeret;
   } else if (hatType === "hat_safari") {
-    hatSrc = SPRITES.safari;
-    hatClip = "polygon(18% 0%, 84% 0%, 84% 24%, 68.5% 21%, 65% 17.5%, 38% 17.5%, 34% 20.5%, 18% 24%)";
+    hatSrc = SPRITES.hatSafari;
   } else if (hatType === "hat_wizard") {
-    hatSrc = SPRITES.wizard;
-    hatClip =
-      "polygon(14% 0%, 98% 0%, 98% 35%, 71% 35%, 71% 22.5%, 68.5% 21%, 65% 17.5%, 38% 17.5%, 35% 20.5%, 31.5% 22%, 31.5% 35%, 14% 35%)";
+    hatSrc = SPRITES.hatWizard;
   } else if (hatType === "hat_crown") {
-    hatSrc = SPRITES.hero;
-    hatClip = "polygon(38% 4.5%, 63% 4.5%, 60% 13.5%, 41% 13.5%)";
+    hatSrc = SPRITES.hatCrown;
   }
 
   // ベーススプライトに描き込まれた元のおだんご・ピンクリボン・内蔵帽子・サイドカールは常にクリップ除去し、
@@ -673,7 +702,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
             alt=""
             draggable={false}
             unoptimized
-            style={{ clipPath: hatClip, zIndex: 6 }}
+            style={{ zIndex: 6 }}
           />
         )}
 
