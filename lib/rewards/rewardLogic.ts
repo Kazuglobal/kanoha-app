@@ -99,6 +99,7 @@ export function describeRewardChange(previousState: RewardState, newState: Rewar
 }
 
 export const CATEGORIES: readonly AccessoryCategory[] = [
+  "character",
   "clothes",
   "hairstyle",
   "hair_color",

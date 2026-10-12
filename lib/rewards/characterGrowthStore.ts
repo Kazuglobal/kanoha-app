@@ -19,6 +19,7 @@ export {
   isAccessoryUnlocked,
   type AccessoryCategory,
   type AccessoryItem,
+  type CharacterId,
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
