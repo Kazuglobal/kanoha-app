@@ -70,11 +70,22 @@ export function HandwritingPad({
   function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
     const context = canvasRef.current?.getContext("2d");
     if (!context) return;
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      // ignore
+    }
     drawingRef.current = true;
     const { x, y } = point(event);
     currentStrokeRef.current = [{ x, y }];
+    context.lineWidth = penWidth;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = penColor;
     context.beginPath();
     context.moveTo(x, y);
+    context.lineTo(x, y);
+    context.stroke();
   }
 
   function draw(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -91,9 +102,16 @@ export function HandwritingPad({
     context.stroke();
   }
 
-  function stopDrawing() {
+  function stopDrawing(event?: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return;
     drawingRef.current = false;
+    if (event) {
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // ignore
+      }
+    }
     if (currentStrokeRef.current.length > 0) {
       strokesRef.current.push({
         points: [...currentStrokeRef.current],
@@ -112,14 +130,19 @@ export function HandwritingPad({
     context.clearRect(0, 0, canvas.width, canvas.height);
     for (const stroke of strokesRef.current) {
       if (stroke.points.length === 0) continue;
-      context.beginPath();
       context.lineWidth = stroke.width;
       context.lineCap = "round";
       context.lineJoin = "round";
       context.strokeStyle = stroke.color;
+
+      context.beginPath();
       context.moveTo(stroke.points[0].x, stroke.points[0].y);
-      for (let i = 1; i < stroke.points.length; i++) {
-        context.lineTo(stroke.points[i].x, stroke.points[i].y);
+      if (stroke.points.length === 1) {
+        context.lineTo(stroke.points[0].x, stroke.points[0].y);
+      } else {
+        for (let i = 1; i < stroke.points.length; i++) {
+          context.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
       }
       context.stroke();
     }
@@ -268,6 +291,7 @@ export function HandwritingPad({
             onPointerLeave={stopDrawing}
             onPointerMove={draw}
             onPointerUp={stopDrawing}
+            onPointerCancel={stopDrawing}
             ref={canvasRef}
             width={540}
           />

@@ -52,6 +52,8 @@ export interface PersistedProblem {
   listenText?: string;
   /** ステージマップの「つぎの もんだい」(問題バンクの id) */
   nextProblemId?: string | null;
+  /** 単元の最後の問題かどうか（最後の問題の場合は区切りを設ける） */
+  isLastInUnit?: boolean;
   /** デモ専用: れんしゅう 5もん(答えは持たず、checkId でサーバーが判定する) */
   demoPractice?: readonly SimilarProblem[];
 }
@@ -490,7 +492,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     subject, answer, setAnswer, checked, revealedHints, practiceIndex, score, sessionId,
     similarProblems, pending, simplifying, visualPending, visualUrl, visualAvailable,
     saveMessage, retryAction, dailyLimit, finished, question, unit, resultHref,
-    nextProblemHref,
+    nextProblemHref, isLastInUnit: Boolean(persisted?.isLastInUnit),
     requestNextHint, checkOriginalAnswer, startPractice, simplifyHints,
     showVisualHint, answerSimilar, completeSimilar, restartFlow,
   };

@@ -20,6 +20,7 @@ export interface AiProvider {
     images: readonly GeminiImagePart[],
     problemText: string,
     subject?: Subject,
+    expectedAnswer?: string,
   ): Promise<HandwritingAnswer>;
   generateSimilarProblems(
     input: SimilarProblemRequest,

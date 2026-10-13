@@ -38,4 +38,20 @@ describe("buildCurriculumPractice", () => {
   it("returns nothing for unknown problems", () => {
     expect(buildCurriculumPractice("nope")).toEqual([]);
   });
+
+  it("never duplicates problems in the five practice items across all curriculum problems", () => {
+    const problems = [
+      "addition-1",
+      "kanji-1",
+      "english-colors-1",
+      "english-animals-1",
+      "volume-1",
+    ];
+    for (const id of problems) {
+      const items = buildCurriculumPractice(id);
+      const sourceIds = items.map((it) => it.sourceId);
+      const uniqueIds = new Set(sourceIds);
+      expect(uniqueIds.size, `Duplicates in practice for ${id}`).toBe(items.length);
+    }
+  });
 });

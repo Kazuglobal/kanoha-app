@@ -4674,3 +4674,47 @@
     min-height: 48px;
   }
 }
+
+/* Stage clear notice card */
+.stageClearNotice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 2.5px solid #10b981;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+}
+
+.stageClearTitle {
+  font-size: clamp(20px, 3vw, 24px);
+  font-weight: 900;
+  color: #065f46;
+  margin: 0;
+}
+
+.stageClearLead {
+  font-size: 15px;
+  font-weight: 700;
+  color: #047857;
+  margin: 0;
+}
+
+.stageClearButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.choiceSpeakerIcon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: #0d9488;
+}

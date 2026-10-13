@@ -45,6 +45,10 @@ const FULL_STAGE_SVG_STYLE: React.CSSProperties = {
 const FRONT_HAIR_CLIP =
   "polygon(0% 0%, 100% 0%, 100% 39.5%, 63.5% 39.5%, 63.5% 34.2%, 41.2% 34.2%, 41.2% 39.5%, 0% 39.5%)";
 
+// 背面髪型レイヤー用クリップ：頭頂部・おでこ・顔（y < 35%）を完全に除外し、肩の後ろ・背中に垂れる毛束（y: 35%〜70%）のみを描画
+const BACK_HAIR_CLIP =
+  "polygon(0% 35%, 100% 35%, 100% 70%, 0% 70%)";
+
 export function RibbonBow({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg
@@ -161,12 +165,18 @@ export function HairstyleExtension({
   showCleanBun?: boolean;
   layer?: "back" | "front";
 }) {
+  // おだんご (hair_bun) とボブ (hair_bob) は背中に垂れる髪がないため、
+  // 背面レイヤー (layer === "back") は描画せず、前の髪型の残骸や隙間からの透けを完全に防ぐ
+  if (layer === "back" && (hairstyle === "hair_bun" || hairstyle === "hair_bob")) {
+    return null;
+  }
+
   const spriteKey =
     hairstyle === "hair_bun" && !showCleanBun ? "hair_bun_underhat" : hairstyle;
   const spriteHref = HAIRSTYLE_SPRITES[spriteKey] ?? HAIRSTYLE_SPRITES.hair_bun;
   const colorFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
 
-  const clipPath = layer === "front" ? FRONT_HAIR_CLIP : undefined;
+  const clipPath = layer === "front" ? FRONT_HAIR_CLIP : BACK_HAIR_CLIP;
 
   return (
     <svg

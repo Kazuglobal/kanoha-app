@@ -1,11 +1,12 @@
 "use client";
 
+import { Volume2 } from "lucide-react";
 import { useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { playPraiseVoice, playEncourageVoice } from "@/lib/audio/coachSpeech";
 import { checkDemoAnswer } from "./learningApi";
-import { ListenButton } from "./ListenButton";
+import { ListenButton, speakEnglish } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
 
 export type SimilarProblem = {
@@ -53,6 +54,9 @@ export function SimilarProblemCard({
 
   async function submit(answer: string) {
     if (pending || selected !== null) return;
+    if (/[a-zA-Z]/.test(answer)) {
+      void speakEnglish(answer);
+    }
     soundManager.playTap();
     setMessage("");
     setSelected(answer);
@@ -96,17 +100,21 @@ export function SimilarProblemCard({
       {problem.listenText ? <ListenButton text={problem.listenText} /> : null}
       {problem.choices ? (
         <div className={styles.choiceGrid}>
-          {problem.choices.map((choice) => (
-            <button
-              className={`${styles.choice} ${selected === choice ? styles.choiceSelected : ""}`}
-              disabled={selected !== null || pending}
-              key={choice}
-              type="button"
-              onClick={() => void submit(choice)}
-            >
-              {choice}
-            </button>
-          ))}
+          {problem.choices.map((choice) => {
+            const isEnglish = /[a-zA-Z]/.test(choice);
+            return (
+              <button
+                className={`${styles.choice} ${selected === choice ? styles.choiceSelected : ""}`}
+                disabled={selected !== null || pending}
+                key={choice}
+                type="button"
+                onClick={() => void submit(choice)}
+              >
+                <span>{choice}</span>
+                {isEnglish ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className={styles.answerRow}>

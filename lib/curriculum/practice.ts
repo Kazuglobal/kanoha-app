@@ -36,10 +36,9 @@ export function buildCurriculumPractice(
   const sameUnit = rotated.filter((problem) => problem.unit === current.unit);
   const others = rotated.filter((problem) => problem.unit !== current.unit);
   const pool = [...sameUnit, ...others];
-  const picked =
-    pool.length === 0 ? [] : Array.from({ length: count }, (_, index) => pool[index % pool.length]);
+  const picked = pool.slice(0, Math.min(count, pool.length));
 
-  return picked.map((problem, index) => toPracticeItem(problem, `${problemId}:${index}`));
+  return picked.map((problem: CurriculumProblem, index: number) => toPracticeItem(problem, `${problemId}:${index}`));
 }
 
 const toPracticeItem = (problem: CurriculumProblem, seed: string): CurriculumPracticeItem => ({

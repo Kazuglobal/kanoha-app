@@ -7,10 +7,11 @@ import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { setCelebrationsDeferred } from "@/lib/rewards/celebrationGate";
 import { SUBJECT_CONFIG, type Subject } from "@/lib/curriculum/subjects";
+import { Volume2 } from "lucide-react";
 import { CharacterCoach } from "./CharacterCoach";
 import { HandwritingPad } from "./HandwritingPad";
 import { HintStepper } from "./HintStepper";
-import { ListenButton } from "./ListenButton";
+import { ListenButton, speakEnglish } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
 import { FLOW_TEXT } from "./childStrings";
 import { FinishedScreen, LimitScreen, PracticeFlow } from "./PracticeFlow";
@@ -77,6 +78,7 @@ export function LearningFlow({
         readingMode={preferences.readingMode}
         resultHref={flow.resultHref}
         nextProblemHref={flow.nextProblemHref}
+        isLastInUnit={flow.isLastInUnit}
         score={flow.score}
         unit={flow.unit}
         onRestart={() => void flow.restartFlow()}
@@ -214,15 +216,32 @@ function AnswerDock({
         </div>
       ) : null}
 
-      {flow.checked?.correct && flow.nextProblemHref ? (
-        <Link href={flow.nextProblemHref as Route} className={styles.nextProblemButton}>
-          🚀 つぎの もんだいへ すすむ！
-        </Link>
+      {flow.checked?.correct ? (
+        flow.isLastInUnit ? (
+          <div className={styles.stageClearNotice}>
+            <p className={styles.stageClearTitle}>🎉 このステージ クリア！</p>
+            <p className={styles.stageClearLead}>よくがんばったね！ひとやすみしよう。</p>
+            <div className={styles.stageClearButtons}>
+              <Link href="/child/home" className={styles.primaryButton}>
+                🏠 ステージマップへ もどる
+              </Link>
+              {flow.nextProblemHref ? (
+                <Link href={flow.nextProblemHref as Route} className={styles.secondaryButton}>
+                  つぎの ステージへ 🚀
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : flow.nextProblemHref ? (
+          <Link href={flow.nextProblemHref as Route} className={styles.nextProblemButton}>
+            🚀 つぎの もんだいへ すすむ！
+          </Link>
+        ) : null
       ) : null}
 
       {/* 正解したら入力欄は畳み、「つぎの もんだいへ」に場所をゆずる(スマホで重ならないように) */}
       {solved ? null : choices ? (
-        <ChoiceAnswers choices={choices} flow={flow} />
+        <ChoiceAnswers choices={choices} flow={flow} subject={subject} />
       ) : (
         <TypedAnswer
           enableVoiceAnswer={enableVoiceAnswer}
@@ -235,22 +254,43 @@ function AnswerDock({
   );
 }
 
-/** 選択式(英語など): タップした選択肢でそのまま答え合わせする。 */
-function ChoiceAnswers({ choices, flow }: { choices: readonly string[]; flow: Flow }) {
+/** 選択式(英語など): タップした選択肢でそのまま答え合わせする。英語は音声を再生する。 */
+function ChoiceAnswers({
+  choices,
+  flow,
+  subject,
+}: {
+  choices: readonly string[];
+  flow: Flow;
+  subject: Subject;
+}) {
+  const isEnglish = subject === "english" || choices.some((c) => /[a-zA-Z]/.test(c));
+
+  const handleSelect = (choice: string) => {
+    if (/[a-zA-Z]/.test(choice)) {
+      void speakEnglish(choice);
+    }
+    void flow.checkOriginalAnswer(choice);
+  };
+
   return (
     <div className={styles.choiceGrid} role="group" aria-label="こたえを えらぶ">
-      {choices.map((choice) => (
-        <button
-          className={`${styles.choice} ${flow.answer === choice ? styles.choiceSelected : ""}`}
-          disabled={flow.pending}
-          key={choice}
-          lang={/^[A-Za-z0-9 .,!?'-]+$/.test(choice) ? "en" : undefined}
-          type="button"
-          onClick={() => void flow.checkOriginalAnswer(choice)}
-        >
-          {choice}
-        </button>
-      ))}
+      {choices.map((choice) => {
+        const isEnglishWord = /[a-zA-Z]/.test(choice);
+        return (
+          <button
+            className={`${styles.choice} ${flow.answer === choice ? styles.choiceSelected : ""}`}
+            disabled={flow.pending}
+            key={choice}
+            lang={isEnglishWord ? "en" : undefined}
+            type="button"
+            onClick={() => handleSelect(choice)}
+          >
+            <span>{choice}</span>
+            {isEnglishWord ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -293,7 +333,11 @@ function TypedAnswer({
       {hasTools ? (
         <div className={styles.learningActionBtns}>
           {enableVoiceAnswer ? (
-            <VoiceAnswer lang={SUBJECT_CONFIG[subject].speechLang} onAnswer={flow.setAnswer} />
+            <VoiceAnswer
+              lang={SUBJECT_CONFIG[subject].speechLang}
+              onAnswer={flow.setAnswer}
+              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
+            />
           ) : null}
           {persisted ? (
             <HandwritingPad

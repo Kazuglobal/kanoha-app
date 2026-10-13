@@ -238,7 +238,10 @@ export const mockAiProvider: AiProvider = {
   // モックは AI 判定をしない(キーワード判定の結果をそのまま使う)
   judgeEnglishTalk: async () => ({ correct: false, feedback: "もういちど いってみよう！" }),
   name: "mock",
-  recognizeHandwriting: async (_images, problemText = "", subject = "math") => {
+  recognizeHandwriting: async (_images, problemText = "", subject = "math", expectedAnswer) => {
+    if (expectedAnswer) {
+      return { answer: expectedAnswer };
+    }
     const bankMatch = CURRICULUM_PROBLEMS.find(
       (p) => problemText && (p.problemText.includes(problemText.slice(0, 8)) || problemText.includes(p.problemText.slice(0, 8))),
     );
