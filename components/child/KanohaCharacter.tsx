@@ -105,11 +105,10 @@ function buildBaseClipPath({
 
   const points: string[] = [];
 
-  // 1. 上辺 (x: 0% -> 100%, 元の頭頂部おだんご・ピンクリボン・頭頂部の茶髪・耳下の茶髪サイドカール先端まで完全にクリップ除去)
+  // 1. 上辺 (x: 0% -> 100%, 元の頭頂部おだんご・ピンクリボン・頭頂部の茶髪・左右に張り出す帽子のつばや毛束を端まで完全にクリップ除去)
   if (clipTopHead) {
     points.push(
-      "0% 0%",
-      "14% 0%",
+      "0% 36.5%",
       "14% 36.5%",
       "34% 36.5%",
       "41.2% 39.0%",
@@ -129,8 +128,7 @@ function buildBaseClipPath({
       "66.5% 33.8%",
       "66.5% 38.5%",
       "98% 38.5%",
-      "98% 0%",
-      "100% 0%",
+      "100% 38.5%",
     );
   } else {
     points.push("0% 0%", "100% 0%");
@@ -309,6 +307,26 @@ function resolveNewCharacterVariant(
   accessories: EquippedAccessories,
   previewCategory?: AccessoryCategory,
 ): OutfitVariant {
+  // 1. 服（clothes）が明示的に選ばれている場合は常に服の選択を最優先（前の服やアクセサリが残るのを完全に防止）
+  switch (accessories.clothes) {
+    case "clothes_school":
+      return "school";
+    case "clothes_safari":
+      return "safari";
+    case "clothes_hoodie":
+      return "hoodie";
+    case "clothes_wizard":
+      return "wizard";
+    case "clothes_hero":
+      return "hero";
+    case "clothes_tshirt":
+    case "clothes_casual":
+      return "base";
+    default:
+      break;
+  }
+
+  // 2. モーダルでタブプレビュー中の場合
   if (previewCategory === "hat") {
     if (accessories.hat === "hat_safari") return "safari";
     if (accessories.hat === "hat_beret") return "hoodie";
@@ -325,27 +343,7 @@ function resolveNewCharacterVariant(
     if (accessories.gloves === "gloves_gold") return "hero";
   }
 
-  switch (accessories.clothes) {
-    case "clothes_school":
-      return "school";
-    case "clothes_safari":
-      return "safari";
-    case "clothes_hoodie":
-      return "hoodie";
-    case "clothes_wizard":
-      return "wizard";
-    case "clothes_hero":
-      return "hero";
-    default: {
-      // デフォルト服のときに帽子・靴・手袋・アクセが選択された場合も対応する3D生成衣装を自然に表示
-      if (accessories.hat === "hat_safari" || accessories.shoes === "shoes_boots") return "safari";
-      if (accessories.hat === "hat_wizard" || accessories.shoes === "shoes_magical" || accessories.accessory === "acc_wand") return "wizard";
-      if (accessories.hat === "hat_crown" || accessories.gloves === "gloves_gold" || accessories.shoes === "shoes_hero") return "hero";
-      if (accessories.hat === "hat_beret" || accessories.gloves === "gloves_mitten" || accessories.accessory === "acc_bag_bear") return "hoodie";
-      if (accessories.shoes === "shoes_pumps") return "school";
-      return "base";
-    }
-  }
+  return "base";
 }
 
 export function getKanohaSprite(

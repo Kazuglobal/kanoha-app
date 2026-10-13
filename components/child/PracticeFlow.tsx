@@ -38,6 +38,7 @@ export function FinishedScreen({
   readingMode,
   resultHref,
   nextProblemHref,
+  isLastInUnit,
   onRestart,
 }: {
   score: number;
@@ -45,6 +46,7 @@ export function FinishedScreen({
   readingMode: ReadingMode;
   resultHref: string;
   nextProblemHref?: string | null;
+  isLastInUnit?: boolean;
   onRestart: () => void;
 }) {
   useEffect(() => {
@@ -74,10 +76,13 @@ export function FinishedScreen({
       <div className={`${styles.hintActions} ${styles.resultActions}`}>
         {nextProblemHref && (
           <Link className={styles.nextProblemButton} href={nextProblemHref as Route}>
-            🚀 つぎの もんだいへ すすむ！
+            {isLastInUnit ? "つぎの ステージへ すすむ 🚀" : "🚀 つぎの もんだいへ すすむ！"}
           </Link>
         )}
-        <Link className={styles.primaryButton} href={resultHref as Route}>{FLOW_TEXT.resultLink}</Link>
+        <Link className={styles.primaryButton} href="/child/home">
+          🏠 ステージマップへ もどる
+        </Link>
+        <Link className={styles.secondaryButton} href={resultHref as Route}>{FLOW_TEXT.resultLink}</Link>
         <button className={styles.secondaryButton} type="button" onClick={onRestart}>
           {FLOW_TEXT.retryFlow}
         </button>

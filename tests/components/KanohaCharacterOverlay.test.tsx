@@ -134,4 +134,79 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
       expect(imgs.some((img) => img.getAttribute("src")?.includes("-wizard-hair.png"))).toBe(true);
     }
   });
+
+  it("does not render layer='back' svg for bun and bob, and uses BACK_HAIR_CLIP for twintail and pony", () => {
+    // 1. hair_bun の時は layer="back" が描画されず、不要な前髪・頭頂部スプライトが背面に重複しない
+    const { container: bunContainer } = render(
+      <KanohaCharacter
+        mood="happy"
+        accessories={{
+          character: "char_kanoha",
+          clothes: "clothes_tshirt",
+          hairstyle: "hair_bun",
+          hair_color: "hair_color_brown",
+          hat: "hat_none",
+          glasses: "glasses_none",
+          gloves: "gloves_none",
+        }}
+      />
+    );
+    const bunSvgs = Array.from(bunContainer.querySelectorAll("svg"));
+    const bunHairSvgs = bunSvgs.filter((svg) => {
+      const img = svg.querySelector("image");
+      return img?.getAttribute("href")?.includes("hair-bun");
+    });
+    // 前面レイヤー(layer="front")の1つのみ描画されること（背面に重複しない）
+    expect(bunHairSvgs.length).toBe(1);
+
+    // 2. hair_twintail の時は layer="back" が BACK_HAIR_CLIP (y >= 35%) で顔・頭頂部を除外
+    const { container: twinContainer } = render(
+      <KanohaCharacter
+        mood="happy"
+        accessories={{
+          character: "char_kanoha",
+          clothes: "clothes_tshirt",
+          hairstyle: "hair_twintail",
+          hair_color: "hair_color_brown",
+          hat: "hat_none",
+          glasses: "glasses_none",
+          gloves: "gloves_none",
+        }}
+      />
+    );
+    const twinSvgs = Array.from(twinContainer.querySelectorAll("svg"));
+    const twinHairSvgs = twinSvgs.filter((svg) => {
+      const img = svg.querySelector("image");
+      return img?.getAttribute("href")?.includes("hair-twintail");
+    });
+    // 背面レイヤーと前面レイヤーの2つが存在
+    expect(twinHairSvgs.length).toBe(2);
+    const backSvg = twinHairSvgs.find((s) => (s as unknown as HTMLElement).style.zIndex === "1");
+    expect((backSvg as unknown as HTMLElement)?.style.clipPath).toContain("35%");
+  });
+
+  it("prioritizes chosen clothes for new characters and does not let lingering hats or accessories hijack outfit", () => {
+    // 新キャラで帽子に hat_safari が残っていても、服で clothes_school を選べば確実に school が選ばれる
+    const sprite = getKanohaSprite("happy", {
+      character: "char_fuwari",
+      clothes: "clothes_school",
+      hat: "hat_safari",
+      glasses: "glasses_none",
+      gloves: "gloves_none",
+      accessory: "acc_wand",
+    });
+    expect(sprite).toContain("-school.png");
+
+    // 服でいつもの服(clothes_tshirt)を選んだ場合、以前のアクセサリ(acc_wand, shoes_boots等)に邪魔されず base になる
+    const baseSprite = getKanohaSprite("happy", {
+      character: "char_ren",
+      clothes: "clothes_tshirt",
+      hat: "hat_safari",
+      glasses: "glasses_none",
+      gloves: "gloves_none",
+      accessory: "acc_wand",
+      shoes: "shoes_boots",
+    });
+    expect(baseSprite).toContain("-base.png");
+  });
 });

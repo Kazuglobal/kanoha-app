@@ -7,7 +7,7 @@ import { RewardBurst } from "@/components/child/RewardBurst";
 import { RubyAuto } from "@/components/child/RubyText";
 import { RESULT_TEXT } from "@/components/child/childStrings";
 import styles from "@/components/kanoha.module.css";
-import { getNextCurriculumProblem } from "@/lib/curriculum/curriculumBank";
+import { getCurriculumStageProgress, getNextCurriculumProblem } from "@/lib/curriculum/curriculumBank";
 
 export default async function ResultPage({
   searchParams,
@@ -17,6 +17,8 @@ export default async function ResultPage({
   const { score = "5", unit = "かさ", problemId, childId, nextProblemId } = await searchParams;
   const mastered = Number(score) >= 4;
   const nextTargetId = nextProblemId ?? (problemId ? getNextCurriculumProblem(problemId)?.id : null);
+  const stageProgress = problemId ? getCurriculumStageProgress(problemId) : null;
+  const isLastInUnit = Boolean(stageProgress?.isLastInUnit);
   const nextHref = nextTargetId
     ? `/child/problem/${encodeURIComponent(nextTargetId)}${childId ? `?childId=${encodeURIComponent(childId)}` : ""}`
     : null;
@@ -57,7 +59,7 @@ export default async function ResultPage({
           <div className={`${styles.hintActions} ${styles.resultActions}`}>
             {nextHref && (
               <Link className={styles.nextProblemButton} href={nextHref as Route}>
-                🚀 つぎの もんだいへ すすむ！
+                {isLastInUnit ? "つぎの ステージへ すすむ 🚀" : "🚀 つぎの もんだいへ すすむ！"}
               </Link>
             )}
             <Link className={styles.primaryButton} href="/child/home">{RESULT_TEXT.home}</Link>

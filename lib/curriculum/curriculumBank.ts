@@ -62,20 +62,25 @@ export function getCurriculumProblemsByUnit(unit: string): CurriculumProblem[] {
  * 現在の問題の「つぎの問題」を取得する。
  * 同じ単元内に次の問題があればそれを返し、
  * 単元の最後の問題であれば、次の単元の第1問を返す。
- * 全問解き終わったら最初の問題へループする。
+ * 教科の全問解き終わったらループせず null を返す（同じ問題が勝手に再出現するのを防ぐ）。
  */
-export function getNextCurriculumProblem(currentId: string): CurriculumProblem | null {
+export function getNextCurriculumProblem(
+  currentId: string,
+  options?: { loop?: boolean },
+): CurriculumProblem | null {
   const current = getCurriculumProblemById(currentId);
   if (!current) {
-    // 未知のIDなら算数の第1問へ
-    return CURRICULUM_PROBLEMS[0] ?? null;
+    return null;
   }
 
   const subjectProblems = getCurriculumProblemsBySubject(current.subject);
   const currentIndex = subjectProblems.findIndex((p) => p.id === currentId);
-  if (currentIndex === -1) return subjectProblems[0] ?? null;
+  if (currentIndex === -1) return null;
 
-  const nextIndex = (currentIndex + 1) % subjectProblems.length;
+  const nextIndex = currentIndex + 1;
+  if (nextIndex >= subjectProblems.length) {
+    return options?.loop ? (subjectProblems[0] ?? null) : null;
+  }
   return subjectProblems[nextIndex] ?? null;
 }
 
@@ -87,6 +92,7 @@ export function getCurriculumStageProgress(problemId: string): {
   index: number;
   total: number;
   label: string;
+  isLastInUnit: boolean;
 } | null {
   const problem = getCurriculumProblemById(problemId);
   if (!problem) return null;
@@ -100,6 +106,7 @@ export function getCurriculumStageProgress(problemId: string): {
     index: index + 1,
     total: unitProblems.length,
     label: `${problem.unit} ${index + 1} / ${unitProblems.length}`,
+    isLastInUnit: index + 1 >= unitProblems.length,
   };
 }
 

@@ -94,15 +94,19 @@ export const buildSimilarProblemsPrompt = (input: {
 export const buildHandwritingPrompt = (
   problemText: string,
   subject: Subject = "math",
+  expectedAnswer?: string,
 ): string => [
   SUBJECT_PROMPTS[subject].handwriting,
   privacyRule,
   `問題: ${problemText}`,
+  expectedAnswer ? `この問題の正解候補（参考）: ${expectedAnswer}` : "",
   SUBJECT_PROMPTS[subject].handwritingTarget,
-  "子どもが書いた文字なので、字が汚かったり崩れていても、漢字や文字の形・構成が合っていれば正解の文字として読み取ってください。",
+  "子どもが書いた手書き文字です。字が汚かったり崩れていても、漢字や文字の形・構成・意図が伝われば正解の文字として寛容に読み取ってください。",
+  expectedAnswer ? "特に正解候補の文字を書こうとしたと推測される場合は、多少の線の歪みやトメ・ハネ・ハライの不完全さがあっても、その文字として認識してください。" : "",
   "読み取れない場合でも、最も近いと思う答えを1つだけ出力してください。",
+  "余計な解説や単位の重複は含めず、書かれた文字そのものをanswerに出力してください。",
   "指定されたJSON形式だけを出力してください。",
-].join("\n");
+].filter(Boolean).join("\n");
 
 export const buildEnglishTalkJudgePrompt = (input: {
   question: string;

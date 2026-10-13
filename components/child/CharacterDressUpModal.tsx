@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, Check, Lock, Shirt } from "lucide-react";
+import { Sparkles, X, Check, Lock, Shirt, RotateCcw } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import Image from "next/image";
@@ -65,9 +65,28 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
   const handleSelect = (item: AccessoryItem) => {
     if (!isAccessoryUnlocked(item, totalCorrect)) return;
     soundManager.playCorrect();
-    const updated = equipAccessory(item.category, item.id);
+
+    const defaultId = DEFAULT_EQUIPPED[item.category] ?? "";
+    const isCurrent = (equipped[item.category] ?? defaultId) === item.id;
+    // 選択中のアイテムを再タップした時は「はずす / デフォルト」に戻す
+    const targetId = isCurrent ? defaultId : item.id;
+
+    const updated = equipAccessory(item.category, targetId);
     setEquipped(updated);
-    void saveEquipToServer(item.category, item.id);
+    void saveEquipToServer(item.category, targetId);
+  };
+
+  const handleResetToDefault = () => {
+    soundManager.playTap();
+    const currentChar = equipped.character ?? "char_kanoha";
+    const resetEquipped: EquippedAccessories = { ...DEFAULT_EQUIPPED, character: currentChar };
+    for (const cat of Object.keys(DEFAULT_EQUIPPED) as AccessoryCategory[]) {
+      const val = resetEquipped[cat];
+      if (typeof val === "string") {
+        equipAccessory(cat, val);
+      }
+    }
+    setEquipped(resetEquipped);
   };
 
   return (
@@ -226,6 +245,16 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
           </div>
 
           <div className={styles.dressUpFooter}>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={handleResetToDefault}
+              style={{ minWidth: "140px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+              title="ぜんぶ いつもの スタイルに もどす"
+            >
+              <RotateCcw size={16} />
+              いつもの ふく
+            </button>
             <button
               className={styles.primaryButton}
               type="button"

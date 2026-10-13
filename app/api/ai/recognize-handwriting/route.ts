@@ -54,10 +54,11 @@ export async function POST(request: Request) {
     const demo = demoProblemById(parsed.data.problemId);
     const problemText = demo?.problem_text ?? "手書き文字を読み取ってください";
     const subject: Subject = resolveSubject(demo?.subject, demo?.unit);
+    const expectedAnswer = demo?.correct_answer;
 
     const provider = getAiProvider();
     if (provider.name === "mock") {
-      const result = await provider.recognizeHandwriting([], problemText, subject);
+      const result = await provider.recognizeHandwriting([], problemText, subject, expectedAnswer);
       return apiSuccess(result);
     }
 
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
         [{ mimeType: parsed.data.image.mimeType, data: parsed.data.image.data }],
         problemText,
         subject,
+        expectedAnswer,
       );
       return apiSuccess(result);
     } catch {
@@ -86,8 +88,9 @@ export async function POST(request: Request) {
 
   const provider = getAiProvider();
   const subject: Subject = resolveSubject(problem.subject, problem.unit);
+  const expectedAnswer = problem.correctAnswer;
   if (provider.name === "mock") {
-    const result = await provider.recognizeHandwriting([], problem.problemText, subject);
+    const result = await provider.recognizeHandwriting([], problem.problemText, subject, expectedAnswer);
     return apiSuccess(result);
   }
 
@@ -109,6 +112,7 @@ export async function POST(request: Request) {
       [{ mimeType: parsed.data.image.mimeType, data: parsed.data.image.data }],
       problem.problemText,
       subject,
+      expectedAnswer,
     );
     return apiSuccess(result);
   } catch {

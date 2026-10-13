@@ -55,14 +55,22 @@ describe("Curriculum Bank", () => {
     const nextKanji1 = getNextCurriculumProblem("kanji-1");
     expect(nextKanji1).toBeDefined();
     expect(nextKanji1?.id).toBe("kanji-2");
+
+    const englishProblems = getCurriculumProblemsBySubject("english");
+    const lastEnglish = englishProblems[englishProblems.length - 1];
+    expect(getNextCurriculumProblem(lastEnglish.id)).toBeNull();
   });
 
-  it("calculates stage progress label correctly", () => {
+  it("calculates stage progress label and isLastInUnit correctly", () => {
     const progress = getCurriculumStageProgress("volume-1");
     expect(progress).toBeDefined();
     expect(progress?.unit).toBe("水のかさ");
     expect(progress?.index).toBe(1);
+    expect(progress?.isLastInUnit).toBe(false);
     expect(progress?.label).toContain("水のかさ 1 /");
+
+    const lastVolume = getCurriculumStageProgress("volume-3");
+    expect(lastVolume?.isLastInUnit).toBe(true);
   });
 
   it("returns stage cards for math and japanese", () => {

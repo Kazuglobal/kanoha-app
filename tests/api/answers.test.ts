@@ -74,4 +74,29 @@ describe("answersMatch", () => {
       expect(answersMatch(reading, problem.correctAnswer), problem.id).toBe(true);
     }
   });
+
+  it("accepts kanji numbers (手書きや音声入力)", () => {
+    expect(answersMatch("三", "3")).toBe(true);
+    expect(answersMatch("十二", "12")).toBe(true);
+    expect(answersMatch("三個", "3個")).toBe(true);
+    expect(answersMatch("三こ", "3こ")).toBe(true);
+    expect(answersMatch("百", "100")).toBe(true);
+  });
+
+  it("accepts hiragana numbers (音声入力)", () => {
+    expect(answersMatch("さん", "3")).toBe(true);
+    expect(answersMatch("じゅうに", "12")).toBe(true);
+    expect(answersMatch("さんじゅうご", "35")).toBe(true);
+    expect(answersMatch("さんこ", "3こ")).toBe(true);
+    expect(answersMatch("さん", "3つ")).toBe(true);
+  });
+
+  it("strips spoken fillers like こたえは and 〜です (音声入力)", () => {
+    expect(answersMatch("こたえは3です", "3")).toBe(true);
+    expect(answersMatch("3です", "3")).toBe(true);
+    expect(answersMatch("さんです", "3")).toBe(true);
+    expect(answersMatch("あおぞらです", "あおぞら")).toBe(true);
+    expect(answersMatch("答えは青空", "あおぞら")).toBe(true);
+    expect(answersMatch("3こです", "3こ")).toBe(true);
+  });
 });

@@ -42,10 +42,10 @@ const createGeminiProvider = (env: Record<string, string | undefined>): AiProvid
         parsedProblemsResponseSchema,
         images,
       ),
-    recognizeHandwriting: (images, problemText, subject = "math") =>
+    recognizeHandwriting: (images, problemText, subject = "math", expectedAnswer) =>
       client.generateStructured(
         "vision",
-        buildHandwritingPrompt(problemText, subject),
+        buildHandwritingPrompt(problemText, subject, expectedAnswer),
         handwritingAnswerSchema,
         handwritingResponseSchema,
         images,

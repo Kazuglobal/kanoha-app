@@ -40,11 +40,12 @@ export default async function ProblemPage({
   const curriculumId = bank?.id ?? loaded?.curriculumProblemId ?? null;
   const curriculum = curriculumId ? getCurriculumProblemById(curriculumId) : undefined;
   const nextProblemId = curriculumId ? (getNextCurriculumProblem(curriculumId)?.id ?? null) : null;
-  const persisted: PersistedProblem = loaded
-    ? { ...loaded.persisted, ...curriculumExtras(curriculum), nextProblemId }
-    : demoProblem(bank ?? getCurriculumProblemById(SUBJECT_CONFIG.math.defaultProblemId)!, childId, nextProblemId);
-
   const stageProgress = curriculumId ? getCurriculumStageProgress(curriculumId) : null;
+  const isLastInUnit = Boolean(stageProgress?.isLastInUnit);
+
+  const persisted: PersistedProblem = loaded
+    ? { ...loaded.persisted, ...curriculumExtras(curriculum), nextProblemId, isLastInUnit }
+    : demoProblem(bank ?? getCurriculumProblemById(SUBJECT_CONFIG.math.defaultProblemId)!, childId, nextProblemId, isLastInUnit);
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
@@ -66,6 +67,7 @@ function demoProblem(
   bank: CurriculumProblem,
   childId: string | undefined,
   nextProblemId: string | null,
+  isLastInUnit = false,
 ): PersistedProblem {
   return {
     childId: childId ?? "demo",
@@ -75,6 +77,7 @@ function demoProblem(
     subject: bank.subject,
     ...curriculumExtras(bank),
     nextProblemId,
+    isLastInUnit,
     demoPractice: demoPracticeFor(bank.id),
   };
 }
