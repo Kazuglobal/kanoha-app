@@ -7,7 +7,7 @@ describe("CurriculumStageSection progress", () => {
     render(<CurriculumStageSection currentSubject="math" childId="c1" solvedIds={["addition-1"]} />);
     const card = screen.getByTitle("たし算をはじめよう");
     expect(card).toHaveAttribute("href", "/child/problem/addition-2?childId=c1");
-    expect(card.textContent).toContain("1/5");
+    expect(card.textContent).toContain("1/7");
     expect(card.textContent).toContain("つづきから");
   });
 

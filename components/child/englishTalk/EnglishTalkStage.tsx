@@ -64,12 +64,24 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
           <DonePanel score={talkScore(state)} onRestart={talk.restart} listHref={listHref} />
         ) : (
           <>
+            <div className={styles.answerTools} style={{ justifyContent: "flex-end", marginBottom: "0.5rem" }}>
+              <button
+                className={styles.japaneseButton}
+                type="button"
+                style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
+                onClick={() => talk.setDirectVoiceMode(!talk.directVoiceMode)}
+                aria-pressed={talk.directVoiceMode}
+              >
+                {talk.directVoiceMode ? "🎤 こえで やりとり: ON" : "✋ こえで やりとり: OFF"}
+              </button>
+            </div>
             {talk.message && <p className={styles.message}>{talk.message}</p>}
             {state.phase === "ask" && turn && (
               <AnswerPanel
                 choices={turn.choices}
                 hintJa={talk.showJapanese ? turn.answerHintJa : null}
                 disabled={talk.checking}
+                autoStartVoice={talk.directVoiceMode}
                 onAnswer={(text, mode) => void talk.answer(text, mode)}
                 onJapanese={talk.askInJapanese}
               />
@@ -78,6 +90,7 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
               <TeachPanel
                 teach={talk.teach}
                 repeatCount={state.repeatCount}
+                autoStartVoice={talk.directVoiceMode}
                 onRepeat={(text) => void talk.repeat(text)}
               />
             )}
@@ -133,6 +146,7 @@ function AnswerPanel({
   choices,
   hintJa,
   disabled,
+  autoStartVoice = false,
   onAnswer,
   onJapanese,
 }: {
@@ -140,13 +154,19 @@ function AnswerPanel({
   /** 「えいごが わからない」を押したときの、こたえかたのヒント */
   hintJa: string | null;
   disabled: boolean;
+  autoStartVoice?: boolean;
   onAnswer: (text: string, mode: "choice" | "voice") => void;
   onJapanese: () => void;
 }) {
   return (
     <div className={styles.answerPanel}>
       <div className={styles.answerTools}>
-        <VoiceAnswer lang="en-US" disabled={disabled} onAnswer={(text) => onAnswer(text, "voice")} />
+        <VoiceAnswer
+          lang="en-US"
+          disabled={disabled}
+          autoStart={autoStartVoice}
+          onAnswer={(text) => onAnswer(text, "voice")}
+        />
         <button className={styles.japaneseButton} type="button" onClick={onJapanese}>
           <Languages size={20} aria-hidden="true" /> えいごが わからない
         </button>
@@ -174,10 +194,12 @@ function AnswerPanel({
 function TeachPanel({
   teach,
   repeatCount,
+  autoStartVoice = false,
   onRepeat,
 }: {
   teach: TalkTeach;
   repeatCount: number;
+  autoStartVoice?: boolean;
   onRepeat: (text: string | null) => void;
 }) {
   return (
@@ -200,7 +222,11 @@ function TeachPanel({
         </span>
       </div>
       <div className={styles.answerTools}>
-        <VoiceAnswer lang="en-US" onAnswer={(text) => onRepeat(text)} />
+        <VoiceAnswer
+          lang="en-US"
+          autoStart={autoStartVoice}
+          onAnswer={(text) => onRepeat(text)}
+        />
         <button className={styles.saidButton} type="button" onClick={() => onRepeat(null)}>
           いえたよ！
         </button>

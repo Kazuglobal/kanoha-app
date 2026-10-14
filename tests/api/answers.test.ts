@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answersMatch, toReading } from "@/lib/utils/answers";
+import { answersMatch, toReading, matchChoiceFromSpeech } from "@/lib/utils/answers";
 import { getCurriculumProblemsBySubject } from "@/lib/curriculum/curriculumBank";
 
 describe("answersMatch", () => {
@@ -100,3 +100,35 @@ describe("answersMatch", () => {
     expect(answersMatch("3こです", "3こ")).toBe(true);
   });
 });
+
+describe("matchChoiceFromSpeech", () => {
+  const englishChoices = ["apple", "banana", "orange", "grape"];
+  const japaneseChoices = ["いぬ", "ねこ", "うさぎ", "とり"];
+  const mathChoices = ["12", "15", "18", "21"];
+
+  it("matches choice by index or spoken position", () => {
+    expect(matchChoiceFromSpeech("1番", englishChoices)).toBe("apple");
+    expect(matchChoiceFromSpeech("2ばん", englishChoices)).toBe("banana");
+    expect(matchChoiceFromSpeech("3つ目", englishChoices)).toBe("orange");
+    expect(matchChoiceFromSpeech("4番目", englishChoices)).toBe("grape");
+  });
+
+  it("matches choice directly by text", () => {
+    expect(matchChoiceFromSpeech("ねこ", japaneseChoices)).toBe("ねこ");
+    expect(matchChoiceFromSpeech("ネコ", japaneseChoices)).toBe("ねこ");
+    expect(matchChoiceFromSpeech("こたえはうさぎです", japaneseChoices)).toBe("うさぎ");
+  });
+
+  it("matches english words from katakana speech", () => {
+    expect(matchChoiceFromSpeech("アップル", englishChoices)).toBe("apple");
+    expect(matchChoiceFromSpeech("バナナ", englishChoices)).toBe("banana");
+    expect(matchChoiceFromSpeech("こたえはりんごです", englishChoices)).toBe("apple");
+  });
+
+  it("matches math numbers from speech", () => {
+    expect(matchChoiceFromSpeech("15", mathChoices)).toBe("15");
+    expect(matchChoiceFromSpeech("じゅうご", mathChoices)).toBe("15");
+    expect(matchChoiceFromSpeech("答えは12です", mathChoices)).toBe("12");
+  });
+});
+

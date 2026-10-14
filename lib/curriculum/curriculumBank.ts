@@ -38,6 +38,10 @@ export interface CurriculumStage {
   problemCount: number;
   firstProblemId: string;
   problemIds: readonly string[];
+  /** このステージを解放するために必要な教科内累計正解数 (0なら最初から解放) */
+  unlockRequirement: number;
+  /** ステージの難易度レベル (1: はじめのいっぽ, 2: ステップアップ, 3: マスター, 4: スペシャル) */
+  level: 1 | 2 | 3 | 4;
 }
 
 export const CURRICULUM_PROBLEMS: readonly CurriculumProblem[] = [
@@ -139,6 +143,42 @@ const STAGE_EMOJI: Readonly<Record<string, string>> = {
   "からだ": "🙌",
 };
 
+/**
+ * 単元ごとのアンロック条件（累計クリア問題数）と難易度レベル
+ */
+const STAGE_PROGRESSION_MAP: Readonly<
+  Record<string, { unlockRequirement: number; level: 1 | 2 | 3 | 4 }>
+> = {
+  // 国語
+  "漢字": { unlockRequirement: 0, level: 1 },
+  "ことばのきまり": { unlockRequirement: 0, level: 1 },
+  "文の組み立て": { unlockRequirement: 2, level: 2 },
+  "お話の読解": { unlockRequirement: 5, level: 3 },
+  "説明文の読解": { unlockRequirement: 8, level: 3 },
+  "作文と表現": { unlockRequirement: 12, level: 4 },
+  // 算数
+  "たし算": { unlockRequirement: 0, level: 1 },
+  "ひき算": { unlockRequirement: 0, level: 1 },
+  "水のかさ": { unlockRequirement: 2, level: 2 },
+  "長さ": { unlockRequirement: 4, level: 2 },
+  "時こくと時間": { unlockRequirement: 7, level: 2 },
+  "三角形と四角形": { unlockRequirement: 10, level: 3 },
+  "かけ算": { unlockRequirement: 13, level: 3 },
+  "1000より大きい数": { unlockRequirement: 16, level: 3 },
+  "分数": { unlockRequirement: 20, level: 4 },
+  "はこの形": { unlockRequirement: 24, level: 4 },
+  "表とグラフ": { unlockRequirement: 28, level: 4 },
+  "整理する力": { unlockRequirement: 32, level: 4 },
+  // 英語
+  "あいさつ": { unlockRequirement: 0, level: 1 },
+  "えいごのかず": { unlockRequirement: 0, level: 1 },
+  "いろ": { unlockRequirement: 2, level: 2 },
+  "どうぶつ": { unlockRequirement: 4, level: 2 },
+  "たべもの": { unlockRequirement: 6, level: 3 },
+  "からだ": { unlockRequirement: 9, level: 3 },
+  "アルファベット": { unlockRequirement: 12, level: 4 },
+};
+
 const CURRICULUM_BY_SUBJECT: Readonly<
   Record<Subject, readonly { id: string; unit: string; subUnits: readonly string[] }[]>
 > = {
@@ -155,6 +195,10 @@ export function getCurriculumStages(subject: Subject): CurriculumStage[] {
     const problems = getCurriculumProblemsByUnit(unitDef.unit);
     const first = problems[0];
     if (!first) return [];
+    const progression = STAGE_PROGRESSION_MAP[unitDef.unit] ?? {
+      unlockRequirement: 0,
+      level: 1,
+    };
     return [
       {
         id: unitDef.id,
@@ -166,6 +210,8 @@ export function getCurriculumStages(subject: Subject): CurriculumStage[] {
         problemCount: problems.length,
         firstProblemId: first.id,
         problemIds: problems.map((problem) => problem.id),
+        unlockRequirement: progression.unlockRequirement,
+        level: progression.level,
       },
     ];
   });

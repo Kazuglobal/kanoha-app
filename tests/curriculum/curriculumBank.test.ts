@@ -14,9 +14,11 @@ const KANJI = /[一-鿿]/;
 
 const expectCovered = (text: string) => {
   for (const part of toRubyParts(text)) {
-    if (!part.ruby) {
-      expect(part.text, `辞書に無い漢字: "${part.text}" (in "${text}")`).not.toMatch(KANJI);
-    }
+    expect(
+      !part.ruby && KANJI.test(part.text)
+        ? `Uncovered kanji "${part.text}" in "${text}"`
+        : null
+    ).toBeNull();
   }
 };
 
@@ -69,7 +71,9 @@ describe("Curriculum Bank", () => {
     expect(progress?.isLastInUnit).toBe(false);
     expect(progress?.label).toContain("水のかさ 1 /");
 
-    const lastVolume = getCurriculumStageProgress("volume-3");
+    const volumeProblems = getCurriculumProblemsByUnit("水のかさ");
+    const lastVolumeId = volumeProblems[volumeProblems.length - 1].id;
+    const lastVolume = getCurriculumStageProgress(lastVolumeId);
     expect(lastVolume?.isLastInUnit).toBe(true);
   });
 

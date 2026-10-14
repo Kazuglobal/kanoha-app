@@ -315,3 +315,104 @@ function strictMatch(submitted: string, expected: string): boolean {
 
   return false;
 }
+
+/**
+ * 英語の主要なカタカナ読み・日本語訳マッピング（音声認識で「アップル」「いぬ」と認識された場合にも対応）
+ */
+const ENGLISH_SPOKEN_MAP: Record<string, readonly string[]> = {
+  apple: ["apple", "アップル", "あっぷる", "りんご", "リンゴ"],
+  banana: ["banana", "バナナ", "ばなな"],
+  orange: ["orange", "オレンジ", "おれんじ"],
+  grape: ["grape", "ぶどう", "ブドウ", "グレープ", "ぐれーぷ"],
+  dog: ["dog", "ドッグ", "どっぐ", "いぬ", "イヌ", "犬"],
+  cat: ["cat", "キャット", "きゃっと", "ねこ", "ネコ", "猫"],
+  bird: ["bird", "バード", "ばーど", "とり", "トリ", "鳥"],
+  rabbit: ["rabbit", "ラビット", "らびっと", "うさぎ", "ウサギ", "兎"],
+  red: ["red", "レッド", "れっど", "あか", "赤"],
+  blue: ["blue", "ブルー", "ぶるー", "あお", "青"],
+  yellow: ["yellow", "イエロー", "いえろー", "きいろ", "黄色"],
+  green: ["green", "グリーン", "ぐりーん", "みどり", "緑"],
+  one: ["one", "ワン", "わん", "1", "いち"],
+  two: ["two", "ツー", "つー", "2", "に"],
+  three: ["three", "スリー", "すりー", "3", "さん"],
+  four: ["four", "フォー", "ふぉー", "4", "よん", "し"],
+  five: ["five", "ファイブ", "ふぁいぶ", "5", "ご"],
+  six: ["six", "シックス", "しっくす", "6", "ろく"],
+  seven: ["seven", "セブン", "せぶん", "7", "なな", "しち"],
+  eight: ["eight", "エイト", "えいと", "8", "はち"],
+  nine: ["nine", "ナイン", "ないん", "9", "きゅう", "く"],
+  ten: ["ten", "テン", "てん", "10", "じゅう"],
+  sun: ["sun", "サン", "さん", "たいよう", "太陽"],
+  moon: ["moon", "ムーン", "むーん", "つき", "月"],
+  star: ["star", "スター", "すたー", "ほし", "星"],
+};
+
+/**
+ * 音声認識された文字列から、該当する選択肢（Choice）をマッチングして返す。
+ * 1. 選択肢番号の指定（「1番」「2番」「ひとつめ」など）
+ * 2. answersMatch による直接一致
+ * 3. 英語とカタカナ・日本語の照合
+ * 4. 部分一致・包含関係
+ */
+export function matchChoiceFromSpeech(
+  speech: string,
+  choices: readonly string[],
+): string | null {
+  if (!speech || !choices || choices.length === 0) return null;
+  const cleaned = stripSpeechFillers(speech);
+  const norm = normalizeAnswer(cleaned);
+
+  // 1. 番号での指定チェック (1番目、2ばん、1つめ、等)
+  const indexMatch = norm.match(/^([1-4１-４一二三四1234])(?:番目|ばんめ|番|ばん|つ目|つめ|個目|こめ|つ)?$/);
+  if (indexMatch) {
+    const rawNum = indexMatch[1];
+    const idx =
+      rawNum === "1" || rawNum === "１" || rawNum === "一" ? 0 :
+      rawNum === "2" || rawNum === "２" || rawNum === "二" ? 1 :
+      rawNum === "3" || rawNum === "３" || rawNum === "三" ? 2 :
+      rawNum === "4" || rawNum === "４" || rawNum === "四" ? 3 : -1;
+    if (idx >= 0 && idx < choices.length) {
+      return choices[idx];
+    }
+  }
+
+  // 2. answersMatch による直接照合
+  for (const choice of choices) {
+    if (answersMatch(cleaned, choice) || answersMatch(speech, choice)) {
+      return choice;
+    }
+  }
+
+  // 3. 英語選択肢のカタカナ・発音照合
+  for (const choice of choices) {
+    const lowerChoice = choice.trim().toLowerCase();
+    const spokenVariants = ENGLISH_SPOKEN_MAP[lowerChoice];
+    if (spokenVariants) {
+      if (
+        spokenVariants.some(
+          (v) =>
+            normalizeAnswer(v) === norm ||
+            toHiragana(normalizeAnswer(v)) === toHiragana(norm),
+        )
+      ) {
+        return choice;
+      }
+    }
+  }
+
+  // 4. 部分一致（選択肢が音声に含まれる、または音声が選択肢に含まれる）
+  for (const choice of choices) {
+    const normChoice = normalizeAnswer(choice);
+    const hiraChoice = toHiragana(normChoice);
+    const hiraSpeech = toHiragana(norm);
+    if (
+      hiraSpeech.includes(hiraChoice) ||
+      (hiraChoice.length >= 2 && hiraChoice.includes(hiraSpeech))
+    ) {
+      return choice;
+    }
+  }
+
+  return null;
+}
+

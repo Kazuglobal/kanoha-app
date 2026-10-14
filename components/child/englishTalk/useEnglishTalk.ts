@@ -6,6 +6,7 @@ import {
   currentTurnId,
   nextTalk,
   repeatTalk,
+  REPEAT_TARGET,
   startTalk,
   type TalkState,
 } from "@/lib/englishTalk/flow";
@@ -52,10 +53,13 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
   const [message, setMessage] = useState<string | null>(null);
   const [mood, setMood] = useState<TalkMood>("happy");
   const [checking, setChecking] = useState(false);
+  const [directVoiceMode, setDirectVoiceMode] = useState(true);
   // 遅れて届いた声のこたえ(古い描画のコールバック)でも、いまの状態で判断する
   const stateRef = useRef(state);
   const checkingRef = useRef(false);
+  const directVoiceRef = useRef(true);
   stateRef.current = state;
+  directVoiceRef.current = directVoiceMode;
 
   const turn: PublicTalkTurn | undefined = scene.turns.find(({ id }) => id === currentTurnId(state));
 
@@ -75,6 +79,21 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     setShowJapanese(true);
     void speakTalkJapanese(`${turn.promptJa} ${turn.answerHintJa}`);
   }, [turn]);
+
+  const next = useCallback(() => {
+    setState((current) => {
+      const following = nextTalk(current);
+      const nextTurn = scene.turns.find(({ id }) => id === currentTurnId(following));
+      if (following.phase === "ask" && nextTurn) {
+        sayPrompt(nextTurn);
+      }
+      return following;
+    });
+    setTeach(null);
+    setShowJapanese(false);
+    setMood("happy");
+    setMessage(null);
+  }, [sayPrompt, scene.turns]);
 
   const answer = useCallback(
     async (text: string, mode: Exclude<CheckMode, "repeat">) => {
@@ -96,6 +115,13 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         setMessage(result.feedback ?? `${praise} ばっちり つたわったよ！`);
         soundManager.playCorrect();
         void speakTalkEnglish(praise, "celebrate");
+
+        // 直接対話モードのときは、褒め言葉のあと自動で次のターンへ
+        if (directVoiceRef.current) {
+          setTimeout(() => {
+            next();
+          }, 1600);
+        }
         return;
       }
       soundManager.playWrong();
@@ -107,7 +133,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
       setMessage("おしい！ こう いうと つたわるよ");
       if (result.modelAnswer) void speakTalkEnglish(result.modelAnswer, "think");
     },
-    [childId, scene.id, turn],
+    [childId, next, scene.id, turn],
   );
 
   const repeat = useCallback(
@@ -123,23 +149,20 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         return;
       }
       soundManager.playCorrect();
+      const nextCount = stateRef.current.repeatCount + 1;
       setState((current) => repeatTalk(current, true));
       setMood("celebrate");
       setMessage("じょうず！");
-    },
-    [scene.id, turn],
-  );
 
-  const next = useCallback(() => {
-    const following = nextTalk(state);
-    setState(following);
-    setTeach(null);
-    setShowJapanese(false);
-    setMood("happy");
-    setMessage(null);
-    const nextTurn = scene.turns.find(({ id }) => id === currentTurnId(following));
-    if (following.phase === "ask") sayPrompt(nextTurn);
-  }, [sayPrompt, scene.turns, state]);
+      // リピート目標達成時、直接対話モードなら自動で次へ
+      if (nextCount >= REPEAT_TARGET && directVoiceRef.current) {
+        setTimeout(() => {
+          next();
+        }, 1500);
+      }
+    },
+    [next, scene.id, turn],
+  );
 
   const restart = useCallback(() => {
     stopTalkSpeech();
@@ -160,6 +183,8 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     message,
     mood,
     checking,
+    directVoiceMode,
+    setDirectVoiceMode,
     begin,
     sayPrompt: () => sayPrompt(turn),
     askInJapanese,

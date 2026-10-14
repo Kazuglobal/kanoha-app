@@ -20,6 +20,7 @@ export function VoiceAnswer({
   onSubmitAnswer,
   lang = "ja-JP",
   disabled = false,
+  autoStart = false,
 }: {
   onAnswer: (answer: string) => void;
   /** 音声認識完了時に即時答え合わせを行うコールバック */
@@ -28,6 +29,8 @@ export function VoiceAnswer({
   disabled?: boolean;
   /** 認識する言語(英語の問題では en-US) */
   lang?: "ja-JP" | "en-US";
+  /** 自動的に聞き取りを開始するかどうか */
+  autoStart?: boolean;
 }) {
   const [label, setLabel] = useState("こえで こたえる");
   const [isListening, setIsListening] = useState(false);
@@ -51,6 +54,16 @@ export function VoiceAnswer({
     };
     setSupported(Boolean(speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition));
   }, []);
+
+  useEffect(() => {
+    if (autoStart && supported && !disabled && !isListening && !activeRef.current) {
+      const timer = setTimeout(() => {
+        toggleListen();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, supported, disabled]);
 
   function toggleListen() {
     if (isListening && activeRef.current) {
