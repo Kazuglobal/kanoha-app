@@ -1,13 +1,15 @@
 "use client";
 
-import { Volume2 } from "lucide-react";
+import { Volume2, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { playPraiseVoice, playEncourageVoice } from "@/lib/audio/coachSpeech";
+import { matchChoiceFromSpeech } from "@/lib/utils/answers";
 import { checkDemoAnswer } from "./learningApi";
 import { ListenButton, speakEnglish } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
+import { VoiceAnswer } from "./VoiceAnswer";
 
 export type SimilarProblem = {
   question: string;
@@ -99,41 +101,78 @@ export function SimilarProblemCard({
       <p className={styles.problemText}><RubyAuto text={problem.question} readingMode={readingMode} excludeBrackets /></p>
       {problem.listenText ? <ListenButton text={problem.listenText} /> : null}
       {problem.choices ? (
-        <div className={styles.choiceGrid}>
-          {problem.choices.map((choice) => {
-            const isEnglish = /[a-zA-Z]/.test(choice);
-            return (
-              <button
-                className={`${styles.choice} ${selected === choice ? styles.choiceSelected : ""}`}
-                disabled={selected !== null || pending}
-                key={choice}
-                type="button"
-                onClick={() => void submit(choice)}
-              >
-                <span>{choice}</span>
-                {isEnglish ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
-              </button>
-            );
-          })}
+        <div className={styles.choiceAnswersWrap}>
+          {selected === null && (
+            <div className={styles.choiceVoiceRow} style={{ marginBottom: "0.75rem" }}>
+              <VoiceAnswer
+                disabled={pending}
+                lang={/[a-zA-Z]/.test(problem.choices[0] ?? "") ? "en-US" : "ja-JP"}
+                onAnswer={(spoken) => {
+                  const matched = matchChoiceFromSpeech(spoken, problem.choices ?? []);
+                  if (matched) void submit(matched);
+                  else void submit(spoken);
+                }}
+                onSubmitAnswer={(spoken) => {
+                  const matched = matchChoiceFromSpeech(spoken, problem.choices ?? []);
+                  if (matched) void submit(matched);
+                  else void submit(spoken);
+                }}
+              />
+            </div>
+          )}
+          <div className={styles.choiceGrid}>
+            {problem.choices.map((choice) => {
+              const isEnglish = /[a-zA-Z]/.test(choice);
+              return (
+                <button
+                  className={`${styles.choice} ${selected === choice ? styles.choiceSelected : ""}`}
+                  disabled={selected !== null || pending}
+                  key={choice}
+                  type="button"
+                  onClick={() => void submit(choice)}
+                >
+                  <span>{choice}</span>
+                  {isEnglish ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <div className={styles.answerRow}>
-          <input
-            aria-label="こたえ"
-            className={styles.answerInput}
-            disabled={selected !== null || pending}
-            placeholder="こたえを かこう"
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-          />
-          <button
-            className={styles.primaryButton}
-            disabled={!typed.trim() || selected !== null || pending}
-            type="button"
-            onClick={() => void submit(typed.trim())}
-          >
-            こたえる
-          </button>
+        <div className={styles.choiceAnswersWrap}>
+          {selected === null && (
+            <div className={styles.choiceVoiceRow} style={{ marginBottom: "0.75rem" }}>
+              <VoiceAnswer
+                disabled={pending}
+                lang={/[a-zA-Z]/.test(problem.question) ? "en-US" : "ja-JP"}
+                onAnswer={(spoken) => {
+                  setTyped(spoken);
+                }}
+                onSubmitAnswer={(spoken) => {
+                  setTyped(spoken);
+                  void submit(spoken);
+                }}
+              />
+            </div>
+          )}
+          <div className={styles.answerRow}>
+            <input
+              aria-label="こたえ"
+              className={styles.answerInput}
+              disabled={selected !== null || pending}
+              placeholder="こたえを かこう"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+            />
+            <button
+              className={styles.primaryButton}
+              disabled={!typed.trim() || selected !== null || pending}
+              type="button"
+              onClick={() => void submit(typed.trim())}
+            >
+              こたえる
+            </button>
+          </div>
         </div>
       )}
       {message ? (
@@ -148,14 +187,42 @@ export function SimilarProblemCard({
       ) : null}
       {result && selected !== null ? (
         <>
-          <p className={result.correct ? styles.feedback : styles.feedbackWrong}>
-            {result.correct
-              ? "せいかい！ いいちょうし！"
-              : <>だいじょうぶ。<RubyAuto text={result.explanation ?? ENCOURAGE} readingMode={readingMode} /></>}
-          </p>
-          <button className={styles.primaryButton} type="button" onClick={() => onComplete(result.correct, selected)}>
-            {index + 1 === total ? "けっかを みる" : "つぎの もんだい"}
-          </button>
+          <div className={result.correct ? styles.feedback : styles.feedbackWrong}>
+            {result.correct ? (
+              <span>🎉 せいかい！ いいちょうし！</span>
+            ) : (
+              <div>
+                <p style={{ fontWeight: 600, marginBottom: "0.25rem" }}>おしい！もういちど かんがえてみよう！</p>
+                <p style={{ fontSize: "0.95rem", opacity: 0.95 }}>
+                  💡 <RubyAuto text={result.explanation ?? ENCOURAGE} readingMode={readingMode} />
+                </p>
+              </div>
+            )}
+          </div>
+          <div className={styles.stageClearButtons} style={{ marginTop: "1rem" }}>
+            {!result.correct && (
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={() => {
+                  setSelected(null);
+                  setResult(null);
+                  setTyped("");
+                  soundManager.playTap();
+                }}
+              >
+                <RotateCcw size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px" }} />
+                もういちど ちょうせん！
+              </button>
+            )}
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={() => onComplete(result.correct, selected)}
+            >
+              {index + 1 === total ? "けっかを みる" : "つぎの もんだい"}
+            </button>
+          </div>
         </>
       ) : null}
     </section>

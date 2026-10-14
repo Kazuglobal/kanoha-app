@@ -15,6 +15,7 @@ import { ListenButton, speakEnglish } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
 import { FLOW_TEXT } from "./childStrings";
 import { FinishedScreen, LimitScreen, PracticeFlow } from "./PracticeFlow";
+import { matchChoiceFromSpeech } from "@/lib/utils/answers";
 import { VoiceAnswer } from "./VoiceAnswer";
 import { VoiceButton } from "./VoiceButton";
 import {
@@ -211,7 +212,12 @@ function AnswerDock({
           {flow.checked.correct ? (
             <span className={styles.feedbackStrong}>🎉 {FLOW_TEXT.correctFeedback}</span>
           ) : (
-            FLOW_TEXT.wrongFeedback
+            <div>
+              <p style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{FLOW_TEXT.wrongFeedback}</p>
+              <p style={{ fontSize: "0.95rem", opacity: 0.9 }}>
+                💡 まよったら、うえの「ヒント」を ひらいてみてね！
+              </p>
+            </div>
           )}
         </div>
       ) : null}
@@ -241,7 +247,12 @@ function AnswerDock({
 
       {/* 正解したら入力欄は畳み、「つぎの もんだいへ」に場所をゆずる(スマホで重ならないように) */}
       {solved ? null : choices ? (
-        <ChoiceAnswers choices={choices} flow={flow} subject={subject} />
+        <ChoiceAnswers
+          choices={choices}
+          flow={flow}
+          subject={subject}
+          enableVoiceAnswer={enableVoiceAnswer}
+        />
       ) : (
         <TypedAnswer
           enableVoiceAnswer={enableVoiceAnswer}
@@ -254,15 +265,17 @@ function AnswerDock({
   );
 }
 
-/** 選択式(英語など): タップした選択肢でそのまま答え合わせする。英語は音声を再生する。 */
+/** 選択式(英語など): タップまたは音声でそのまま答え合わせする。英語は音声を再生する。 */
 function ChoiceAnswers({
   choices,
   flow,
   subject,
+  enableVoiceAnswer = true,
 }: {
   choices: readonly string[];
   flow: Flow;
   subject: Subject;
+  enableVoiceAnswer?: boolean;
 }) {
   const isEnglish = subject === "english" || choices.some((c) => /[a-zA-Z]/.test(c));
 
@@ -273,24 +286,45 @@ function ChoiceAnswers({
     void flow.checkOriginalAnswer(choice);
   };
 
+  const handleVoiceAnswer = (spokenText: string) => {
+    const matched = matchChoiceFromSpeech(spokenText, choices);
+    if (matched) {
+      handleSelect(matched);
+    } else {
+      handleSelect(spokenText);
+    }
+  };
+
   return (
-    <div className={styles.choiceGrid} role="group" aria-label="こたえを えらぶ">
-      {choices.map((choice) => {
-        const isEnglishWord = /[a-zA-Z]/.test(choice);
-        return (
-          <button
-            className={`${styles.choice} ${flow.answer === choice ? styles.choiceSelected : ""}`}
+    <div className={styles.choiceAnswersWrap}>
+      {enableVoiceAnswer && (
+        <div className={styles.choiceVoiceRow} style={{ marginBottom: "0.75rem" }}>
+          <VoiceAnswer
             disabled={flow.pending}
-            key={choice}
-            lang={isEnglishWord ? "en" : undefined}
-            type="button"
-            onClick={() => handleSelect(choice)}
-          >
-            <span>{choice}</span>
-            {isEnglishWord ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
-          </button>
-        );
-      })}
+            lang={isEnglish ? "en-US" : "ja-JP"}
+            onAnswer={handleVoiceAnswer}
+            onSubmitAnswer={handleVoiceAnswer}
+          />
+        </div>
+      )}
+      <div className={styles.choiceGrid} role="group" aria-label="こたえを えらぶ">
+        {choices.map((choice) => {
+          const isEnglishWord = /[a-zA-Z]/.test(choice);
+          return (
+            <button
+              className={`${styles.choice} ${flow.answer === choice ? styles.choiceSelected : ""}`}
+              disabled={flow.pending}
+              key={choice}
+              lang={isEnglishWord ? "en" : undefined}
+              type="button"
+              onClick={() => handleSelect(choice)}
+            >
+              <span>{choice}</span>
+              {isEnglishWord ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

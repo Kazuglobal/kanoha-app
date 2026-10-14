@@ -60,9 +60,10 @@ export default async function ChildHomePage({
 
   const readingMode: ReadingMode =
     selected.reading_mode === "hiragana" ? "hiragana" : "kanji_with_ruby";
-  const [recommendation, recentProblemId, solvedIds] = await Promise.all([
+  const [recommendation, recentProblemId, wrongProblemId, solvedIds] = await Promise.all([
     getTodayRecommendations(selected.id, new Date(), db, currentSubject),
     loadRecentProblemId(selected.id, currentSubject, db),
+    loadWrongProblemId(selected.id, currentSubject, db),
     loadSolvedCurriculumIds(selected.id, db),
   ]);
 
@@ -72,6 +73,7 @@ export default async function ChildHomePage({
       problems={recommendation.error ? [] : recommendation.problems}
       readingMode={readingMode}
       recentProblemId={recentProblemId}
+      wrongProblemId={wrongProblemId}
       selected={selected}
       currentSubject={currentSubject}
       solvedIds={solvedIds}
@@ -131,6 +133,47 @@ async function loadRecentProblemId(
   return fallbackRow?.problemId ?? null;
 }
 
+/** 「まちがえたもんだい」復習用: 過去に間違えたことのある問題（直近の不正解） */
+async function loadWrongProblemId(
+  childId: string,
+  subject: Subject,
+  db = getDb(),
+): Promise<string | null> {
+  const rowWithSubject = await db
+    .select({ problemId: schema.attempts.problemId })
+    .from(schema.attempts)
+    .innerJoin(schema.problems, eq(schema.attempts.problemId, schema.problems.id))
+    .where(
+      and(
+        eq(schema.attempts.childId, childId),
+        isNotNull(schema.attempts.problemId),
+        eq(schema.attempts.isCorrect, 0),
+        eq(schema.problems.subject, subject),
+      ),
+    )
+    .orderBy(desc(schema.attempts.createdAt))
+    .limit(1)
+    .get();
+
+  if (rowWithSubject?.problemId) return rowWithSubject.problemId;
+
+  const fallbackRow = await db
+    .select({ problemId: schema.attempts.problemId })
+    .from(schema.attempts)
+    .where(
+      and(
+        eq(schema.attempts.childId, childId),
+        isNotNull(schema.attempts.problemId),
+        eq(schema.attempts.isCorrect, 0),
+      ),
+    )
+    .orderBy(desc(schema.attempts.createdAt))
+    .limit(1)
+    .get();
+
+  return fallbackRow?.problemId ?? null;
+}
+
 /** えいごで おはなし(かのはちゃんと英会話れんしゅう)への入り口。 */
 function EnglishTalkTile({ href }: { href: Route }) {
   return (
@@ -165,6 +208,7 @@ function RealHome({
   problems,
   readingMode,
   recentProblemId,
+  wrongProblemId,
   selected,
   currentSubject,
   solvedIds,
@@ -173,6 +217,7 @@ function RealHome({
   problems: RecommendedProblem[];
   readingMode: ReadingMode;
   recentProblemId: string | null;
+  wrongProblemId: string | null;
   selected: ChildProfile;
   currentSubject: Subject;
   solvedIds: readonly string[];
@@ -186,6 +231,9 @@ function RealHome({
   const againHref = recentProblemId
     ? (`/child/problem/${recentProblemId}?childId=${selected.id}` as const)
     : startHref;
+  const reviewWrongHref = wrongProblemId
+    ? (`/child/problem/${wrongProblemId}?childId=${selected.id}` as const)
+    : null;
 
   const subjectGreeting = `きょうも たのしく ${config.child}を やろう！`;
   const defaultDemoNote = `まずは「${config.demoLabel}」から はじめよう！`;
@@ -237,15 +285,27 @@ function RealHome({
         </section>
 
         <div className={styles.quickRow}>
-          <Link href={againHref} className={styles.quickTile}>
-            <RotateCcw size={32} className={styles.actionIcon} />
-            <span>
-              <strong>
-                <RubyAuto text="もういちど やる" readingMode={readingMode} />
-              </strong>
-              <small>さいきん といたもんだいを ふくしゅうしよう</small>
-            </span>
-          </Link>
+          {reviewWrongHref ? (
+            <Link href={reviewWrongHref} className={styles.quickTile}>
+              <RotateCcw size={32} className={styles.actionIcon} style={{ color: "#e11d48" }} />
+              <span>
+                <strong style={{ color: "#be123c" }}>
+                  <RubyAuto text="まちがえた もんだいを ふくしゅう！" readingMode={readingMode} />
+                </strong>
+                <small>にがてを とくいに しよう！もういっかい ちょうせん</small>
+              </span>
+            </Link>
+          ) : (
+            <Link href={againHref} className={styles.quickTile}>
+              <RotateCcw size={32} className={styles.actionIcon} />
+              <span>
+                <strong>
+                  <RubyAuto text="もういちど やる" readingMode={readingMode} />
+                </strong>
+                <small>さいきん といたもんだいを ふくしゅうしよう</small>
+              </span>
+            </Link>
+          )}
           <EnglishTalkTile href={`/child/english-talk?childId=${selected.id}` as Route} />
         </div>
 
