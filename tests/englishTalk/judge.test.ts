@@ -59,11 +59,24 @@ describe("judgeTalkAnswer", () => {
     expect(judgeTalkAnswer(shop, "I'm fine.")).toBe(false);
   });
 
-  it("does not take an unrelated I'm-sentence as a name", () => {
+  it("does not take an unrelated I'm-sentence as a name, but accepts natural 'I'm <Name>'", () => {
     const name = turn("greeting", "greeting-name");
     expect(judgeTalkAnswer(name, "I'm fine")).toBe(false);
     expect(judgeTalkAnswer(name, "I am hungry")).toBe(false);
+    expect(judgeTalkAnswer(name, "I'm a cat")).toBe(false);
     expect(judgeTalkAnswer(name, "My name is Sora.")).toBe(true);
+    expect(judgeTalkAnswer(name, "I'm Sora!")).toBe(true);
+    expect(judgeTalkAnswer(name, "I am Yuki")).toBe(true);
+  });
+
+  it("accepts Japanese katakana speech and common en-US STT phonetic homophones for kids", () => {
+    expect(judgeTalkAnswer(turn("park", "park-dog"), "ドッグ")).toBe(true);
+    expect(judgeTalkAnswer(turn("park", "park-dog"), "dock")).toBe(true);
+    expect(judgeTalkAnswer(turn("park", "park-ball-color"), "read")).toBe(true);
+    expect(judgeTalkAnswer(turn("park", "park-ball-color"), "レッド")).toBe(true);
+    expect(judgeTalkAnswer(turn("shop", "shop-how-many"), "tree")).toBe(true);
+    expect(judgeTalkAnswer(turn("shop", "shop-how-many"), "free")).toBe(true);
+    expect(judgeTalkAnswer(turn("school", "school-pencil"), "ペンシル")).toBe(true);
   });
 
   it("matches whole words only", () => {

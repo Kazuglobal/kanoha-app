@@ -4,18 +4,18 @@ import { Headphones, Languages, RotateCcw, Send, Star, Volume2 } from "lucide-re
 import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { VoiceAnswer } from "@/components/child/VoiceAnswer";
 import { REPEAT_TARGET, talkScore } from "@/lib/englishTalk/flow";
 import type { PublicTalkScene } from "@/lib/englishTalk/judge";
-import { speakTalkEnglish } from "@/lib/audio/englishTalkSpeech";
+import { speakTalkEnglish, stopTalkSpeech } from "@/lib/audio/englishTalkSpeech";
+import { RealtimeTalkMic } from "./RealtimeTalkMic";
 import { ThreeTalkStage3D } from "./ThreeTalkStage3D";
 import { useEnglishTalk, type TalkTeach } from "./useEnglishTalk";
 import styles from "./englishTalk.module.css";
 
 /**
  * Three.js 3D 英会話ステージ:
- * - 各ステージ・各場面が 3D 空間として現れ、実際に人と会ってやり取りをする
- * - 4択で選ぶのではなく、自分の「声(en-US)」で話をする
+ * - 各ステージ・各場面が繊細で可愛らしい 3D 空間として現れ、キャラクターと対面してやり取りをする
+ * - 4択で選ぶのではなく、リアルタイムの「声」で直接お話しする
  * - 「I don't know」や「わからない」と言ったら日本語にして教えてくれる
  * - 間違っていたらすぐ英語で正しいフィードバックをしてくれる
  */
@@ -94,7 +94,7 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
                 </span>
               ) : (
                 <span className={styles.voiceGuideHint}>
-                  🎤 声で話そう！（「I don&apos;t know」「わからない」も声でOK）
+                  🎤 リアルタイム音声対話中（「I don&apos;t know」「わからない」も声でOK）
                 </span>
               )}
               <button
@@ -118,8 +118,10 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
               <VoiceAnswerPanel
                 hintJa={talk.showJapanese ? turn.answerHintJa : null}
                 disabled={talk.checking}
-                autoStartVoice={talk.directVoiceMode && !talk.speaking}
+                characterSpeaking={talk.speaking}
+                autoStartVoice={talk.directVoiceMode}
                 onListeningChange={setIsListening}
+                onInterruptSpeech={stopTalkSpeech}
                 onAnswer={(text) => void talk.answer(text, "voice")}
                 onJapanese={talk.askInJapanese}
               />
@@ -129,8 +131,10 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
               <TeachPanel
                 teach={talk.teach}
                 repeatCount={state.repeatCount}
-                autoStartVoice={talk.directVoiceMode && !talk.speaking}
+                characterSpeaking={talk.speaking}
+                autoStartVoice={talk.directVoiceMode}
                 onListeningChange={setIsListening}
+                onInterruptSpeech={stopTalkSpeech}
                 onRepeat={(text) => void talk.repeat(text)}
               />
             )}
@@ -187,7 +191,7 @@ function StartPanel({ description, onStart }: { description: string; onStart: ()
     <div className={styles.startPanel}>
       <p className={styles.message}>{description}</p>
       <p className={styles.voiceGuideSub}>
-        3Dのステージで 目の前のひとに 声で話しかけよう！ 分からないときは「I don&apos;t know」や「わからない」と言ってね。
+        3Dのステージで かのはちゃんとお友だちに 声で話しかけよう！ 分からないときは「I don&apos;t know」や「わからない」と言ってね。
       </p>
       <button className={styles.nextButton} type="button" onClick={onStart}>
         おはなしを はじめる ▶
@@ -199,15 +203,19 @@ function StartPanel({ description, onStart }: { description: string; onStart: ()
 function VoiceAnswerPanel({
   hintJa,
   disabled,
-  autoStartVoice = false,
+  characterSpeaking,
+  autoStartVoice = true,
   onListeningChange,
+  onInterruptSpeech,
   onAnswer,
   onJapanese,
 }: {
   hintJa: string | null;
   disabled: boolean;
+  characterSpeaking: boolean;
   autoStartVoice?: boolean;
   onListeningChange?: (listening: boolean) => void;
+  onInterruptSpeech?: () => void;
   onAnswer: (text: string) => void;
   onJapanese: () => void;
 }) {
@@ -223,16 +231,18 @@ function VoiceAnswerPanel({
 
   return (
     <div className={styles.answerPanel}>
+      <RealtimeTalkMic
+        disabled={disabled}
+        characterSpeaking={characterSpeaking}
+        autoListen={autoStartVoice}
+        onListeningChange={onListeningChange}
+        onInterruptSpeech={onInterruptSpeech}
+        onUtterance={(text) => onAnswer(text)}
+      />
+
       <div className={styles.answerTools}>
-        <VoiceAnswer
-          lang="en-US"
-          disabled={disabled}
-          autoStart={autoStartVoice}
-          onListeningChange={onListeningChange}
-          onAnswer={(text) => onAnswer(text)}
-        />
         <button className={styles.japaneseButton} type="button" onClick={onJapanese} disabled={disabled}>
-          <Languages size={20} aria-hidden="true" /> えいごが わからない
+          <Languages size={20} aria-hidden="true" /> えいごが わからない（日本語にして）
         </button>
       </div>
 
@@ -263,14 +273,18 @@ function VoiceAnswerPanel({
 function TeachPanel({
   teach,
   repeatCount,
-  autoStartVoice = false,
+  characterSpeaking,
+  autoStartVoice = true,
   onListeningChange,
+  onInterruptSpeech,
   onRepeat,
 }: {
   teach: TalkTeach;
   repeatCount: number;
+  characterSpeaking: boolean;
   autoStartVoice?: boolean;
   onListeningChange?: (listening: boolean) => void;
+  onInterruptSpeech?: () => void;
   onRepeat: (text: string | null) => void;
 }) {
   const [repeatInput, setRepeatInput] = useState("");
@@ -306,13 +320,16 @@ function TeachPanel({
           まねして いおう {repeatCount} / {REPEAT_TARGET}
         </span>
       </div>
+
+      <RealtimeTalkMic
+        characterSpeaking={characterSpeaking}
+        autoListen={autoStartVoice}
+        onListeningChange={onListeningChange}
+        onInterruptSpeech={onInterruptSpeech}
+        onUtterance={(text) => onRepeat(text)}
+      />
+
       <div className={styles.answerTools}>
-        <VoiceAnswer
-          lang="en-US"
-          autoStart={autoStartVoice}
-          onListeningChange={onListeningChange}
-          onAnswer={(text) => onRepeat(text)}
-        />
         <button className={styles.saidButton} type="button" onClick={() => onRepeat(null)}>
           いえたよ！
         </button>

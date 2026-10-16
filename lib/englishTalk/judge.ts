@@ -20,6 +20,69 @@ export interface PublicTalkScene {
   readonly turns: readonly PublicTalkTurn[];
 }
 
+/**
+ * 音声認識がカタカナや日本語で返した英語表現を英単語に変換するマップ
+ */
+const KATAKANA_TO_ENGLISH: readonly [RegExp, string][] = [
+  [/マイネームイズ|まいねーむいず/g, " my name is "],
+  [/ネームイズ|ねーむいず/g, " name is "],
+  [/アイムファイン|あいむふぁいん|ファイン|ふぁいん/g, " im fine "],
+  [/サンキュー|さんきゅー|サンクス|さんくす/g, " thank you "],
+  [/ナイストゥミーチュー|ないすとぅみーちゅー|ナイストゥミートユー/g, " nice to meet you "],
+  [/グッドモーニング|ぐっどもーにんぐ|モーニング|もーにんぐ/g, " good morning "],
+  [/グッバイ|ぐっばい|グッドバイ|バイバイ|ばいばい/g, " goodbye "],
+  [/シーユー|しーゆー/g, " see you "],
+  [/アップル|あっぷる|りんご|リンゴ/g, " apple "],
+  [/バナナ|ばなな/g, " banana "],
+  [/オレンジ|おれんじ/g, " orange "],
+  [/メロン|めろん/g, " melon "],
+  [/グレープ|ぐれーぷ|ぶどう/g, " grape "],
+  [/ピーチ|ぴーち|もも/g, " peach "],
+  [/ストロベリー|すとろべりー|いちご/g, " strawberry "],
+  [/ドッグ|どっぐ|ドギー|パピー/g, " dog "],
+  [/エレファント|えれふぁんと/g, " elephant "],
+  [/パンダ|ぱんだ/g, " panda "],
+  [/ライオン|らいおん/g, " lion "],
+  [/ジラフ|じらふ/g, " giraffe "],
+  [/モンキー|もんきー/g, " monkey "],
+  [/ラビット|らびっと/g, " rabbit "],
+  [/タイガー|たいがー/g, " tiger "],
+  [/キャット|きゃっと/g, " cat "],
+  [/ペンシル|ぺんしる/g, " pencil "],
+  [/レッド|れっど/g, " red "],
+  [/イエス|いえす|イェス|ヤー|やー/g, " yes "],
+  [/ノー|のー/g, " no "],
+  [/レッツ|れっつ/g, " lets "],
+  [/ワン|わん/g, " one "],
+  [/ツー|つー/g, " two "],
+  [/スリー|すりー/g, " three "],
+  [/フォー|ふぉー/g, " four "],
+  [/ファイブ|ふぁいぶ/g, " five "],
+  [/シックス|しっくす/g, " six "],
+  [/セブン|せぶん/g, " seven "],
+  [/エイト|えいと/g, " eight "],
+  [/ナイン|ないん/g, " nine "],
+  [/テン|てん/g, " ten "],
+  [/ハロー|はろー/g, " hello "],
+  [/ハイ|はい/g, " hi "],
+];
+
+/**
+ * 日本人の英語発音で Web Speech API (en-US) がよく誤変換する同音・近似語
+ */
+const SPOKEN_PHONETIC_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  three: ["tree", "free", "sri", "thee"],
+  dog: ["dock", "dug", "dawg", "dark", "dogs"],
+  red: ["read", "led", "let", "bed"],
+  fine: ["find", "vine", "pine"],
+  seven: ["heaven", "saving"],
+  pencil: ["cancel", "pencils", "pens"],
+  elephant: ["eleven", "element", "elephants"],
+  morning: ["warning"],
+  thank: ["tank", "sank"],
+  goodbye: ["good by", "bye bye", "byebye"],
+};
+
 /** 小文字化・アポストロフィ除去・記号除去・空白の正規化。 */
 export const normalizeEnglish = (text: string): string =>
   text
@@ -28,8 +91,24 @@ export const normalizeEnglish = (text: string): string =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-const containsPhrase = (normalized: string, phrase: string): boolean =>
-  ` ${normalized} `.includes(` ${normalizeEnglish(phrase)} `);
+/** カタカナ発音も含めて英語トークンに正規化する。 */
+export const normalizeSpokenEnglish = (text: string): string => {
+  let converted = text;
+  for (const [pattern, replacement] of KATAKANA_TO_ENGLISH) {
+    converted = converted.replace(pattern, replacement);
+  }
+  return normalizeEnglish(converted);
+};
+
+const containsPhrase = (normalized: string, phrase: string): boolean => {
+  const target = normalizeEnglish(phrase);
+  if (` ${normalized} `.includes(` ${target} `)) return true;
+  const aliases = SPOKEN_PHONETIC_ALIASES[target];
+  if (aliases) {
+    return aliases.some((alias) => ` ${normalized} `.includes(` ${normalizeEnglish(alias)} `));
+  }
+  return false;
+};
 
 const DONT_KNOW_ENGLISH_PHRASES = [
   "i dont know",
@@ -115,7 +194,7 @@ export const isDontKnowAnswer = (answer: string): boolean => {
   const normalized = normalizeEnglish(raw);
   if (!normalized) return false;
   if (DONT_KNOW_SINGLE_WORDS.has(normalized)) return true;
-  return DONT_KNOW_ENGLISH_PHRASES.some((phrase) => containsPhrase(normalized, phrase));
+  return DONT_KNOW_ENGLISH_PHRASES.some((phrase) => ` ${normalized} `.includes(` ${phrase} `));
 };
 
 /** まちがえたときにすぐ英語で伝える正しいフィードバック文を組み立てる。 */
@@ -134,12 +213,33 @@ export const buildCorrectiveFeedbackEn = (
   return `Nice try! Say: ${turnOrModelAnswer.modelAnswer}`;
 };
 
-/** キーワード群をすべて満たせば正解(音声認識の言いまわしの揺れを許す)。 */
+const NON_NAME_WORDS = new Set([
+  "fine", "good", "great", "happy", "ok", "okay", "hungry", "sleepy", "tired", "sad",
+  "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+  "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+  "here", "ready", "sorry", "sure", "not", "dont", "do", "a", "an", "the", "sunny",
+]);
+
+/** キーワード群をすべて満たせば正解(音声認識の言いまわしの揺れ・カタカナ発音を許す)。 */
 export const judgeTalkAnswer = (turn: TalkTurn, answer: string): boolean => {
   if (isDontKnowAnswer(answer)) return false;
-  const normalized = normalizeEnglish(answer);
+  const normalized = normalizeSpokenEnglish(answer);
   if (!normalized) return false;
-  return turn.accept.every((group) => group.some((phrase) => containsPhrase(normalized, phrase)));
+
+  if (turn.accept.every((group) => group.some((phrase) => containsPhrase(normalized, phrase)))) {
+    return true;
+  }
+
+  // 「What's your name?」では「I'm Sora.」「I am Ken.」「My name's Yuki.」も正解として受け入れる
+  if (turn.id === "greeting-name") {
+    if (containsPhrase(normalized, "my names")) return true;
+    const imMatch = normalized.match(/^(?:im|i am)\s+([a-z]{2,20})$/);
+    if (imMatch && !NON_NAME_WORDS.has(imMatch[1])) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 const hash = (text: string): number =>
