@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import type { TalkMood } from "./TalkCharacter";
+import { TalkCharacter, type TalkMood } from "./TalkCharacter";
 import styles from "./englishTalk.module.css";
 
 export interface ThreeTalkStage3DProps {
@@ -17,917 +17,529 @@ export interface ThreeTalkStage3DProps {
   onCharacterTap?: () => void;
 }
 
-interface CharacterRig {
-  root: THREE.Group;
-  bodyGroup: THREE.Group;
-  headGroup: THREE.Group;
-  leftEye: THREE.Mesh;
-  rightEye: THREE.Mesh;
-  mouth: THREE.Mesh;
-  leftArm: THREE.Group;
-  rightArm: THREE.Group;
-  leftLeg: THREE.Group;
-  rightLeg: THREE.Group;
-  starsGroup: THREE.Group;
-  listenRing: THREE.Mesh;
+interface SceneTheme {
+  skyTop: string;
+  skyMiddle: string;
+  skyBottom: string;
+  groundColor: number;
+  grassAccent: number;
+  pathColor: number;
+  petalColor: number;
+  friendSprite: string;
+  friendName: string;
 }
 
-interface ScenePalette {
-  skyTop: number;
-  skyBottom: number;
-  ground: number;
-  path: number;
-  outfitPrimary: number;
-  outfitSecondary: number;
-  hatColor: number;
-  hairColor: number;
-}
-
-const SCENE_PALETTES: Record<string, ScenePalette> = {
+const SCENE_THEMES: Record<string, SceneTheme> = {
   greeting: {
-    skyTop: 0x7ec8ff,
-    skyBottom: 0xe6f7ff,
-    ground: 0x7fd17b,
-    path: 0xf3dfb9,
-    outfitPrimary: 0xff7eb3,
-    outfitSecondary: 0xffffff,
-    hatColor: 0xff5c97,
-    hairColor: 0x4a2c2a,
+    skyTop: "#8fd3ff",
+    skyMiddle: "#d4f0ff",
+    skyBottom: "#fff6fa",
+    groundColor: 0x9ae68c,
+    grassAccent: 0x7ed970,
+    pathColor: 0xf7e4c4,
+    petalColor: 0xffb7d5,
+    friendSprite: "/images/character/chars/fuwari-base.png",
+    friendName: "ふわりちゃん",
   },
   shop: {
-    skyTop: 0x89d4ff,
-    skyBottom: 0xfff5e4,
-    ground: 0x95d57a,
-    path: 0xe8d2ae,
-    outfitPrimary: 0x38a169,
-    outfitSecondary: 0xfffaf0,
-    hatColor: 0xe53e3e,
-    hairColor: 0x5a3825,
+    skyTop: "#ffd6a5",
+    skyMiddle: "#fff0d6",
+    skyBottom: "#fffaf0",
+    groundColor: 0xa3e48c,
+    grassAccent: 0x87d46e,
+    pathColor: 0xf3dcc0,
+    petalColor: 0xffcf96,
+    friendSprite: "/images/character/chars/hinata-base.png",
+    friendName: "ひなたちゃん",
   },
   park: {
-    skyTop: 0x63b3ed,
-    skyBottom: 0xdff3ff,
-    ground: 0x68d391,
-    path: 0xedd9b4,
-    outfitPrimary: 0x3182ce,
-    outfitSecondary: 0xffffff,
-    hatColor: 0xf6ad55,
-    hairColor: 0x3b2314,
+    skyTop: "#7cc6fe",
+    skyMiddle: "#c8ebff",
+    skyBottom: "#f0faff",
+    groundColor: 0x8ce28a,
+    grassAccent: 0x6ecf6c,
+    pathColor: 0xf5e2c0,
+    petalColor: 0xfff3b0,
+    friendSprite: "/images/character/chars/riku-base.png",
+    friendName: "リクくん",
   },
   school: {
-    skyTop: 0xfefcbf,
-    skyBottom: 0xfffaf0,
-    ground: 0xd69e6c,
-    path: 0xc48b5a,
-    outfitPrimary: 0x2b6cb0,
-    outfitSecondary: 0xffffff,
-    hatColor: 0xe53e3e,
-    hairColor: 0x2d1e18,
+    skyTop: "#fcecc9",
+    skyMiddle: "#fff7e6",
+    skyBottom: "#fffdf9",
+    groundColor: 0xe3b788,
+    grassAccent: 0xd4a373,
+    pathColor: 0xedd0b0,
+    petalColor: 0xffdf80,
+    friendSprite: "/images/character/chars/mia-base.png",
+    friendName: "ミアちゃん",
   },
   zoo: {
-    skyTop: 0x68d391,
-    skyBottom: 0xe6fffa,
-    ground: 0x88c96b,
-    path: 0xe6c896,
-    outfitPrimary: 0xd69e2e,
-    outfitSecondary: 0xfffaf0,
-    hatColor: 0xb7791f,
-    hairColor: 0x4a2e1b,
+    skyTop: "#88e0c0",
+    skyMiddle: "#d6f8ec",
+    skyBottom: "#f7fff9",
+    groundColor: 0x98de80,
+    grassAccent: 0x7bc963,
+    pathColor: 0xf2dbb6,
+    petalColor: 0xb8f2e6,
+    friendSprite: "/images/character/chars/fuwari-safari.png",
+    friendName: "ふわりちゃん",
   },
 };
 
 const CAMERA_TURN_OFFSETS: readonly { x: number; y: number; z: number; lookX: number; lookY: number }[] = [
-  { x: 0.0, y: 1.52, z: 3.15, lookX: 0.0, lookY: 1.18 },
-  { x: -0.42, y: 1.48, z: 2.95, lookX: 0.12, lookY: 1.12 },
-  { x: 0.44, y: 1.5, z: 2.98, lookX: -0.1, lookY: 1.15 },
-  { x: 0.0, y: 1.56, z: 3.25, lookX: 0.0, lookY: 1.2 },
+  { x: 0.0, y: 1.42, z: 3.35, lookX: 0.0, lookY: 1.15 },
+  { x: -0.28, y: 1.4, z: 3.15, lookX: 0.12, lookY: 1.12 },
+  { x: 0.3, y: 1.42, z: 3.18, lookX: -0.08, lookY: 1.14 },
+  { x: 0.0, y: 1.45, z: 3.4, lookX: 0.0, lookY: 1.18 },
 ];
 
-function createToonMaterial(color: number, roughness = 0.55, metalness = 0.05): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+function createSkyTexture(theme: SceneTheme): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, theme.skyTop);
+    grad.addColorStop(0.55, theme.skyMiddle);
+    grad.addColorStop(1, theme.skyBottom);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Soft sun glow
+    const sunGrad = ctx.createRadialGradient(390, 110, 10, 390, 110, 140);
+    sunGrad.addColorStop(0, "rgba(255, 250, 210, 0.95)");
+    sunGrad.addColorStop(0.4, "rgba(255, 240, 180, 0.45)");
+    sunGrad.addColorStop(1, "rgba(255, 240, 180, 0)");
+    ctx.fillStyle = sunGrad;
+    ctx.fillRect(0, 0, 512, 512);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
-function createTree(x: number, z: number, scale = 1, blossom = false): THREE.Group {
+function createStarShape(innerRadius = 0.04, outerRadius = 0.09, points = 5): THREE.Shape {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < points * 2; i += 1) {
+    const r = i % 2 === 0 ? outerRadius : innerRadius;
+    const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return shape;
+}
+
+function createSoftShadowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    const grad = ctx.createRadialGradient(64, 64, 6, 64, 64, 60);
+    grad.addColorStop(0, "rgba(65, 45, 90, 0.34)");
+    grad.addColorStop(0.6, "rgba(65, 45, 90, 0.14)");
+    grad.addColorStop(1, "rgba(65, 45, 90, 0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
+/**
+ * 繊細で可愛らしい絵本調イラストの3Dカードを生成する (気持ち悪いプリミティブ球体を使わない)
+ */
+function createKawaiiPropMesh(turnId?: string, visual?: string): THREE.Group {
+  const group = new THREE.Group();
+  if (!turnId && !visual) return group;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 384;
+  canvas.height = 384;
+  const ctx = canvas.getContext("2d");
+
+  if (ctx) {
+    // Soft glowing pastel badge backdrop
+    const grad = ctx.createRadialGradient(192, 192, 24, 192, 192, 172);
+    grad.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+    grad.addColorStop(0.78, "rgba(255, 245, 250, 0.94)");
+    grad.addColorStop(1, "rgba(255, 220, 238, 0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(192, 192, 170, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Delicate pastel ring
+    ctx.strokeStyle = "#ffb3d1";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(192, 192, 138, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Sparkle accents
+    ctx.fillStyle = "#ffd166";
+    for (const [sx, sy, sr] of [
+      [78, 86, 10],
+      [306, 92, 12],
+      [82, 292, 9],
+      [302, 286, 11],
+    ] as const) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // High-resolution emoji / kawaii illustration in center
+    const label = visual || "✨";
+    ctx.font = label.length > 2 ? "86px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif" : "132px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, 192, 198);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+
+  const badge = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.95, 0.95),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
+  );
+  badge.position.set(0.68, 1.18, 0.95);
+  BadgeName(badge, "kawaii-prop-badge");
+  group.add(badge);
+
+  // Cute 3D floating star ring around the prop
+  const starGeo = new THREE.ShapeGeometry(createStarShape(0.025, 0.055, 5));
+  const starMat = new THREE.MeshBasicMaterial({ color: 0xffd166, side: THREE.DoubleSide });
+  for (let i = 0; i < 4; i += 1) {
+    const s = new THREE.Mesh(starGeo, starMat);
+    const angle = (i / 4) * Math.PI * 2;
+    s.position.set(0.68 + Math.cos(angle) * 0.52, 1.18 + Math.sin(angle) * 0.52, 0.98);
+    group.add(s);
+  }
+
+  return group;
+}
+
+function BadgeName(obj: THREE.Object3D, name: string) {
+  obj.name = name;
+}
+
+function createPastelTree(x: number, z: number, scale = 1, sakura = false): THREE.Group {
   const tree = new THREE.Group();
   tree.position.set(x, 0, z);
   tree.scale.setScalar(scale);
 
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.14, 0.2, 1.2, 10),
-    createToonMaterial(0x8b5a2b, 0.8),
+    new THREE.CylinderGeometry(0.11, 0.16, 1.15, 12),
+    new THREE.MeshLambertMaterial({ color: 0xa47148 }),
   );
-  trunk.position.y = 0.6;
+  trunk.position.y = 0.56;
   tree.add(trunk);
 
-  const leafColor = blossom ? 0xffb7d5 : 0x48bb78;
-  const leafColor2 = blossom ? 0xff9ec4 : 0x38a169;
-  const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 14), createToonMaterial(leafColor, 0.65));
-  c1.position.set(0, 1.5, 0);
-  tree.add(c1);
+  const mainColor = sakura ? 0xffc2dc : 0x80ed99;
+  const subColor = sakura ? 0xffd6e8 : 0xa3f7b5;
+  const accentColor = sakura ? 0xff9ebb : 0x57cc99;
 
-  const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.48, 14, 12), createToonMaterial(leafColor2, 0.65));
-  c2.position.set(-0.35, 1.35, 0.2);
-  tree.add(c2);
+  const puffs: readonly [number, number, number, number, number][] = [
+    [0, 1.48, 0, 0.62, mainColor],
+    [-0.36, 1.32, 0.18, 0.46, subColor],
+    [0.38, 1.34, 0.15, 0.45, subColor],
+    [0, 1.78, -0.08, 0.44, accentColor],
+  ];
 
-  const c3 = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 12), createToonMaterial(leafColor2, 0.65));
-  c3.position.set(0.38, 1.38, -0.15);
-  tree.add(c3);
+  for (const [px, py, pz, pr, col] of puffs) {
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(pr, 20, 18),
+      new THREE.MeshLambertMaterial({ color: col }),
+    );
+    puff.position.set(px, py, pz);
+    tree.add(puff);
+  }
 
   return tree;
 }
 
-function createAppleMesh(scale = 1): THREE.Group {
-  const group = new THREE.Group();
-  group.scale.setScalar(scale);
-  const body = new THREE.Mesh(
-    new THREE.SphereGeometry(0.15, 16, 14),
-    createToonMaterial(0xe53e3e, 0.3, 0.1),
-  );
-  body.scale.set(1, 0.92, 1);
-  group.add(body);
-
-  const stem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.015, 0.015, 0.08, 6),
-    createToonMaterial(0x6b4226, 0.8),
-  );
-  stem.position.y = 0.15;
-  group.add(stem);
-
-  const leaf = new THREE.Mesh(
-    new THREE.SphereGeometry(0.045, 10, 8),
-    createToonMaterial(0x38a169, 0.5),
-  );
-  leaf.scale.set(1.6, 0.4, 0.8);
-  leaf.position.set(0.04, 0.16, 0);
-  leaf.rotation.z = -0.3;
-  group.add(leaf);
-  return group;
-}
-
-function createDogMesh(): THREE.Group {
-  const dog = new THREE.Group();
-  dog.name = "prop-dog";
-  const furMat = createToonMaterial(0xd69e5c, 0.6);
-  const darkMat = createToonMaterial(0x5c3a21, 0.6);
-  const noseMat = createToonMaterial(0x1a202c, 0.3);
-
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.28, 8, 14), furMat);
-  body.rotation.z = Math.PI / 2;
-  body.position.set(0, 0.28, 0);
-  dog.add(body);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 14), furMat);
-  head.position.set(0.22, 0.48, 0.08);
-  dog.add(head);
-
-  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), createToonMaterial(0xfff5eb, 0.6));
-  snout.position.set(0.32, 0.44, 0.2);
-  dog.add(snout);
-
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), noseMat);
-  nose.position.set(0.36, 0.47, 0.27);
-  dog.add(nose);
-
-  const leftEar = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), darkMat);
-  leftEar.scale.set(0.5, 1.5, 0.8);
-  leftEar.position.set(0.08, 0.48, 0.18);
-  leftEar.rotation.z = 0.3;
-  dog.add(leftEar);
-
-  const rightEar = leftEar.clone();
-  rightEar.position.set(0.34, 0.48, -0.02);
-  rightEar.rotation.z = -0.3;
-  dog.add(rightEar);
-
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), noseMat);
-  eyeL.position.set(0.2, 0.53, 0.25);
-  dog.add(eyeL);
-  const eyeR = eyeL.clone();
-  eyeR.position.set(0.33, 0.53, 0.18);
-  dog.add(eyeR);
-
-  for (const [lx, lz] of [
-    [-0.14, 0.1],
-    [-0.14, -0.1],
-    [0.14, 0.1],
-    [0.14, -0.1],
+function createPastelCloud(x: number, y: number, z: number, scale = 1): THREE.Group {
+  const cloud = new THREE.Group();
+  cloud.position.set(x, y, z);
+  cloud.scale.setScalar(scale);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
+  for (const [cx, cy, r] of [
+    [0, 0, 0.42],
+    [-0.36, -0.06, 0.3],
+    [0.36, -0.05, 0.32],
+    [0.14, 0.14, 0.28],
   ] as const) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.22, 8), furMat);
-    leg.position.set(lx, 0.11, lz);
-    dog.add(leg);
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 14), mat);
+    puff.scale.set(1.25, 0.82, 0.7);
+    puff.position.set(cx, cy, 0);
+    cloud.add(puff);
   }
-
-  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.22, 8), darkMat);
-  tail.position.set(-0.3, 0.4, 0);
-  tail.rotation.z = 0.6;
-  tail.name = "dog-tail";
-  dog.add(tail);
-
-  return dog;
+  return cloud;
 }
 
-function createElephantMesh(): THREE.Group {
-  const elephant = new THREE.Group();
-  elephant.name = "prop-elephant";
-  const grayMat = createToonMaterial(0x90a4ae, 0.6);
-  const earInnerMat = createToonMaterial(0xf4b8c8, 0.65);
-  const ivoryMat = createToonMaterial(0xfffaf0, 0.4);
-  const darkMat = createToonMaterial(0x1a202c, 0.3);
+function buildPastelEnvironment(scene: THREE.Scene, sceneId: string, theme: SceneTheme): THREE.Group {
+  const envGroup = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 18, 16), grayMat);
-  body.scale.set(1.15, 0.92, 0.95);
-  body.position.set(0, 0.62, 0);
-  elephant.add(body);
+  // Warm soft lighting
+  const ambient = new THREE.AmbientLight(0xfff8fc, 1.25);
+  scene.add(ambient);
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 14), grayMat);
-  head.position.set(0, 0.92, 0.42);
-  elephant.add(head);
-
-  // Ears
-  const leftEarGroup = new THREE.Group();
-  leftEarGroup.position.set(-0.28, 0.95, 0.35);
-  leftEarGroup.name = "elephant-ear-l";
-  const earOuter = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), grayMat);
-  earOuter.scale.set(0.9, 1.15, 0.22);
-  earOuter.position.x = -0.14;
-  leftEarGroup.add(earOuter);
-  const earInner = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), earInnerMat);
-  earInner.scale.set(0.85, 1.05, 0.18);
-  earInner.position.set(-0.14, 0, 0.03);
-  leftEarGroup.add(earInner);
-  elephant.add(leftEarGroup);
-
-  const rightEarGroup = leftEarGroup.clone();
-  rightEarGroup.position.set(0.28, 0.95, 0.35);
-  rightEarGroup.scale.x = -1;
-  rightEarGroup.name = "elephant-ear-r";
-  elephant.add(rightEarGroup);
-
-  // Trunk
-  const trunkGroup = new THREE.Group();
-  trunkGroup.position.set(0, 0.85, 0.7);
-  trunkGroup.name = "elephant-trunk";
-  const trunk1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.065, 0.38, 10), grayMat);
-  trunk1.position.set(0, -0.14, 0.08);
-  trunk1.rotation.x = -0.45;
-  trunkGroup.add(trunk1);
-  const trunk2 = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.048, 0.26, 10), grayMat);
-  trunk2.position.set(0, -0.26, 0.25);
-  trunk2.rotation.x = -1.1;
-  trunkGroup.add(trunk2);
-  elephant.add(trunkGroup);
-
-  // Tusks
-  for (const side of [-1, 1] as const) {
-    const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.22, 8), ivoryMat);
-    tusk.position.set(side * 0.13, 0.74, 0.68);
-    tusk.rotation.x = Math.PI * 0.65;
-    elephant.add(tusk);
-
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), darkMat);
-    eye.position.set(side * 0.16, 0.98, 0.69);
-    elephant.add(eye);
-  }
-
-  for (const [lx, lz] of [
-    [-0.24, 0.24],
-    [0.24, 0.24],
-    [-0.24, -0.24],
-    [0.24, -0.24],
-  ] as const) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.42, 10), grayMat);
-    leg.position.set(lx, 0.21, lz);
-    elephant.add(leg);
-  }
-
-  return elephant;
-}
-
-function createPandaMesh(): THREE.Group {
-  const panda = new THREE.Group();
-  const whiteMat = createToonMaterial(0xffffff, 0.5);
-  const blackMat = createToonMaterial(0x1a202c, 0.5);
-
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), whiteMat);
-  body.position.y = 0.24;
-  panda.add(body);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 12), whiteMat);
-  head.position.set(0, 0.54, 0.04);
-  panda.add(head);
-
-  for (const side of [-1, 1] as const) {
-    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), blackMat);
-    ear.position.set(side * 0.15, 0.7, 0.02);
-    panda.add(ear);
-
-    const patch = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), blackMat);
-    patch.scale.set(1, 0.8, 0.4);
-    patch.position.set(side * 0.08, 0.56, 0.21);
-    panda.add(patch);
-
-    const arm = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), blackMat);
-    arm.position.set(side * 0.22, 0.28, 0.08);
-    panda.add(arm);
-  }
-
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), blackMat);
-  nose.position.set(0, 0.51, 0.23);
-  panda.add(nose);
-
-  return panda;
-}
-
-function buildSceneEnvironment(scene: THREE.Scene, sceneId: string, palette: ScenePalette): void {
-  scene.background = new THREE.Color(palette.skyTop);
-  scene.fog = new THREE.FogExp2(palette.skyBottom, 0.042);
-
-  // Lighting
-  const hemiLight = new THREE.HemisphereLight(0xffffff, palette.ground, 0.95);
-  hemiLight.position.set(0, 12, 0);
-  scene.add(hemiLight);
-
-  const dirLight = new THREE.DirectionalLight(0xfffaf0, 1.15);
-  dirLight.position.set(4.5, 8.5, 6.0);
+  const dirLight = new THREE.DirectionalLight(0xfffdf5, 0.85);
+  dirLight.position.set(3, 7, 5);
   scene.add(dirLight);
 
-  const fillLight = new THREE.DirectionalLight(0xdff3ff, 0.45);
-  fillLight.position.set(-4.0, 4.0, 3.0);
-  scene.add(fillLight);
-
-  // Ground
+  // Pastel Ground
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(18, 40),
-    createToonMaterial(palette.ground, 0.85),
+    new THREE.CircleGeometry(16, 48),
+    new THREE.MeshLambertMaterial({ color: theme.groundColor }),
   );
   ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
+  envGroup.add(ground);
 
-  // Walking path from player camera to character
-  const path = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.5, 10),
-    createToonMaterial(palette.path, 0.9),
+  // Soft rolling background hills
+  for (const [hx, hz, hr, sy] of [
+    [-3.2, -4.8, 2.8, 0.45],
+    [2.8, -5.2, 3.2, 0.42],
+    [0.2, -5.8, 3.6, 0.38],
+  ] as const) {
+    const hill = new THREE.Mesh(
+      new THREE.SphereGeometry(hr, 24, 18),
+      new THREE.MeshLambertMaterial({ color: theme.grassAccent }),
+    );
+    hill.scale.set(1.3, sy, 0.7);
+    hill.position.set(hx, -0.2, hz);
+    envGroup.add(hill);
+  }
+
+  // Rounded stepping-stone pathway leading from camera to the character
+  const pathBase = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.45, 9.5),
+    new THREE.MeshLambertMaterial({ color: theme.pathColor }),
   );
-  path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.01, 2.5);
-  scene.add(path);
+  pathBase.rotation.x = -Math.PI / 2;
+  pathBase.position.set(0, 0.01, 2.2);
+  envGroup.add(pathBase);
 
-  if (sceneId === "greeting") {
-    // Sun in the morning sky
-    const sun = new THREE.Mesh(
-      new THREE.SphereGeometry(0.75, 20, 18),
+  for (let i = 0; i < 7; i += 1) {
+    const stone = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.3, 0.03, 16),
+      new THREE.MeshLambertMaterial({ color: 0xfff8eb }),
+    );
+    stone.scale.set(1.2, 1, 0.78);
+    stone.position.set((i % 2 === 0 ? -1 : 1) * 0.14, 0.022, 0.6 + i * 0.72);
+    envGroup.add(stone);
+  }
+
+  //Cute pastel flowers along the path
+  for (const [fx, fz, fcol] of [
+    [-1.15, 1.2, 0xff8fab],
+    [-1.35, 2.1, 0xffd166],
+    [1.2, 1.4, 0xff8fab],
+    [1.4, 2.3, 0xa8dadc],
+    [-1.6, 0.2, 0xffb3c6],
+    [1.65, 0.3, 0xffd166],
+  ] as const) {
+    const flower = new THREE.Group();
+    flower.position.set(fx, 0.05, fz);
+    for (let p = 0; p < 5; p += 1) {
+      const a = (p / 5) * Math.PI * 2;
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 10, 8),
+        new THREE.MeshBasicMaterial({ color: fcol }),
+      );
+      petal.position.set(Math.cos(a) * 0.06, 0.02, Math.sin(a) * 0.06);
+      flower.add(petal);
+    }
+    const center = new THREE.Mesh(
+      new THREE.SphereGeometry(0.045, 10, 8),
       new THREE.MeshBasicMaterial({ color: 0xffe066 }),
     );
-    sun.position.set(3.8, 5.2, -6.5);
-    scene.add(sun);
+    center.position.y = 0.04;
+    flower.add(center);
+    envGroup.add(flower);
+  }
 
-    scene.add(createTree(-2.4, -1.6, 1.15, true));
-    scene.add(createTree(2.5, -1.8, 1.1, false));
-    scene.add(createTree(-3.2, 1.4, 0.95, false));
-    scene.add(createTree(3.1, 1.2, 1.0, true));
+  // Fluffy 3D clouds
+  envGroup.add(createPastelCloud(-2.6, 3.6, -4.5, 0.95));
+  envGroup.add(createPastelCloud(2.5, 3.8, -4.8, 1.05));
 
-    // Park bench
-    const bench = new THREE.Group();
-    bench.position.set(-1.7, 0, -0.3);
-    bench.rotation.y = 0.45;
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 0.42), createToonMaterial(0xc07a45));
-    seat.position.y = 0.38;
-    bench.add(seat);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.36, 0.08), createToonMaterial(0xc07a45));
-    back.position.set(0, 0.6, -0.17);
-    bench.add(back);
-    scene.add(bench);
+  // Scene-specific delicate 3D structures
+  if (sceneId === "greeting") {
+    envGroup.add(createPastelTree(-2.3, -1.5, 1.15, true));
+    envGroup.add(createPastelTree(2.4, -1.6, 1.1, true));
+    envGroup.add(createPastelTree(-3.2, 0.8, 0.95, false));
+    envGroup.add(createPastelTree(3.1, 0.9, 0.95, false));
   } else if (sceneId === "shop") {
-    // Fruit shop stall
+    // Cute pastel fruit stall
     const stall = new THREE.Group();
-    stall.position.set(0, 0, 0.82);
-
+    stall.position.set(0.35, 0, -0.65);
     const counter = new THREE.Mesh(
-      new THREE.BoxGeometry(2.4, 0.78, 0.68),
-      createToonMaterial(0xc88a51, 0.75),
+      new THREE.BoxGeometry(2.6, 0.72, 0.65),
+      new THREE.MeshLambertMaterial({ color: 0xf4a261 }),
     );
-    counter.position.y = 0.39;
+    counter.position.y = 0.36;
     stall.add(counter);
 
-    const counterTop = new THREE.Mesh(
-      new THREE.BoxGeometry(2.52, 0.08, 0.78),
-      createToonMaterial(0xf6e0b5, 0.6),
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(2.74, 0.08, 0.76),
+      new THREE.MeshLambertMaterial({ color: 0xfff3e0 }),
     );
-    counterTop.position.y = 0.8;
-    stall.add(counterTop);
-
-    // Posts & striped awning
-    for (const side of [-1.1, 1.1] as const) {
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 2.2, 10),
-        createToonMaterial(0x9c6334, 0.8),
-      );
-      post.position.set(side, 1.1, -0.2);
-      stall.add(post);
-    }
+    top.position.y = 0.74;
+    stall.add(top);
 
     for (let i = -2; i <= 2; i += 1) {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(0.52, 0.12, 1.2),
-        createToonMaterial(i % 2 === 0 ? 0xe53e3e : 0xffffff, 0.5),
+      const roof = new THREE.Mesh(
+        new THREE.BoxGeometry(0.54, 0.1, 1.1),
+        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xff758f : 0xffffff }),
       );
-      stripe.position.set(i * 0.52, 2.22, 0.05);
-      stripe.rotation.x = 0.25;
-      stall.add(stripe);
+      roof.position.set(i * 0.54, 2.25, 0.05);
+      roof.rotation.x = 0.22;
+      stall.add(roof);
     }
-
-    // Fruit display on counter sides
-    for (let i = 0; i < 3; i += 1) {
-      const apple = createAppleMesh(0.75);
-      apple.position.set(-0.85 + i * 0.22, 0.92, 0.05);
-      stall.add(apple);
-
-      const orange = new THREE.Mesh(
-        new THREE.SphereGeometry(0.11, 12, 10),
-        createToonMaterial(0xed8936, 0.4),
-      );
-      orange.position.set(0.45 + i * 0.22, 0.92, 0.05);
-      stall.add(orange);
-    }
-
-    scene.add(stall);
-    scene.add(createTree(-2.8, -1.8, 1.0, false));
-    scene.add(createTree(2.8, -1.8, 1.0, false));
+    envGroup.add(stall);
+    envGroup.add(createPastelTree(-2.7, -1.6, 1.0, false));
+    envGroup.add(createPastelTree(2.8, -1.6, 1.0, false));
   } else if (sceneId === "park") {
-    scene.add(createTree(-2.5, -1.5, 1.2, false));
-    scene.add(createTree(2.6, -1.4, 1.1, false));
-    scene.add(createTree(-3.4, 1.5, 0.9, false));
-
-    // White park fence in background
-    for (let i = -4; i <= 4; i += 1) {
-      const picket = new THREE.Mesh(
-        new THREE.BoxGeometry(0.14, 0.65, 0.05),
-        createToonMaterial(0xffffff, 0.5),
-      );
-      picket.position.set(i * 0.65, 0.32, -2.4);
-      scene.add(picket);
-    }
-    const rail = new THREE.Mesh(
-      new THREE.BoxGeometry(5.6, 0.08, 0.06),
-      createToonMaterial(0xffffff, 0.5),
-    );
-    rail.position.set(0, 0.45, -2.4);
-    scene.add(rail);
-  } else if (sceneId === "school") {
-    // Classroom back wall & chalkboard
-    const backWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(10, 5),
-      createToonMaterial(0xfffaf0, 0.85),
-    );
-    backWall.position.set(0, 2.5, -1.8);
-    scene.add(backWall);
-
-    const boardFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(3.6, 1.7, 0.08),
-      createToonMaterial(0xb7791f, 0.7),
-    );
-    boardFrame.position.set(0, 1.85, -1.72);
-    scene.add(boardFrame);
-
-    const chalkboard = new THREE.Mesh(
-      new THREE.BoxGeometry(3.36, 1.48, 0.1),
-      createToonMaterial(0x276749, 0.75),
-    );
-    chalkboard.position.set(0, 1.85, -1.7);
-    scene.add(chalkboard);
-
-    // Classroom desk in front of character
-    const desk = new THREE.Group();
-    desk.position.set(0, 0, 0.88);
-    const top = new THREE.Mesh(
-      new THREE.BoxGeometry(1.5, 0.08, 0.65),
-      createToonMaterial(0xd69e5c, 0.6),
-    );
-    top.position.y = 0.72;
-    desk.add(top);
-    for (const [lx, lz] of [
-      [-0.65, 0.25],
-      [0.65, 0.25],
-      [-0.65, -0.25],
-      [0.65, -0.25],
-    ] as const) {
-      const leg = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.035, 0.035, 0.72, 8),
-        createToonMaterial(0x718096, 0.5),
-      );
-      leg.position.set(lx, 0.36, lz);
-      desk.add(leg);
-    }
-    scene.add(desk);
-  } else if (sceneId === "zoo") {
-    scene.add(createTree(-2.8, -1.8, 1.15, false));
-    scene.add(createTree(2.8, -1.8, 1.2, false));
-
-    // Zoo wooden fence
+    envGroup.add(createPastelTree(-2.4, -1.5, 1.15, false));
+    envGroup.add(createPastelTree(2.5, -1.4, 1.1, false));
+    // White pastel fence
     for (let i = -4; i <= 4; i += 1) {
       const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 0.7, 8),
-        createToonMaterial(0x8b5a2b, 0.8),
+        new THREE.BoxGeometry(0.14, 0.6, 0.05),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
       );
-      post.position.set(i * 0.7, 0.35, -1.25);
-      scene.add(post);
+      post.position.set(i * 0.65, 0.3, -2.1);
+      envGroup.add(post);
     }
-    const bar = new THREE.Mesh(
-      new THREE.BoxGeometry(6.0, 0.08, 0.06),
-      createToonMaterial(0xa06b3b, 0.8),
+  } else if (sceneId === "school") {
+    // Classroom chalkboard in background
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(3.4, 1.55, 0.08),
+      new THREE.MeshLambertMaterial({ color: 0xd4a373 }),
     );
-    bar.position.set(0, 0.52, -1.25);
-    scene.add(bar);
-
-    // Background Panda & Giraffe
-    const bgPanda = createPandaMesh();
-    bgPanda.position.set(-1.7, 0, -1.7);
-    bgPanda.rotation.y = 0.35;
-    scene.add(bgPanda);
-  }
-}
-
-function createCharacterRig(sceneId: string, palette: ScenePalette): CharacterRig {
-  const root = new THREE.Group();
-  root.position.set(0, 0, 0);
-
-  const bodyGroup = new THREE.Group();
-  root.add(bodyGroup);
-
-  const skinMat = createToonMaterial(0xffe2cc, 0.55);
-  const outfitMat = createToonMaterial(palette.outfitPrimary, 0.55);
-  const accentMat = createToonMaterial(palette.outfitSecondary, 0.5);
-  const hairMat = createToonMaterial(palette.hairColor, 0.65);
-  const darkMat = createToonMaterial(0x1a202c, 0.25);
-  const cheekMat = createToonMaterial(0xff9ebb, 0.6);
-
-  // Legs
-  const leftLeg = new THREE.Group();
-  leftLeg.position.set(-0.14, 0.42, 0);
-  const legMeshL = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.28, 8, 12), skinMat);
-  legMeshL.position.y = -0.16;
-  leftLeg.add(legMeshL);
-  const shoeL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), createToonMaterial(palette.hatColor, 0.5));
-  shoeL.scale.set(0.95, 0.65, 1.35);
-  shoeL.position.set(0, -0.35, 0.04);
-  leftLeg.add(shoeL);
-  bodyGroup.add(leftLeg);
-
-  const rightLeg = leftLeg.clone();
-  rightLeg.position.set(0.14, 0.42, 0);
-  bodyGroup.add(rightLeg);
-
-  // Torso / Dress
-  const torso = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.34, 0.62, 18),
-    outfitMat,
-  );
-  torso.position.y = 0.68;
-  bodyGroup.add(torso);
-
-  // Collar / Apron detail
-  const collar = new THREE.Mesh(
-    new THREE.TorusGeometry(0.19, 0.045, 10, 20),
-    accentMat,
-  );
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = 0.96;
-  bodyGroup.add(collar);
-
-  // Arms
-  const leftArm = new THREE.Group();
-  leftArm.position.set(-0.26, 0.92, 0);
-  const armMeshL = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.28, 8, 12), outfitMat);
-  armMeshL.position.set(-0.06, -0.15, 0);
-  armMeshL.rotation.z = 0.25;
-  leftArm.add(armMeshL);
-  const handL = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), skinMat);
-  handL.position.set(-0.12, -0.32, 0.02);
-  leftArm.add(handL);
-  bodyGroup.add(leftArm);
-
-  const rightArm = new THREE.Group();
-  rightArm.position.set(0.26, 0.92, 0);
-  const armMeshR = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.28, 8, 12), outfitMat);
-  armMeshR.position.set(0.06, -0.15, 0);
-  armMeshR.rotation.z = -0.25;
-  rightArm.add(armMeshR);
-  const handR = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), skinMat);
-  handR.position.set(0.12, -0.32, 0.02);
-  rightArm.add(handR);
-  bodyGroup.add(rightArm);
-
-  // Head Group
-  const headGroup = new THREE.Group();
-  headGroup.position.set(0, 1.28, 0);
-  bodyGroup.add(headGroup);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.31, 24, 20), skinMat);
-  head.scale.set(1.04, 0.98, 0.96);
-  headGroup.add(head);
-
-  // Hair cap + twin tails
-  const hairCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.325, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.58),
-    hairMat,
-  );
-  hairCap.position.y = 0.02;
-  hairCap.rotation.x = -0.18;
-  headGroup.add(hairCap);
-
-  for (const side of [-1, 1] as const) {
-    const bang = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), hairMat);
-    bang.scale.set(1.1, 0.7, 0.55);
-    bang.position.set(side * 0.11, 0.16, 0.25);
-    bang.rotation.z = side * -0.25;
-    headGroup.add(bang);
-
-    const tail = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 12), hairMat);
-    tail.scale.set(0.85, 1.35, 0.85);
-    tail.position.set(side * 0.34, 0.02, -0.05);
-    tail.rotation.z = side * 0.35;
-    headGroup.add(tail);
-
-    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 8), cheekMat);
-    cheek.scale.set(1.2, 0.7, 0.35);
-    cheek.position.set(side * 0.18, -0.05, 0.27);
-    headGroup.add(cheek);
+    frame.position.set(0.2, 1.75, -1.85);
+    envGroup.add(frame);
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(3.18, 1.35, 0.1),
+      new THREE.MeshLambertMaterial({ color: 0x3b7a57 }),
+    );
+    board.position.set(0.2, 1.75, -1.83);
+    envGroup.add(board);
+  } else if (sceneId === "zoo") {
+    envGroup.add(createPastelTree(-2.6, -1.6, 1.15, false));
+    envGroup.add(createPastelTree(2.6, -1.6, 1.15, false));
+    for (let i = -4; i <= 4; i += 1) {
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.055, 0.65, 10),
+        new THREE.MeshLambertMaterial({ color: 0xb07d4f }),
+      );
+      post.position.set(i * 0.68, 0.32, -1.6);
+      envGroup.add(post);
+    }
   }
 
-  // Scene hat/accessory
-  if (sceneId === "shop" || sceneId === "park" || sceneId === "zoo") {
-    const hat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.24, 0.28, 0.12, 18),
-      createToonMaterial(palette.hatColor, 0.5),
-    );
-    hat.position.set(0, 0.31, 0);
-    headGroup.add(hat);
-  } else {
-    const ribbon = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.09, 1),
-      createToonMaterial(palette.hatColor, 0.45),
-    );
-    ribbon.scale.set(1.6, 0.8, 0.6);
-    ribbon.position.set(-0.24, 0.24, 0.12);
-    headGroup.add(ribbon);
-  }
-
-  // Eyes with white catchlights
-  const createEye = (x: number) => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.046, 14, 12), darkMat);
-    eye.scale.set(0.9, 1.15, 0.5);
-    eye.position.set(x, 0.03, 0.285);
-    const catchlight = new THREE.Mesh(
-      new THREE.SphereGeometry(0.016, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    catchlight.position.set(0.014, 0.018, 0.035);
-    eye.add(catchlight);
-    return eye;
-  };
-  const leftEye = createEye(-0.11);
-  const rightEye = createEye(0.11);
-  headGroup.add(leftEye, rightEye);
-
-  // Mouth (scales dynamically with speech)
-  const mouth = new THREE.Mesh(
-    new THREE.SphereGeometry(0.048, 14, 12),
-    createToonMaterial(0xe53e6b, 0.4),
-  );
-  mouth.scale.set(1.25, 0.42, 0.4);
-  mouth.position.set(0, -0.1, 0.29);
-  headGroup.add(mouth);
-
-  // Celebration stars group
-  const starsGroup = new THREE.Group();
-  starsGroup.position.set(0, 1.25, 0);
-  starsGroup.visible = false;
-  const starMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
-  for (let i = 0; i < 8; i += 1) {
-    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0), starMat);
-    const angle = (i / 8) * Math.PI * 2;
-    star.position.set(Math.cos(angle) * 0.68, (i % 2) * 0.22, Math.sin(angle) * 0.68);
-    starsGroup.add(star);
-  }
-  root.add(starsGroup);
-
-  // Listening ring on ground
-  const listenRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.45, 0.56, 32),
-    new THREE.MeshBasicMaterial({ color: 0x38b2ac, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }),
-  );
-  listenRing.rotation.x = -Math.PI / 2;
-  listenRing.position.y = 0.025;
-  listenRing.visible = false;
-  root.add(listenRing);
-
-  return {
-    root,
-    bodyGroup,
-    headGroup,
-    leftEye,
-    rightEye,
-    mouth,
-    leftArm,
-    rightArm,
-    leftLeg,
-    rightLeg,
-    starsGroup,
-    listenRing,
-  };
-}
-
-function buildTurnPropGroup(turnId?: string): THREE.Group {
-  const group = new THREE.Group();
-  if (!turnId) return group;
-
-  if (turnId === "greeting-age") {
-    // 3D Birthday cake with candles
-    const cake = new THREE.Group();
-    cake.position.set(0.62, 0.72, 1.05);
-    const base = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.24, 0.24, 0.18, 18),
-      createToonMaterial(0xfff5f7, 0.5),
-    );
-    cake.add(base);
-    const icing = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.25, 0.05, 18),
-      createToonMaterial(0xff7eb3, 0.4),
-    );
-    icing.position.y = 0.08;
-    cake.add(icing);
-    for (let i = -1; i <= 1; i += 1) {
-      const candle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.018, 0.018, 0.14, 8),
-        createToonMaterial(0x63b3ed, 0.4),
-      );
-      candle.position.set(i * 0.08, 0.16, 0);
-      cake.add(candle);
-      const flame = new THREE.Mesh(
-        new THREE.SphereGeometry(0.026, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffc83d }),
-      );
-      flame.position.set(i * 0.08, 0.25, 0);
-      cake.add(flame);
-    }
-    group.add(cake);
-  } else if (turnId === "shop-want") {
-    // Floating Apple, Banana, Orange trio
-    const trio = new THREE.Group();
-    trio.position.set(0, 1.15, 1.1);
-    const apple = createAppleMesh(1.1);
-    apple.position.x = -0.36;
-    trio.add(apple);
-
-    const banana = new THREE.Mesh(
-      new THREE.TorusGeometry(0.14, 0.042, 10, 16, Math.PI * 0.85),
-      createToonMaterial(0xf6e05e, 0.4),
-    );
-    banana.position.set(0, 0.02, 0);
-    banana.rotation.z = -0.4;
-    trio.add(banana);
-
-    const orange = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15, 16, 14),
-      createToonMaterial(0xed8936, 0.35),
-    );
-    orange.position.x = 0.36;
-    trio.add(orange);
-    group.add(trio);
-  } else if (turnId === "shop-how-many") {
-    // 3 Apples in a row
-    const apples = new THREE.Group();
-    apples.position.set(0, 1.08, 1.12);
-    for (let i = -1; i <= 1; i += 1) {
-      const apple = createAppleMesh(1.05);
-      apple.position.x = i * 0.34;
-      apples.add(apple);
-    }
-    group.add(apples);
-  } else if (turnId === "shop-here-you-are") {
-    // 3D Shopping bag
-    const bag = new THREE.Group();
-    bag.position.set(0, 1.05, 1.25);
-    const box = new THREE.Mesh(
-      new THREE.BoxGeometry(0.36, 0.4, 0.22),
-      createToonMaterial(0xf6ad55, 0.6),
-    );
-    bag.add(box);
-    const handle = new THREE.Mesh(
-      new THREE.TorusGeometry(0.09, 0.016, 8, 16, Math.PI),
-      createToonMaterial(0x9c4221, 0.6),
-    );
-    handle.position.y = 0.2;
-    bag.add(handle);
-    group.add(bag);
-  } else if (turnId === "park-soccer") {
-    // 3D Soccer Ball
-    const ballGroup = new THREE.Group();
-    ballGroup.position.set(0.52, 0.32, 1.15);
-    ballGroup.name = "prop-soccer";
-    const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 20, 18),
-      createToonMaterial(0xffffff, 0.4),
-    );
-    ballGroup.add(ball);
-    const spots = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.223, 0),
-      new THREE.MeshBasicMaterial({ color: 0x1a202c, wireframe: true }),
-    );
-    ballGroup.add(spots);
-    group.add(ballGroup);
-  } else if (turnId === "park-dog") {
-    const dog = createDogMesh();
-    dog.position.set(0.68, 0, 0.95);
-    dog.rotation.y = -0.5;
-    group.add(dog);
-  } else if (turnId === "park-ball-color") {
-    // Bright Red Ball
-    const redBall = new THREE.Mesh(
-      new THREE.SphereGeometry(0.26, 24, 20),
-      createToonMaterial(0xe53e3e, 0.25, 0.15),
-    );
-    redBall.position.set(0.55, 0.95, 1.15);
-    group.add(redBall);
-  } else if (turnId === "school-pencil") {
-    // 3D Yellow Pencil
-    const pencil = new THREE.Group();
-    pencil.position.set(0, 1.08, 1.12);
-    pencil.rotation.z = Math.PI / 4;
-    pencil.rotation.y = 0.3;
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.055, 0.58, 6),
-      createToonMaterial(0xf6e05e, 0.45),
-    );
-    pencil.add(shaft);
-    const tipWood = new THREE.Mesh(
-      new THREE.ConeGeometry(0.055, 0.14, 12),
-      createToonMaterial(0xfbd38d, 0.6),
-    );
-    tipWood.position.y = 0.36;
-    pencil.add(tipWood);
-    const lead = new THREE.Mesh(
-      new THREE.ConeGeometry(0.022, 0.06, 10),
-      createToonMaterial(0x2d3748, 0.4),
-    );
-    lead.position.y = 0.41;
-    pencil.add(lead);
-    const eraser = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.055, 0.1, 12),
-      createToonMaterial(0xf687b3, 0.5),
-    );
-    eraser.position.y = -0.34;
-    pencil.add(eraser);
-    group.add(pencil);
-  } else if (turnId === "school-books") {
-    // 3 Colorful Books stacked on desk
-    const books = new THREE.Group();
-    books.position.set(0, 0.82, 0.92);
-    const colors = [0xe53e3e, 0x38a169, 0x3182ce] as const;
-    colors.forEach((color, idx) => {
-      const book = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, 0.075, 0.3),
-        createToonMaterial(color, 0.5),
-      );
-      book.position.set((idx - 1) * 0.03, idx * 0.085, 0);
-      book.rotation.y = (idx - 1) * 0.12;
-      books.add(book);
-    });
-    group.add(books);
-  } else if (turnId === "school-sing") {
-    // Floating 3D music notes
-    const notes = new THREE.Group();
-    notes.position.set(0.55, 1.25, 0.9);
-    for (let i = 0; i < 3; i += 1) {
-      const note = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 12, 10),
-        createToonMaterial(i === 1 ? 0xff7eb3 : 0x63b3ed, 0.4),
-      );
-      note.position.set((i - 1) * 0.24, (i % 2) * 0.16, 0);
-      notes.add(note);
-    }
-    group.add(notes);
-  } else if (turnId === "zoo-elephant" || turnId === "zoo-big") {
-    const elephant = createElephantMesh();
-    elephant.position.set(0.82, 0, -0.35);
-    elephant.rotation.y = -0.35;
-    if (turnId === "zoo-big") {
-      elephant.scale.setScalar(1.18);
-    }
-    group.add(elephant);
-  } else if (turnId === "zoo-like") {
-    const panda = createPandaMesh();
-    panda.position.set(0.68, 0, 0.85);
-    panda.rotation.y = -0.4;
-    group.add(panda);
-  }
-
-  return group;
+  scene.add(envGroup);
+  return envGroup;
 }
 
 /**
- * Three.js による 3D 英会話ステージ。
- * 各ステージ・各ターンの場面が3D空間として現れ、カメラが歩いてキャラクターと対面してやりとりする。
+ * 3D空間内で微細に呼吸・揺れ動く高精細キャラクターメッシュを作る
+ */
+function create3DSpriteCharacter(spriteUrl: string, shadowTex: THREE.Texture): {
+  group: THREE.Group;
+  mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+  basePositions: Float32Array;
+  glowRing: THREE.Mesh;
+  starsGroup: THREE.Group;
+} {
+  const group = new THREE.Group();
+  group.position.set(0.18, 0, 0.15);
+
+  // Soft contact shadow under shoes
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.25, 0.65),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  group.add(shadow);
+
+  // Subdivided 3D plane for smooth skeletal breathing & sway deformation
+  const geometry = new THREE.PlaneGeometry(1.72, 2.38, 20, 28);
+  geometry.translate(0, 1.19, 0);
+  const basePositions = new Float32Array(geometry.attributes.position.array);
+
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    alphaTest: 0.02,
+    side: THREE.DoubleSide,
+  });
+
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    spriteUrl,
+    (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      material.map = tex;
+      material.needsUpdate = true;
+    },
+    undefined,
+    () => {
+      // Ignore texture load error in headless environments
+    },
+  );
+
+  const mesh = new THREE.Mesh(geometry, material);
+  group.add(mesh);
+
+  // Listening ring around feet
+  const glowRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.52, 0.64, 36),
+    new THREE.MeshBasicMaterial({
+      color: 0x38b2ac,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.72,
+    }),
+  );
+  glowRing.rotation.x = -Math.PI / 2;
+  glowRing.position.y = 0.025;
+  glowRing.visible = false;
+  group.add(glowRing);
+
+  // 3D 5-pointed pastel stars for celebration
+  const starsGroup = new THREE.Group();
+  starsGroup.position.set(0, 1.35, 0.1);
+  starsGroup.visible = false;
+  const starGeo = new THREE.ShapeGeometry(createStarShape(0.04, 0.095, 5));
+  const starColors = [0xffd166, 0xff8fab, 0x72efdd, 0xcdb4db] as const;
+  for (let i = 0; i < 8; i += 1) {
+    const star = new THREE.Mesh(
+      starGeo,
+      new THREE.MeshBasicMaterial({ color: starColors[i % starColors.length], side: THREE.DoubleSide }),
+    );
+    const angle = (i / 8) * Math.PI * 2;
+    star.position.set(Math.cos(angle) * 0.85, (i % 2) * 0.25, Math.sin(angle) * 0.35);
+    starsGroup.add(star);
+  }
+  group.add(starsGroup);
+
+  return { group, mesh, basePositions, glowRing, starsGroup };
+}
+
+/**
+ * Three.js による繊細で可愛らしい 3D 英会話ステージ。
+ * - 不気味なプリミティブ球体人間は使わず、高精細3Dレンダリングキャラクター＋3D頂点変形＋桜・光パーティクルの3Dジオラマ空間を描画
+ * - 左側には着せ替え対応のかのはちゃん、3D空間の中央にはステージのお友だちが登場して対面でやり取りする
  */
 export function ThreeTalkStage3D({
   sceneId,
@@ -936,6 +548,7 @@ export function ThreeTalkStage3D({
   started,
   mood,
   isListening = false,
+  visual,
   onCharacterTap,
 }: ThreeTalkStage3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -948,6 +561,7 @@ export function ThreeTalkStage3D({
     isListening,
     turnIndex,
     turnId,
+    visual,
     pointerX: 0,
     pointerY: 0,
   });
@@ -958,15 +572,14 @@ export function ThreeTalkStage3D({
   stateRef.current.isListening = isListening;
   stateRef.current.turnIndex = turnIndex;
   stateRef.current.turnId = turnId;
+  stateRef.current.visual = visual;
 
   const propGroupHolderRef = useRef<{
     scene: THREE.Scene | null;
     currentProp: THREE.Group | null;
-    renderedTurnId: string | undefined;
   }>({
     scene: null,
     currentProp: null,
-    renderedTurnId: undefined,
   });
 
   useEffect(() => {
@@ -980,7 +593,6 @@ export function ThreeTalkStage3D({
     };
   }, []);
 
-  // Update 3D turn prop whenever turnId changes
   useEffect(() => {
     const holder = propGroupHolderRef.current;
     if (!holder.scene) return;
@@ -988,14 +600,13 @@ export function ThreeTalkStage3D({
       holder.scene.remove(holder.currentProp);
       holder.currentProp = null;
     }
-    if (started && turnId) {
-      const nextProp = buildTurnPropGroup(turnId);
+    if (started && (turnId || visual)) {
+      const nextProp = createKawaiiPropMesh(turnId, visual);
       nextProp.scale.setScalar(0.01);
       holder.scene.add(nextProp);
       holder.currentProp = nextProp;
-      holder.renderedTurnId = turnId;
     }
-  }, [started, turnId]);
+  }, [started, turnId, visual]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1012,36 +623,67 @@ export function ThreeTalkStage3D({
       return;
     }
 
-    const palette = SCENE_PALETTES[sceneId] ?? SCENE_PALETTES.greeting;
+    const activeTheme = SCENE_THEMES[sceneId] ?? SCENE_THEMES.greeting;
     const width = Math.max(container.clientWidth, 320);
     const height = Math.max(container.clientHeight, 260);
 
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const canvas = renderer.domElement;
     canvas.className = styles.threeCanvas;
     container.appendChild(canvas);
 
     const scene = new THREE.Scene();
-    buildSceneEnvironment(scene, sceneId, palette);
+    const skyTex = createSkyTexture(activeTheme);
+    scene.background = skyTex;
 
-    const rig = createCharacterRig(sceneId, palette);
-    scene.add(rig.root);
+    const shadowTex = createSoftShadowTexture();
+    buildPastelEnvironment(scene, sceneId, activeTheme);
+
+    // 3D空間で迎えてくれるお友だちキャラクター (高精細3Dレンダリングテクスチャ + リアルタイム頂点変形)
+    const friendChar = create3DSpriteCharacter(activeTheme.friendSprite, shadowTex);
+    scene.add(friendChar.group);
+
+    // 3D空間を舞う桜の花びら・光パーティクル
+    const petalsGroup = new THREE.Group();
+    const petalGeo = new THREE.CircleGeometry(0.042, 8);
+    const petalMat = new THREE.MeshBasicMaterial({
+      color: activeTheme.petalColor,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.82,
+    });
+    const petals: { mesh: THREE.Mesh; speed: number; sway: number; phase: number }[] = [];
+    for (let i = 0; i < 26; i += 1) {
+      const p = new THREE.Mesh(petalGeo, petalMat);
+      p.scale.set(1.4, 0.85, 1);
+      p.position.set(
+        (Math.random() - 0.5) * 6.5,
+        0.4 + Math.random() * 3.5,
+        -1.5 + Math.random() * 4.5,
+      );
+      petalsGroup.add(p);
+      petals.push({
+        mesh: p,
+        speed: 0.22 + Math.random() * 0.25,
+        sway: 0.4 + Math.random() * 0.6,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+    scene.add(petalsGroup);
 
     const propHolder = propGroupHolderRef.current;
     propHolder.scene = scene;
-    if (stateRef.current.started && stateRef.current.turnId) {
-      const initialProp = buildTurnPropGroup(stateRef.current.turnId);
+    if (stateRef.current.started && (stateRef.current.turnId || stateRef.current.visual)) {
+      const initialProp = createKawaiiPropMesh(stateRef.current.turnId, stateRef.current.visual);
       scene.add(initialProp);
       propHolder.currentProp = initialProp;
-      propHolder.renderedTurnId = stateRef.current.turnId;
     }
 
-    const camera = new THREE.PerspectiveCamera(44, width / height, 0.1, 60);
-    camera.position.set(0, 1.85, 6.2);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 50);
+    camera.position.set(0, 1.65, 5.2);
     const currentLookAt = new THREE.Vector3(0, 1.15, 0);
     camera.lookAt(currentLookAt);
 
@@ -1055,117 +697,94 @@ export function ThreeTalkStage3D({
       const elapsed = clock.getElapsedTime();
       const st = stateRef.current;
 
-      // Camera target based on whether conversation has started and current turnIndex
+      // Smooth camera walk-in and per-turn framing
       const turnCam = CAMERA_TURN_OFFSETS[st.turnIndex % CAMERA_TURN_OFFSETS.length];
-      const targetCamZ = st.started ? turnCam.z : 5.8;
-      const targetCamX = (st.started ? turnCam.x : Math.sin(elapsed * 0.4) * 0.35) + st.pointerX * 0.22;
+      const targetCamZ = st.started ? turnCam.z : 4.85;
+      const targetCamX = (st.started ? turnCam.x : Math.sin(elapsed * 0.35) * 0.22) + st.pointerX * 0.18;
       const distZ = Math.abs(camera.position.z - targetCamZ);
 
-      if (st.started && distZ > 0.12) {
-        walkPhase += dt * 11;
+      if (st.started && distZ > 0.1) {
+        walkPhase += dt * 10;
       }
-
-      const walkBob = st.started && distZ > 0.12 ? Math.sin(walkPhase) * 0.045 : 0;
-      const targetCamY = (st.started ? turnCam.y : 1.82) + walkBob + st.pointerY * 0.12;
+      const walkBob = st.started && distZ > 0.1 ? Math.sin(walkPhase) * 0.032 : 0;
+      const targetCamY = (st.started ? turnCam.y : 1.58) + walkBob + st.pointerY * 0.1;
 
       camera.position.x += (targetCamX - camera.position.x) * Math.min(1, dt * 3.8);
       camera.position.y += (targetCamY - camera.position.y) * Math.min(1, dt * 4.2);
       camera.position.z += (targetCamZ - camera.position.z) * Math.min(1, dt * 3.2);
 
-      const targetLookX = st.started ? turnCam.lookX : 0;
-      const targetLookY = st.started ? turnCam.lookY : 1.12;
+      const targetLookX = st.started ? turnCam.lookX : 0.08;
+      const targetLookY = st.started ? turnCam.lookY : 1.15;
       currentLookAt.x += (targetLookX - currentLookAt.x) * Math.min(1, dt * 5);
       currentLookAt.y += (targetLookY - currentLookAt.y) * Math.min(1, dt * 5);
       camera.lookAt(currentLookAt);
 
-      // Character animation
-      const blinkCycle = elapsed % 3.6;
-      const eyeScaleY = blinkCycle > 3.45 ? 0.12 : 1.15;
-      rig.leftEye.scale.y = eyeScaleY;
-      rig.rightEye.scale.y = eyeScaleY;
+      // Delicate skeletal vertex deformation on the 3D character mesh (breathing, hair sway, speaking bounce)
+      const posAttr = friendChar.mesh.geometry.attributes.position;
+      const posArr = posAttr.array as Float32Array;
+      const baseArr = friendChar.basePositions;
+      const swayRate = st.speaking ? 6.5 : 2.2;
+      const swayAmp = st.speaking ? 0.038 : 0.018;
+      const tiltTarget = st.mood === "think" ? -0.08 : 0;
 
-      // Lip sync mouth animation
-      if (st.speaking) {
-        const mouthOpen = 0.55 + Math.abs(Math.sin(elapsed * 18)) * 1.45;
-        rig.mouth.scale.set(1.15, mouthOpen, 0.5);
-      } else if (st.mood === "celebrate") {
-        rig.mouth.scale.set(1.45, 0.9, 0.45);
-      } else {
-        rig.mouth.scale.set(1.25, 0.42, 0.4);
+      for (let i = 0; i < posArr.length; i += 3) {
+        const bx = baseArr[i];
+        const by = baseArr[i + 1];
+        const bz = baseArr[i + 2];
+        const heightRatio = Math.max(0, Math.min(1, by / 2.38));
+
+        // Breathing expansion + soft hair/upper-body sway
+        const breathY = Math.sin(elapsed * 2.5) * 0.022 * heightRatio;
+        const swayX =
+          Math.sin(elapsed * swayRate + heightRatio * 1.6) * swayAmp * heightRatio * heightRatio +
+          tiltTarget * heightRatio;
+        const waveZ = Math.cos(elapsed * 2.8 + bx * 2.2) * 0.025 * heightRatio;
+
+        posArr[i] = bx + swayX;
+        posArr[i + 1] = by + breathY;
+        posArr[i + 2] = bz + waveZ;
       }
+      posAttr.needsUpdate = true;
 
-      // Mood & Body language
-      rig.starsGroup.visible = st.mood === "celebrate";
-      if (rig.starsGroup.visible) {
-        rig.starsGroup.rotation.y = elapsed * 2.6;
-        rig.starsGroup.position.y = 1.3 + Math.sin(elapsed * 5) * 0.12;
-      }
-
-      rig.listenRing.visible = st.isListening;
-      if (st.isListening) {
-        const pulse = 1 + Math.sin(elapsed * 6) * 0.12;
-        rig.listenRing.scale.setScalar(pulse);
-      }
-
+      // Jump / Speaking / Listening motion
       if (st.mood === "celebrate") {
-        rig.bodyGroup.position.y = Math.abs(Math.sin(elapsed * 8.5)) * 0.32;
-        rig.headGroup.rotation.z = Math.sin(elapsed * 7) * 0.1;
-        rig.leftArm.rotation.z = -2.2 + Math.sin(elapsed * 10) * 0.25;
-        rig.rightArm.rotation.z = 2.2 - Math.sin(elapsed * 10) * 0.25;
-      } else if (st.mood === "think") {
-        rig.bodyGroup.position.y = Math.sin(elapsed * 2.2) * 0.02;
-        rig.headGroup.rotation.z += (-0.18 - rig.headGroup.rotation.z) * 0.12;
-        rig.rightArm.rotation.z += (1.15 - rig.rightArm.rotation.z) * 0.12;
-        rig.leftArm.rotation.z += (0.15 - rig.leftArm.rotation.z) * 0.12;
-      } else if (!st.started) {
-        // Waving from afar before conversation starts
-        rig.bodyGroup.position.y = Math.sin(elapsed * 2.5) * 0.03;
-        rig.headGroup.rotation.z = Math.sin(elapsed * 2) * 0.05;
-        rig.rightArm.rotation.z = 2.1 + Math.sin(elapsed * 8) * 0.35;
-        rig.leftArm.rotation.z = 0.1;
+        friendChar.mesh.position.y = Math.abs(Math.sin(elapsed * 7.5)) * 0.24;
       } else if (st.speaking) {
-        rig.bodyGroup.position.y = Math.abs(Math.sin(elapsed * 6)) * 0.04;
-        rig.headGroup.rotation.x = Math.sin(elapsed * 7) * 0.06;
-        rig.headGroup.rotation.z = Math.sin(elapsed * 3.5) * 0.06;
-        rig.rightArm.rotation.z = 0.55 + Math.sin(elapsed * 6) * 0.25;
-        rig.leftArm.rotation.z = -0.35 - Math.cos(elapsed * 5) * 0.2;
+        friendChar.mesh.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.045;
       } else {
-        // Attentive idle / listening
-        rig.bodyGroup.position.y = Math.sin(elapsed * 2.4) * 0.025;
-        rig.headGroup.rotation.z *= 0.9;
-        rig.headGroup.rotation.x = st.isListening ? 0.07 : Math.sin(elapsed * 1.8) * 0.03;
-        rig.rightArm.rotation.z *= 0.9;
-        rig.leftArm.rotation.z *= 0.9;
+        friendChar.mesh.position.y = 0;
       }
 
-      // Animate active 3D turn prop
+      friendChar.group.rotation.y = st.pointerX * 0.14 + Math.sin(elapsed * 1.4) * 0.04;
+
+      friendChar.glowRing.visible = st.isListening;
+      if (st.isListening) {
+        friendChar.glowRing.scale.setScalar(1 + Math.sin(elapsed * 6) * 0.1);
+      }
+
+      friendChar.starsGroup.visible = st.mood === "celebrate";
+      if (friendChar.starsGroup.visible) {
+        friendChar.starsGroup.rotation.z = elapsed * 1.4;
+        friendChar.starsGroup.position.y = 1.35 + Math.sin(elapsed * 5) * 0.1;
+      }
+
+      // Animate floating sakura petals / light particles
+      for (const p of petals) {
+        p.mesh.position.y -= p.speed * dt;
+        p.mesh.position.x += Math.sin(elapsed * 1.5 + p.phase) * p.sway * dt;
+        p.mesh.rotation.x = elapsed * 1.8 + p.phase;
+        p.mesh.rotation.y = elapsed * 1.2 + p.phase;
+        if (p.mesh.position.y < 0.08) {
+          p.mesh.position.y = 3.6;
+        }
+      }
+
+      // Animate kawaii turn prop card
       const activeProp = propHolder.currentProp;
       if (activeProp) {
         const nextScale = activeProp.scale.x + (1 - activeProp.scale.x) * Math.min(1, dt * 8);
         activeProp.scale.setScalar(nextScale);
-
-        const dog = activeProp.getObjectByName("prop-dog");
-        if (dog) {
-          const tail = dog.getObjectByName("dog-tail");
-          if (tail) tail.rotation.x = Math.sin(elapsed * 14) * 0.45;
-          dog.position.y = Math.abs(Math.sin(elapsed * 4.5)) * 0.06;
-        }
-
-        const elephant = activeProp.getObjectByName("prop-elephant");
-        if (elephant) {
-          const trunk = elephant.getObjectByName("elephant-trunk");
-          if (trunk) trunk.rotation.x = Math.sin(elapsed * 3) * 0.35;
-          const earL = elephant.getObjectByName("elephant-ear-l");
-          const earR = elephant.getObjectByName("elephant-ear-r");
-          if (earL) earL.rotation.y = Math.sin(elapsed * 4) * 0.22;
-          if (earR) earR.rotation.y = -Math.sin(elapsed * 4) * 0.22;
-        }
-
-        const soccer = activeProp.getObjectByName("prop-soccer");
-        if (soccer) {
-          soccer.position.y = 0.24 + Math.abs(Math.sin(elapsed * 5)) * 0.25;
-          soccer.rotation.x = elapsed * 2.5;
-        }
+        activeProp.position.y = Math.sin(elapsed * 3.2) * 0.05;
       }
 
       renderer?.render(scene, camera);
@@ -1189,6 +808,8 @@ export function ThreeTalkStage3D({
       window.cancelAnimationFrame(frameId);
       propHolder.scene = null;
       propHolder.currentProp = null;
+      skyTex.dispose();
+      shadowTex.dispose();
       renderer?.dispose();
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
@@ -1196,14 +817,11 @@ export function ThreeTalkStage3D({
     };
   }, [sceneId]);
 
-  const pose = speaking && mood !== "celebrate" ? "speaking" : mood;
-
   return (
     <div
       ref={containerRef}
       className={styles.threeViewport}
       data-testid="three-talk-stage"
-      onClick={onCharacterTap}
       onPointerMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
@@ -1216,12 +834,10 @@ export function ThreeTalkStage3D({
         stateRef.current.pointerY = 0;
       }}
     >
-      <div
-        className={styles.threeCharacterAnchor}
-        data-testid="talk-character"
-        data-pose={pose}
-        aria-hidden="true"
-      />
+      {/* 高精細3Dレンダリング＆着せ替え対応の「かのはちゃん」が3Dステージの手前に立って一緒に会話する */}
+      <div className={styles.stageMainCharacterSpot}>
+        <TalkCharacter mood={mood} onTap={onCharacterTap} />
+      </div>
     </div>
   );
 }

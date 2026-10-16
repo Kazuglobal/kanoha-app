@@ -37,13 +37,14 @@
   height: 100%;
 }
 
-.threeCharacterAnchor {
+.stageMainCharacterSpot {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
+  left: 2%;
+  bottom: 0;
+  z-index: 2;
+  width: clamp(140px, 28%, 270px);
+  height: 82%;
+  pointer-events: auto;
 }
 
 .sceneHeaderRow {
@@ -323,6 +324,107 @@
   gap: 10px;
   justify-content: center;
   align-items: center;
+}
+
+.realtimeMicBox {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 640px);
+}
+
+.realtimeMicRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.realtimeMicButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px 22px;
+  border: 3px solid #cbd5e0;
+  border-radius: 999px;
+  background: #f7fafc;
+  color: #2d3748;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.realtimeMicActive {
+  border-color: #38b2ac;
+  background: linear-gradient(135deg, #e6fffa, #b2f5ea);
+  color: #234e52;
+  box-shadow: 0 0 0 5px rgb(56 178 172 / 18%);
+}
+
+.micWaveBars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+}
+
+.micWaveBars span {
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: #319795;
+  animation: wave 0.55s ease-in-out infinite;
+}
+
+.micWaveBars span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.micWaveBars span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.micWaveBars span:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+.langModeSwitch {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #f3e8ff;
+}
+
+.langChip {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b46c1;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.langChipActive {
+  background: #805ad5;
+  color: #fff;
+  box-shadow: 0 2px 6px rgb(128 90 213 / 30%);
+}
+
+.liveTranscriptBar {
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: #fffaf0;
+  border: 2px dashed #ed8936;
+  color: #7b341e;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .voiceInputForm {
