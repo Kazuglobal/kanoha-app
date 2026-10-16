@@ -68,6 +68,39 @@ describe("POST /api/english-talk/check", () => {
     });
   });
 
+  it("returns English corrective feedback when a voice answer is wrong", async () => {
+    const { json } = await check({
+      sceneId: "park",
+      turnId: "park-dog",
+      answer: "It's a cat.",
+      mode: "voice",
+    });
+    expect(json.data).toEqual({
+      correct: false,
+      feedbackEn: "Close! Look closely, this is a dog! Say: It's a dog.",
+      modelAnswer: "It's a dog.",
+      modelAnswerJa: "いぬだよ。",
+    });
+  });
+
+  it("returns isDontKnow when the user says 'I don't know' or 'わからない' by voice", async () => {
+    const enRes = await check({
+      sceneId: "park",
+      turnId: "park-dog",
+      answer: "I don't know",
+      mode: "voice",
+    });
+    expect(enRes.json.data).toEqual({ correct: false, isDontKnow: true });
+
+    const jaRes = await check({
+      sceneId: "park",
+      turnId: "park-dog",
+      answer: "わからない",
+      mode: "voice",
+    });
+    expect(jaRes.json.data).toEqual({ correct: false, isDontKnow: true });
+  });
+
   it("rejects unknown turns and invalid input", async () => {
     expect((await check({ sceneId: "shop", turnId: "nope", answer: "a", mode: "choice" })).status).toBe(404);
     expect((await check({ sceneId: "shop", turnId: "shop-want", answer: "", mode: "choice" })).status).toBe(400);

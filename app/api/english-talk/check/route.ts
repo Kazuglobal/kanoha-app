@@ -4,7 +4,7 @@ import { costLimitsFromEnv } from "@/lib/ai/costGuard";
 import { englishTalkJudgeSchema, TEXT_LIMITS } from "@/lib/ai/schemas";
 import { reserveAiUsage } from "@/lib/ai/usage";
 import { getTalkTurn, type TalkTurn } from "@/lib/curriculum/englishTalkScenes";
-import { judgeTalkAnswer } from "@/lib/englishTalk/judge";
+import { buildCorrectiveFeedbackEn, isDontKnowAnswer, judgeTalkAnswer } from "@/lib/englishTalk/judge";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { uuid } from "@/lib/utils/schemas";
@@ -22,7 +22,11 @@ const JUDGE_COST_USD = Number(process.env.AI_ENGLISH_TALK_COST_USD ?? 0.0005);
 
 export interface EnglishTalkCheckResult {
   correct: boolean;
+  /** 「I don't know」「わからない」と声で言ったとき true */
+  isDontKnow?: boolean;
   feedback?: string;
+  /** まちがえたときに英語で即座に返すフィードバックセリフ */
+  feedbackEn?: string;
   /** まちがえたときだけ返す(正しい言い方を教える) */
   modelAnswer?: string;
   modelAnswerJa?: string;
@@ -46,6 +50,10 @@ export async function POST(request: Request) {
   const turn = getTalkTurn(sceneId, turnId);
   if (!turn) return apiError("Turn not found", 404);
 
+  if (mode === "voice" && isDontKnowAnswer(answer)) {
+    return apiSuccess<EnglishTalkCheckResult>({ correct: false, isDontKnow: true });
+  }
+
   if (judgeTalkAnswer(turn, answer)) return apiSuccess<EnglishTalkCheckResult>({ correct: true });
 
   const aiCorrect = mode === "voice" && childId ? await judgeWithAi(childId, turn, answer) : null;
@@ -53,6 +61,7 @@ export async function POST(request: Request) {
 
   return apiSuccess<EnglishTalkCheckResult>({
     correct: false,
+    ...(mode === "voice" ? { feedbackEn: buildCorrectiveFeedbackEn(turn) } : {}),
     modelAnswer: turn.modelAnswer,
     modelAnswerJa: turn.modelAnswerJa,
   });

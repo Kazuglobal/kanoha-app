@@ -18,6 +18,7 @@ type SpeechRecognitionConstructor = new () => {
 export function VoiceAnswer({
   onAnswer,
   onSubmitAnswer,
+  onListeningChange,
   lang = "ja-JP",
   disabled = false,
   autoStart = false,
@@ -25,6 +26,8 @@ export function VoiceAnswer({
   onAnswer: (answer: string) => void;
   /** 音声認識完了時に即時答え合わせを行うコールバック */
   onSubmitAnswer?: (answer: string) => void;
+  /** 聞き取り状態が変わったときに通知するコールバック */
+  onListeningChange?: (listening: boolean) => void;
   /** 答え合わせ中など、声のこたえを受け付けないとき */
   disabled?: boolean;
   /** 認識する言語(英語の問題では en-US) */
@@ -36,6 +39,10 @@ export function VoiceAnswer({
   const [isListening, setIsListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const activeRef = useRef<InstanceType<SpeechRecognitionConstructor> | null>(null);
+
+  useEffect(() => {
+    onListeningChange?.(isListening);
+  }, [isListening, onListeningChange]);
 
   // 画面から消えたら聞き取りを止め、あとから届いた結果で答えを送らない
   useEffect(
