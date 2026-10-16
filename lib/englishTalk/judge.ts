@@ -31,8 +31,112 @@ export const normalizeEnglish = (text: string): string =>
 const containsPhrase = (normalized: string, phrase: string): boolean =>
   ` ${normalized} `.includes(` ${normalizeEnglish(phrase)} `);
 
+const DONT_KNOW_ENGLISH_PHRASES = [
+  "i dont know",
+  "dont know",
+  "do not know",
+  "i do not know",
+  "dunno",
+  "no idea",
+  "i have no idea",
+  "not sure",
+  "im not sure",
+  "i am not sure",
+  "i dont understand",
+  "dont understand",
+  "do not understand",
+  "i do not understand",
+  "cant understand",
+  "cannot understand",
+  "what does it mean",
+  "what does that mean",
+  "what do you mean",
+  "help me",
+  "in japanese",
+  "japanese please",
+  "speak japanese",
+  "wakaranai",
+  "wakarimasen",
+  "wakannai",
+  "waka ranai",
+  "walk around night",
+  "walk around i",
+  "what got a night",
+  "what can i night",
+  "what car a night",
+  "water a night",
+  "wanna cry night",
+  "work around night",
+  "what color night",
+] as const;
+
+const DONT_KNOW_SINGLE_WORDS = new Set([
+  "help",
+  "hint",
+  "japanese",
+  "pardon",
+  "huh",
+  "what",
+]);
+
+const DONT_KNOW_JAPANESE_PATTERNS = [
+  "わからない",
+  "わかんない",
+  "分からない",
+  "分かんない",
+  "わかりません",
+  "分かりません",
+  "しらない",
+  "知らない",
+  "しりません",
+  "知りません",
+  "どういう意味",
+  "どういういみ",
+  "どういうこと",
+  "日本語",
+  "にほんご",
+  "ヒント",
+  "おしえて",
+  "教えて",
+  "むずかしい",
+  "難しい",
+] as const;
+
+/**
+ * 「I don't know」「わからない」などの発話を判定する。
+ * 不正解にはせず、日本語の聞きなおしとヒントを出すために使う。
+ */
+export const isDontKnowAnswer = (answer: string): boolean => {
+  const raw = answer.trim();
+  if (!raw) return false;
+  for (const jp of DONT_KNOW_JAPANESE_PATTERNS) {
+    if (raw.includes(jp)) return true;
+  }
+  const normalized = normalizeEnglish(raw);
+  if (!normalized) return false;
+  if (DONT_KNOW_SINGLE_WORDS.has(normalized)) return true;
+  return DONT_KNOW_ENGLISH_PHRASES.some((phrase) => containsPhrase(normalized, phrase));
+};
+
+/** まちがえたときにすぐ英語で伝える正しいフィードバック文を組み立てる。 */
+export const buildCorrectiveFeedbackEn = (
+  turnOrModelAnswer: Pick<TalkTurn, "modelAnswer" | "feedbackEn"> | string,
+  explicitFeedbackEn?: string,
+): string => {
+  if (explicitFeedbackEn?.trim()) return explicitFeedbackEn.trim();
+  if (typeof turnOrModelAnswer === "string") {
+    const model = turnOrModelAnswer.trim();
+    return model ? `Nice try! Say: ${model}` : "Nice try! Let's try again.";
+  }
+  if (turnOrModelAnswer.feedbackEn?.trim()) {
+    return turnOrModelAnswer.feedbackEn.trim();
+  }
+  return `Nice try! Say: ${turnOrModelAnswer.modelAnswer}`;
+};
+
 /** キーワード群をすべて満たせば正解(音声認識の言いまわしの揺れを許す)。 */
 export const judgeTalkAnswer = (turn: TalkTurn, answer: string): boolean => {
+  if (isDontKnowAnswer(answer)) return false;
   const normalized = normalizeEnglish(answer);
   if (!normalized) return false;
   return turn.accept.every((group) => group.some((phrase) => containsPhrase(normalized, phrase)));

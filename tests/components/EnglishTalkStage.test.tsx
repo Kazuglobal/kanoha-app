@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EnglishTalkStage } from "@/components/child/englishTalk/EnglishTalkStage";
 import { TALK_SCENES } from "@/lib/curriculum/englishTalkScenes";
-import { judgeTalkAnswer, toPublicScene } from "@/lib/englishTalk/judge";
+import { buildCorrectiveFeedbackEn, isDontKnowAnswer, judgeTalkAnswer, toPublicScene } from "@/lib/englishTalk/judge";
 import * as speech from "@/lib/audio/englishTalkSpeech";
 
 vi.mock("@/lib/audio/englishTalkSpeech", () => ({
@@ -24,10 +24,18 @@ const turn = sceneData.turns[1];
 const mockCheck = () =>
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
     const { answer } = JSON.parse(String(init?.body ?? "{}"));
+    if (isDontKnowAnswer(answer)) {
+      return new Response(JSON.stringify({ success: true, data: { correct: false, isDontKnow: true } }), { status: 200 });
+    }
     const correct = judgeTalkAnswer(turn, answer);
     const data = correct
       ? { correct }
-      : { correct, modelAnswer: turn.modelAnswer, modelAnswerJa: turn.modelAnswerJa };
+      : {
+          correct,
+          feedbackEn: buildCorrectiveFeedbackEn(turn),
+          modelAnswer: turn.modelAnswer,
+          modelAnswerJa: turn.modelAnswerJa,
+        };
     return new Response(JSON.stringify({ success: true, data }), { status: 200 });
   });
 
@@ -36,30 +44,51 @@ afterEach(() => {
 });
 
 describe("EnglishTalkStage", () => {
-  it("does not speak until the child taps start, then asks in English", async () => {
+  it("renders the Three.js 3D stage, does not show 4-choice buttons, and speaks in English after start", async () => {
     render(<EnglishTalkStage scene={scene} />);
+    expect(screen.getByTestId("three-talk-stage")).toBeInTheDocument();
     expect(speech.speakTalkEnglish).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
     expect(screen.getByText("Look! What's this?")).toBeInTheDocument();
     expect(speech.speakTalkEnglish).toHaveBeenCalledWith("Look! What's this?");
+    // 選択肢(4択ボタン)は出さず、声で対話する
+    expect(screen.queryByRole("button", { name: "It's a cat." })).not.toBeInTheDocument();
   });
 
-  it("asks again in Japanese when the child does not understand", async () => {
+  it("translates to Japanese when the child says 'I don't know' or 'わからない'", async () => {
     render(<EnglishTalkStage scene={scene} />);
     await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
-    await userEvent.click(screen.getByRole("button", { name: /えいごが わからない/ }));
+
+    const input = screen.getByLabelText("声でつたえることば");
+    await userEvent.type(input, "I don't know");
+    await userEvent.click(screen.getByRole("button", { name: /はなす/ }));
+
     expect(screen.getByText(turn.promptJa)).toBeInTheDocument();
     expect(speech.speakTalkJapanese).toHaveBeenCalled();
+    // 不正解(teachフェーズ)にはならず、そのまま英語で答えられる
+    expect(screen.queryByText("ただしい いいかた")).not.toBeInTheDocument();
   });
 
-  it("teaches the right answer after a mistake and asks the child to repeat it twice", async () => {
+  it("immediately gives English corrective feedback when wrong and asks the child to repeat it", async () => {
     mockCheck();
     render(<EnglishTalkStage scene={scene} />);
     await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
-    await userEvent.click(await screen.findByRole("button", { name: "It's a cat." }));
+    // 自動進行タイマーを止めてステップごとに検証する
+    await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
+
+    const input = screen.getByLabelText("声でつたえることば");
+    await userEvent.type(input, "It's a cat.");
+    await userEvent.click(screen.getByRole("button", { name: /はなす/ }));
 
     expect(await screen.findByText("ただしい いいかた")).toBeInTheDocument();
     expect(screen.getByText("It's a dog.")).toBeInTheDocument();
+    expect(screen.getByTestId("english-feedback-bubble")).toHaveTextContent(
+      "Close! Look closely, this is a dog! Say: It's a dog.",
+    );
+    expect(speech.speakTalkEnglish).toHaveBeenCalledWith(
+      "Close! Look closely, this is a dog! Say: It's a dog.",
+      "think",
+    );
     expect(screen.getByText(/まねして いおう \d/)).toHaveTextContent("0 / 2");
 
     await userEvent.click(screen.getByRole("button", { name: "いえたよ！" }));
@@ -67,10 +96,14 @@ describe("EnglishTalkStage", () => {
     await userEvent.click(screen.getByRole("button", { name: "いえたよ！" }));
 
     // まちがえた質問は最後にもう1回出る
-    await userEvent.click(await screen.findByRole("button", { name: /つぎへ/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /つぎの場面へ/ }));
     expect(screen.getByText("もういちど チャレンジ！")).toBeInTheDocument();
-    await userEvent.click(await screen.findByRole("button", { name: "It's a dog." }));
-    await userEvent.click(await screen.findByRole("button", { name: /つぎへ/ }));
+
+    const retryInput = screen.getByLabelText("声でつたえることば");
+    await userEvent.type(retryInput, "It's a dog.");
+    await userEvent.click(screen.getByRole("button", { name: /はなす/ }));
+
+    await userEvent.click(await screen.findByRole("button", { name: /つぎの場面へ/ }));
     expect(await screen.findByText("おはなし できたね！")).toBeInTheDocument();
     expect(screen.getByText(/さいしょで つたわった/)).toHaveTextContent("0 / 1");
   });

@@ -9,11 +9,11 @@
 .scene {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px 12px;
   overflow: hidden;
-  height: clamp(300px, 52dvh, 540px);
+  height: clamp(320px, 54dvh, 560px);
   padding: 14px 18px 0 14px;
   border-radius: 28px;
   background-color: #dff3ff;
@@ -22,24 +22,66 @@
   box-shadow: 0 10px 30px rgb(80 60 120 / 18%);
 }
 
-.sceneTitle {
+.threeViewport {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.threeCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.threeCharacterAnchor {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.sceneHeaderRow {
   grid-column: 1 / -1;
-  justify-self: start;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.sceneTitle {
   display: flex;
   align-items: baseline;
   gap: 8px;
   padding: 8px 16px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 88%);
+  background: rgb(255 255 255 / 90%);
+  backdrop-filter: blur(6px);
   color: #5a3c6e;
   font-weight: 800;
   font-size: 1.1rem;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 8%);
 }
 
 .sceneTitle small {
   color: #8a6aa0;
   font-weight: 700;
+}
+
+.turnStepBadge {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgb(59 42 77 / 82%);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .characterSpot {
@@ -49,18 +91,23 @@
   min-height: 0;
 }
 
-/* ふきだしと注目アイテムはキャラクターの右の列にだけ置く(重ならない) */
+/* ふきだしと注目アイテムは3D空間の右側に浮かべる */
 .sceneRight {
   grid-row: 2;
   grid-column: 2;
   z-index: 3;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
   min-height: 0;
   padding-bottom: 14px;
+  pointer-events: none;
+}
+
+.sceneRight > * {
+  pointer-events: auto;
 }
 
 .characterWalk {
@@ -120,14 +167,15 @@
   position: relative;
   display: grid;
   gap: 8px;
-  max-width: min(100%, 620px);
+  max-width: min(100%, 560px);
   max-height: 100%;
   overflow-y: auto;
-  padding: 18px 22px;
+  padding: 16px 20px;
   border: 4px solid #ffb3d1;
   border-radius: 26px;
-  background: #fff;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 12%);
+  background: rgb(255 255 255 / 95%);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 15%);
   animation: pop 0.35s ease-out;
 }
 
@@ -143,7 +191,7 @@
 .bubbleEnglish {
   margin: 0;
   color: #3b2a4d;
-  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  font-size: clamp(1.25rem, 2.5vw, 1.85rem);
   font-weight: 800;
   line-height: 1.3;
 }
@@ -165,6 +213,17 @@
   font-weight: 700;
 }
 
+.bubbleFeedbackEn {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: #e6fffa;
+  border: 2px solid #38b2ac;
+  color: #234e52;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
 .retryBadge {
   justify-self: start;
   padding: 2px 10px;
@@ -178,10 +237,10 @@
 .visual {
   align-self: flex-end;
   flex-shrink: 0;
-  padding: 10px 18px;
-  border-radius: 24px;
-  background: rgb(255 255 255 / 80%);
-  font-size: clamp(2rem, 5vw, 4rem);
+  padding: 8px 16px;
+  border-radius: 22px;
+  background: rgb(255 255 255 / 86%);
+  font-size: clamp(1.8rem, 4.5vw, 3.2rem);
   animation: pop 0.5s ease-out;
 }
 
@@ -209,6 +268,46 @@
   text-align: center;
 }
 
+.voiceGuideSub {
+  margin: 0;
+  color: #6b4f80;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.voiceGuideHint {
+  color: #6b4f80;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.heardBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #f0fff4;
+  border: 2px solid #68d391;
+  color: #22543d;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.englishFeedbackBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: #ebf8ff;
+  border: 2px solid #63b3ed;
+  color: #2a4365;
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 .startPanel,
 .answerPanel,
 .teachPanel,
@@ -223,41 +322,53 @@
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
+  align-items: center;
 }
 
-.choiceLead {
-  margin: 4px 0 0;
-  color: #8a6aa0;
+.voiceInputForm {
+  display: flex;
+  gap: 8px;
+  width: min(100%, 560px);
+}
+
+.voiceTextInput {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 14px;
+  border: 2px solid #d6bcfa;
+  border-radius: 14px;
+  background: #faf5ff;
+  color: #3b2a4d;
+  font-size: 1rem;
   font-weight: 700;
 }
 
-.choices {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
+.voiceTextInput:focus {
+  outline: none;
+  border-color: #9f7aea;
+  background: #fff;
 }
 
-.choice {
-  min-height: 64px;
-  padding: 12px;
-  border: 3px solid #c9b6ff;
-  border-radius: 18px;
-  background: #f6f1ff;
-  color: #3b2a4d;
-  font-size: 1.2rem;
+.voiceSubmitButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: #805ad5;
+  color: #fff;
+  font-size: 0.98rem;
   font-weight: 800;
   cursor: pointer;
-  transition: transform 0.1s ease;
+  white-space: nowrap;
 }
 
-.choice:active {
-  transform: scale(0.97);
-}
-
-.choice:disabled {
-  opacity: 0.6;
-  cursor: wait;
+.voiceSubmitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .listenButton,

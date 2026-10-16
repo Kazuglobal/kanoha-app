@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { TALK_SCENES, getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
 import {
+  buildCorrectiveFeedbackEn,
+  isDontKnowAnswer,
   judgeTalkAnswer,
   normalizeEnglish,
   toPublicScene,
@@ -17,6 +19,35 @@ describe("normalizeEnglish", () => {
   it("lowercases and strips punctuation and apostrophes", () => {
     expect(normalizeEnglish("  I'm FINE,  thank you! ")).toBe("im fine thank you");
     expect(normalizeEnglish("It’s a dog.")).toBe("its a dog");
+  });
+});
+
+describe("isDontKnowAnswer", () => {
+  it("detects English 'I don't know' and help phrases", () => {
+    expect(isDontKnowAnswer("I don't know")).toBe(true);
+    expect(isDontKnowAnswer("i dont know.")).toBe(true);
+    expect(isDontKnowAnswer("I have no idea")).toBe(true);
+    expect(isDontKnowAnswer("help")).toBe(true);
+  });
+
+  it("detects Japanese 'わからない' and phonetic en-US approximations", () => {
+    expect(isDontKnowAnswer("わからない")).toBe(true);
+    expect(isDontKnowAnswer("えいごが分かんない")).toBe(true);
+    expect(isDontKnowAnswer("wakaranai")).toBe(true);
+  });
+
+  it("does not treat normal English answers as don't know", () => {
+    expect(isDontKnowAnswer("It's a dog.")).toBe(false);
+    expect(isDontKnowAnswer("My name is Yuki.")).toBe(false);
+    expect(isDontKnowAnswer("Apples, please.")).toBe(false);
+  });
+});
+
+describe("buildCorrectiveFeedbackEn", () => {
+  it("returns turn-specific English corrective feedback", () => {
+    const dogTurn = turn("park", "park-dog");
+    expect(buildCorrectiveFeedbackEn(dogTurn)).toContain("It's a dog.");
+    expect(buildCorrectiveFeedbackEn("Three, please.")).toBe("Nice try! Say: Three, please.");
   });
 });
 
