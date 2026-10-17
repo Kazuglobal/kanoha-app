@@ -190,10 +190,9 @@ export async function generateGeminiSpeech({
     new Set(
       [
         process.env.GEMINI_TTS_MODEL,
-        "gemini-2.5-flash-preview-tts",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash-exp",
-        "gemini-2.0-flash",
+        "gemini-3.8-flash-tts",
+        "gemini-3.8-flash-lite-tts",
+        "gemini-3.8-flash",
       ].filter((m): m is string => Boolean(m))
     )
   );
@@ -204,38 +203,47 @@ export async function generateGeminiSpeech({
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text:
-                    lang === "en"
-                      ? `${systemInstruction}\n\nLine to read: "${text}"`
-                      : `${systemInstruction}\n\n読み上げるセリフ：「${text}」`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName, // Aoede: 優しく澄んだ女性声
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text:
+                      lang === "en"
+                        ? `${systemInstruction}\n\nLine to read: "${text}"`
+                        : `${systemInstruction}\n\n読み上げるセリフ：「${text}」`,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName, // Aoede: 優しく澄んだ女性声
+                  },
                 },
               },
             },
-          },
-        }),
-      });
+          }),
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errText = await response.text();
