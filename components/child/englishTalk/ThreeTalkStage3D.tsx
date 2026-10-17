@@ -88,10 +88,10 @@ const SCENE_THEMES: Record<string, SceneTheme> = {
 };
 
 const CAMERA_TURN_OFFSETS: readonly { x: number; y: number; z: number; lookX: number; lookY: number }[] = [
-  { x: 0.0, y: 1.42, z: 3.35, lookX: 0.0, lookY: 1.15 },
-  { x: -0.28, y: 1.4, z: 3.15, lookX: 0.12, lookY: 1.12 },
-  { x: 0.3, y: 1.42, z: 3.18, lookX: -0.08, lookY: 1.14 },
-  { x: 0.0, y: 1.45, z: 3.4, lookX: 0.0, lookY: 1.18 },
+  { x: 0.05, y: 1.38, z: 3.65, lookX: 0.22, lookY: 1.08 },
+  { x: -0.08, y: 1.36, z: 3.55, lookX: 0.26, lookY: 1.06 },
+  { x: 0.12, y: 1.38, z: 3.58, lookX: 0.18, lookY: 1.08 },
+  { x: 0.04, y: 1.4, z: 3.68, lookX: 0.22, lookY: 1.1 },
 ];
 
 function createSkyTexture(theme: SceneTheme): THREE.CanvasTexture {
@@ -151,82 +151,23 @@ function createSoftShadowTexture(): THREE.CanvasTexture {
 }
 
 /**
- * 繊細で可愛らしい絵本調イラストの3Dカードを生成する (気持ち悪いプリミティブ球体を使わない)
+ * 吹き出しや後ろのキャラクターと被らない、繊細な3Dきらきらスター装飾のみを配置する
+ * (注目アイテムの絵文字は右下パネルの .visual に表示されるため、中央に巨大な白丸バッジを重ねない)
  */
 function createKawaiiPropMesh(turnId?: string, visual?: string): THREE.Group {
   const group = new THREE.Group();
   if (!turnId && !visual) return group;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = 384;
-  canvas.height = 384;
-  const ctx = canvas.getContext("2d");
-
-  if (ctx) {
-    // Soft glowing pastel badge backdrop
-    const grad = ctx.createRadialGradient(192, 192, 24, 192, 192, 172);
-    grad.addColorStop(0, "rgba(255, 255, 255, 0.98)");
-    grad.addColorStop(0.78, "rgba(255, 245, 250, 0.94)");
-    grad.addColorStop(1, "rgba(255, 220, 238, 0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(192, 192, 170, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Delicate pastel ring
-    ctx.strokeStyle = "#ffb3d1";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(192, 192, 138, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Sparkle accents
-    ctx.fillStyle = "#ffd166";
-    for (const [sx, sy, sr] of [
-      [78, 86, 10],
-      [306, 92, 12],
-      [82, 292, 9],
-      [302, 286, 11],
-    ] as const) {
-      ctx.beginPath();
-      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // High-resolution emoji / kawaii illustration in center
-    const label = visual || "✨";
-    ctx.font = label.length > 2 ? "86px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif" : "132px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(label, 192, 198);
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-
-  const badge = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.95, 0.95),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
-  );
-  badge.position.set(0.68, 1.18, 0.95);
-  BadgeName(badge, "kawaii-prop-badge");
-  group.add(badge);
-
-  // Cute 3D floating star ring around the prop
-  const starGeo = new THREE.ShapeGeometry(createStarShape(0.025, 0.055, 5));
+  const starGeo = new THREE.ShapeGeometry(createStarShape(0.022, 0.05, 5));
   const starMat = new THREE.MeshBasicMaterial({ color: 0xffd166, side: THREE.DoubleSide });
   for (let i = 0; i < 4; i += 1) {
     const s = new THREE.Mesh(starGeo, starMat);
     const angle = (i / 4) * Math.PI * 2;
-    s.position.set(0.68 + Math.cos(angle) * 0.52, 1.18 + Math.sin(angle) * 0.52, 0.98);
+    s.position.set(-0.32 + Math.cos(angle) * 0.62, 1.05 + Math.sin(angle) * 0.45, 0.45);
     group.add(s);
   }
 
   return group;
-}
-
-function BadgeName(obj: THREE.Object3D, name: string) {
-  obj.name = name;
 }
 
 function createPastelTree(x: number, z: number, scale = 1, sakura = false): THREE.Group {
@@ -459,20 +400,21 @@ function create3DSpriteCharacter(spriteUrl: string, shadowTex: THREE.Texture): {
   starsGroup: THREE.Group;
 } {
   const group = new THREE.Group();
-  group.position.set(0.18, 0, 0.15);
+  // 左のかのはちゃんと右の吹き出しのあいだ（中央やや左のオープンな位置）に立たせて、吹き出しと絶対に被らないようにする
+  group.position.set(-0.32, 0, 0.12);
 
   // Soft contact shadow under shoes
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.25, 0.65),
+    new THREE.PlaneGeometry(1.15, 0.6),
     new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }),
   );
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   group.add(shadow);
 
-  // Subdivided 3D plane for smooth skeletal breathing & sway deformation
-  const geometry = new THREE.PlaneGeometry(1.72, 2.38, 20, 28);
-  geometry.translate(0, 1.19, 0);
+  // 頭頂部が上端で切れず全身がきれいに収まるサイズに調整
+  const geometry = new THREE.PlaneGeometry(1.48, 2.04, 20, 28);
+  geometry.translate(0, 1.02, 0);
   const basePositions = new Float32Array(geometry.attributes.position.array);
 
   const material = new THREE.MeshBasicMaterial({
@@ -731,7 +673,7 @@ export function ThreeTalkStage3D({
         const bx = baseArr[i];
         const by = baseArr[i + 1];
         const bz = baseArr[i + 2];
-        const heightRatio = Math.max(0, Math.min(1, by / 2.38));
+        const heightRatio = Math.max(0, Math.min(1, by / 2.04));
 
         // Breathing expansion + soft hair/upper-body sway
         const breathY = Math.sin(elapsed * 2.5) * 0.022 * heightRatio;

@@ -107,4 +107,58 @@ describe("EnglishTalkStage", () => {
     expect(await screen.findByText("おはなし できたね！")).toBeInTheDocument();
     expect(screen.getByText(/さいしょで つたわった/)).toHaveTextContent("0 / 1");
   });
+
+  it("turns on the microphone when tapped even if auto-mic was OFF and submits spoken answers smoothly", async () => {
+    mockCheck();
+    const instances: Array<{
+      lang: string;
+      start: ReturnType<typeof vi.fn>;
+      abort: ReturnType<typeof vi.fn>;
+      onresult: ((e: unknown) => void) | null;
+      onerror: ((e?: { error?: string }) => void) | null;
+      onend: (() => void) | null;
+    }> = [];
+
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      configurable: true,
+      value: class {
+        lang = "en-US";
+        continuous = false;
+        interimResults = false;
+        maxAlternatives = 1;
+        start = vi.fn();
+        abort = vi.fn();
+        onresult: ((e: unknown) => void) | null = null;
+        onerror: ((e?: { error?: string }) => void) | null = null;
+        onend: (() => void) | null = null;
+        constructor() {
+          instances.push(this);
+        }
+      },
+    });
+
+    try {
+      render(<EnglishTalkStage scene={scene} />);
+      await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
+
+      // じどうマイクを一度OFFにしてから「こえで こたえる（タップでマイクON）」をタップ
+      await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
+      const micButton = await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ });
+      await userEvent.click(micButton);
+
+      expect(screen.getByRole("button", { name: /マイクON・そのまま声で話してね！/ })).toBeInTheDocument();
+      const activeRecognition = instances[instances.length - 1];
+      expect(activeRecognition.start).toHaveBeenCalled();
+
+      // 音声認識結果を送信してリアルタイムに対話が進むことを確認
+      activeRecognition.onresult?.({
+        results: [[{ transcript: "It's a dog." }]],
+      });
+
+      expect(await screen.findByTestId("heard-utterance")).toHaveTextContent("It's a dog.");
+      expect(await screen.findByText(/ばっちり つたわったよ/)).toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(window, "webkitSpeechRecognition");
+    }
+  });
 });

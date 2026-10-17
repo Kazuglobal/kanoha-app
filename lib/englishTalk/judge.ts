@@ -25,10 +25,11 @@ export interface PublicTalkScene {
  */
 const KATAKANA_TO_ENGLISH: readonly [RegExp, string][] = [
   [/マイネームイズ|まいねーむいず/g, " my name is "],
-  [/ネームイズ|ねーむいず/g, " name is "],
+  [/マイネーム|まいねーむ|ネームイズ|ねーむいず/g, " my name is "],
   [/アイムファイン|あいむふぁいん|ファイン|ふぁいん/g, " im fine "],
+  [/アイアム|あいあむ|アイム|あいむ/g, " im "],
   [/サンキュー|さんきゅー|サンクス|さんくす/g, " thank you "],
-  [/ナイストゥミーチュー|ないすとぅみーちゅー|ナイストゥミートユー/g, " nice to meet you "],
+  [/ナイストゥミーチュー|ないすとぅみーちゅー|ナイストゥミートユー|ナイストゥーミーチュー/g, " nice to meet you "],
   [/グッドモーニング|ぐっどもーにんぐ|モーニング|もーにんぐ/g, " good morning "],
   [/グッバイ|ぐっばい|グッドバイ|バイバイ|ばいばい/g, " goodbye "],
   [/シーユー|しーゆー/g, " see you "],
@@ -39,17 +40,21 @@ const KATAKANA_TO_ENGLISH: readonly [RegExp, string][] = [
   [/グレープ|ぐれーぷ|ぶどう/g, " grape "],
   [/ピーチ|ぴーち|もも/g, " peach "],
   [/ストロベリー|すとろべりー|いちご/g, " strawberry "],
-  [/ドッグ|どっぐ|ドギー|パピー/g, " dog "],
-  [/エレファント|えれふぁんと/g, " elephant "],
+  [/ドッグ|どっぐ|ドギー|パピー|いぬ|イヌ|犬/g, " dog "],
+  [/エレファント|えれふぁんと|ぞう|ゾウ|象/g, " elephant "],
   [/パンダ|ぱんだ/g, " panda "],
   [/ライオン|らいおん/g, " lion "],
-  [/ジラフ|じらふ/g, " giraffe "],
-  [/モンキー|もんきー/g, " monkey "],
-  [/ラビット|らびっと/g, " rabbit "],
-  [/タイガー|たいがー/g, " tiger "],
+  [/ジラフ|じらふ|きりん|キリン/g, " giraffe "],
+  [/モンキー|もんきー|さる|サル|猿/g, " monkey "],
+  [/ラビット|らびっと|うさぎ|ウサギ/g, " rabbit "],
+  [/タイガー|たいがー|とら|トラ|虎/g, " tiger "],
   [/キャット|きゃっと/g, " cat "],
-  [/ペンシル|ぺんしる/g, " pencil "],
-  [/レッド|れっど/g, " red "],
+  [/ペンシル|ぺんしる|えんぴつ|鉛筆/g, " pencil "],
+  [/レッド|れっど|あかいろ|赤色/g, " red "],
+  [/グッド|ぐっど/g, " good "],
+  [/グレート|ぐれーと/g, " great "],
+  [/ハッピー|はっぴー/g, " happy "],
+  [/オーケー|おーけー|オッケー|おっけー/g, " ok "],
   [/イエス|いえす|イェス|ヤー|やー/g, " yes "],
   [/ノー|のー/g, " no "],
   [/レッツ|れっつ/g, " lets "],
@@ -218,6 +223,7 @@ const NON_NAME_WORDS = new Set([
   "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
   "here", "ready", "sorry", "sure", "not", "dont", "do", "a", "an", "the", "sunny",
+  "apples", "apple", "cat", "dog", "goodbye", "bye",
 ]);
 
 /** キーワード群をすべて満たせば正解(音声認識の言いまわしの揺れ・カタカナ発音を許す)。 */
@@ -230,11 +236,15 @@ export const judgeTalkAnswer = (turn: TalkTurn, answer: string): boolean => {
     return true;
   }
 
-  // 「What's your name?」では「I'm Sora.」「I am Ken.」「My name's Yuki.」も正解として受け入れる
+  // 「What's your name?」では「I'm Sora.」「Hello, I'm Ken.」「My name's Yuki.」「I'm ゆうき」も正解として受け入れる
   if (turn.id === "greeting-name") {
-    if (containsPhrase(normalized, "my names")) return true;
-    const imMatch = normalized.match(/^(?:im|i am)\s+([a-z]{2,20})$/);
+    if (containsPhrase(normalized, "my names") || containsPhrase(normalized, "mine name")) return true;
+    const imMatch = normalized.match(/(?:^|\s)(?:im|i am|my name)\s+([a-z]{2,20})(?:\s|$)/);
     if (imMatch && !NON_NAME_WORDS.has(imMatch[1])) {
+      return true;
+    }
+    // 「I'm ゆうき」「アイム たろう」のように日本語の名前が続いている場合も受け入れる
+    if (/(?:i'm|i\s+am|my\s+name|アイム|あいむ|マイネーム|まいねーむ)\s*[ぁ-んァ-ヶ一-龠々ー]{1,12}/i.test(answer)) {
       return true;
     }
   }

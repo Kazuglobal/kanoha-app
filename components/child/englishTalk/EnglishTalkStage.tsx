@@ -116,10 +116,13 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
 
             {state.phase === "ask" && turn && (
               <VoiceAnswerPanel
+                sceneId={scene.id}
+                turnId={turn.id}
                 hintJa={talk.showJapanese ? turn.answerHintJa : null}
                 disabled={talk.checking}
                 characterSpeaking={talk.speaking}
                 autoStartVoice={talk.directVoiceMode}
+                onAutoListenChange={talk.setDirectVoiceMode}
                 onListeningChange={setIsListening}
                 onInterruptSpeech={stopTalkSpeech}
                 onAnswer={(text) => void talk.answer(text, "voice")}
@@ -129,10 +132,13 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
 
             {state.phase === "teach" && talk.teach && (
               <TeachPanel
+                sceneId={scene.id}
+                turnId={turn?.id}
                 teach={talk.teach}
                 repeatCount={state.repeatCount}
                 characterSpeaking={talk.speaking}
                 autoStartVoice={talk.directVoiceMode}
+                onAutoListenChange={talk.setDirectVoiceMode}
                 onListeningChange={setIsListening}
                 onInterruptSpeech={stopTalkSpeech}
                 onRepeat={(text) => void talk.repeat(text)}
@@ -201,19 +207,25 @@ function StartPanel({ description, onStart }: { description: string; onStart: ()
 }
 
 function VoiceAnswerPanel({
+  sceneId,
+  turnId,
   hintJa,
   disabled,
   characterSpeaking,
   autoStartVoice = true,
+  onAutoListenChange,
   onListeningChange,
   onInterruptSpeech,
   onAnswer,
   onJapanese,
 }: {
+  sceneId: string;
+  turnId: string;
   hintJa: string | null;
   disabled: boolean;
   characterSpeaking: boolean;
   autoStartVoice?: boolean;
+  onAutoListenChange?: (enabled: boolean) => void;
   onListeningChange?: (listening: boolean) => void;
   onInterruptSpeech?: () => void;
   onAnswer: (text: string) => void;
@@ -232,9 +244,12 @@ function VoiceAnswerPanel({
   return (
     <div className={styles.answerPanel}>
       <RealtimeTalkMic
+        sceneId={sceneId}
+        turnId={turnId}
         disabled={disabled}
         characterSpeaking={characterSpeaking}
         autoListen={autoStartVoice}
+        onAutoListenChange={onAutoListenChange}
         onListeningChange={onListeningChange}
         onInterruptSpeech={onInterruptSpeech}
         onUtterance={(text) => onAnswer(text)}
@@ -271,18 +286,24 @@ function VoiceAnswerPanel({
 }
 
 function TeachPanel({
+  sceneId,
+  turnId,
   teach,
   repeatCount,
   characterSpeaking,
   autoStartVoice = true,
+  onAutoListenChange,
   onListeningChange,
   onInterruptSpeech,
   onRepeat,
 }: {
+  sceneId: string;
+  turnId?: string;
   teach: TalkTeach;
   repeatCount: number;
   characterSpeaking: boolean;
   autoStartVoice?: boolean;
+  onAutoListenChange?: (enabled: boolean) => void;
   onListeningChange?: (listening: boolean) => void;
   onInterruptSpeech?: () => void;
   onRepeat: (text: string | null) => void;
@@ -322,8 +343,11 @@ function TeachPanel({
       </div>
 
       <RealtimeTalkMic
+        sceneId={sceneId}
+        turnId={turnId}
         characterSpeaking={characterSpeaking}
         autoListen={autoStartVoice}
+        onAutoListenChange={onAutoListenChange}
         onListeningChange={onListeningChange}
         onInterruptSpeech={onInterruptSpeech}
         onUtterance={(text) => onRepeat(text)}

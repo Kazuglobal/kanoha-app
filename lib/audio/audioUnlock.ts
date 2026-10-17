@@ -35,7 +35,9 @@ export function getSharedAudioContext(): AudioContext | null {
 function setPlaybackSession() {
   try {
     const session = (navigator as AudioSessionNavigator).audioSession;
-    if (session) session.type = "playback";
+    if (session && session.type !== "play-and-record" && session.type !== "auto") {
+      session.type = "play-and-record";
+    }
   } catch {
     // 未対応ブラウザは無視
   }
