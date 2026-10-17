@@ -9,7 +9,7 @@
 .scene {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 50%) minmax(0, 50%);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px 12px;
   overflow: hidden;
@@ -39,11 +39,11 @@
 
 .stageMainCharacterSpot {
   position: absolute;
-  left: 2%;
+  left: 1.5%;
   bottom: 0;
   z-index: 2;
-  width: clamp(140px, 28%, 270px);
-  height: 82%;
+  width: clamp(125px, 23%, 225px);
+  height: 80%;
   pointer-events: auto;
 }
 
@@ -92,7 +92,7 @@
   min-height: 0;
 }
 
-/* ふきだしと注目アイテムは3D空間の右側に浮かべる */
+/* ふきだしと注目アイテムは3D空間の右端エリアに配置し、中央・左のキャラクターに被らないようにする */
 .sceneRight {
   grid-row: 2;
   grid-column: 2;
@@ -167,32 +167,33 @@
 .bubble {
   position: relative;
   display: grid;
-  gap: 8px;
-  max-width: min(100%, 560px);
+  gap: 6px;
+  width: fit-content;
+  max-width: min(100%, 420px);
   max-height: 100%;
   overflow-y: auto;
-  padding: 16px 20px;
-  border: 4px solid #ffb3d1;
-  border-radius: 26px;
-  background: rgb(255 255 255 / 95%);
+  padding: 12px 16px;
+  border: 3px solid #ffb3d1;
+  border-radius: 22px;
+  background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(8px);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 15%);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
   animation: pop 0.35s ease-out;
 }
 
 .bubble::before {
   content: "";
   position: absolute;
-  left: -22px;
-  top: 40px;
-  border: 12px solid transparent;
-  border-right: 14px solid #ffb3d1;
+  left: -20px;
+  top: 28px;
+  border: 10px solid transparent;
+  border-right: 12px solid #ffb3d1;
 }
 
 .bubbleEnglish {
   margin: 0;
   color: #3b2a4d;
-  font-size: clamp(1.25rem, 2.5vw, 1.85rem);
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
   font-weight: 800;
   line-height: 1.3;
 }
@@ -631,9 +632,9 @@
   }
 
   .scene {
-    grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 48%) minmax(0, 52%);
     gap: 6px 8px;
-    height: clamp(200px, 40dvh, 360px);
+    height: clamp(220px, 42dvh, 360px);
     padding: 8px 8px 0;
     border-radius: 20px;
   }

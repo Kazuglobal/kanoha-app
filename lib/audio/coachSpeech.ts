@@ -55,8 +55,9 @@ function isCurrent(token: number): boolean {
 }
 
 function setSpeaking(speaking: boolean) {
+  const prev = isSpeakingState;
   isSpeakingState = speaking;
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && (prev !== speaking || speaking)) {
     window.dispatchEvent(
       new CustomEvent(speaking ? "kanoha-coach-speaking-start" : "kanoha-coach-speaking-end")
     );
@@ -211,7 +212,11 @@ export async function speakCoachVoice(
  */
 export async function speakVoice(
   text: string,
-  { mood = "happy", lang = "ja" }: { mood?: "happy" | "celebrate" | "think"; lang?: "ja" | "en" } = {}
+  {
+    mood = "happy",
+    lang = "ja",
+    silentFallback = false,
+  }: { mood?: "happy" | "celebrate" | "think"; lang?: "ja" | "en"; silentFallback?: boolean } = {}
 ): Promise<boolean> {
   stopCoachVoice();
   const token = playbackToken;
@@ -248,9 +253,12 @@ export async function speakVoice(
     console.warn("[CoachVoice] TTS fetch failed:", err);
   }
 
+  // 呼び出し側（英会話ステージ等）が独自にブラウザ読み上げフォールバックを行う場合は、
+  // 1200ms 後に kanoha-coach-speaking-end を誤発火させないようそのまま false を返す
+  if (silentFallback || !isCurrent(token)) return false;
+
   // 音声通信が万一不通の場合でも、ロボット機械音声は鳴らさず、
   // リップシンク（口パクアニメーション）のみを短時間自然に行います
-  if (!isCurrent(token)) return false;
   setSpeaking(true);
   setTimeout(() => {
     if (isCurrent(token)) setSpeaking(false);

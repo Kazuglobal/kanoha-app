@@ -67,6 +67,8 @@ describe("judgeTalkAnswer", () => {
     expect(judgeTalkAnswer(name, "My name is Sora.")).toBe(true);
     expect(judgeTalkAnswer(name, "I'm Sora!")).toBe(true);
     expect(judgeTalkAnswer(name, "I am Yuki")).toBe(true);
+    expect(judgeTalkAnswer(name, "Hello! I'm Yuki.")).toBe(true);
+    expect(judgeTalkAnswer(name, "I'm ゆうき")).toBe(true);
   });
 
   it("accepts Japanese katakana speech and common en-US STT phonetic homophones for kids", () => {
