@@ -176,6 +176,7 @@ export function VoiceAnswer({
 
       let spokeAt = 0;
       let lastVoiceAt = 0;
+      let voiceFrames = 0;
       const startedWaitAt = Date.now();
       const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
@@ -215,6 +216,8 @@ export function VoiceAnswer({
           void audioCtx.close().catch(() => undefined);
         }
         stopMedia();
+        activeRef.current?.abort?.();
+        activeRef.current = null;
         setIsListening(false);
 
         const res = await fetch("/api/ai/stt", {
@@ -242,17 +245,26 @@ export function VoiceAnswer({
         const rms = Math.sqrt(sumSq / dataArray.length);
         const now = Date.now();
 
-        if (rms > 0.03) {
-          if (spokeAt === 0) spokeAt = now;
-          lastVoiceAt = now;
-        } else if (spokeAt > 0 && now - spokeAt >= 220 && now - lastVoiceAt >= 620) {
-          void finishVad();
-          return;
-        } else if (spokeAt === 0 && now - startedWaitAt > 6000) {
-          stopMedia();
-          setIsListening(false);
-          setLabel("こえで こたえる");
-          return;
+        if (now - startedWaitAt >= 120) {
+          if (rms > 0.03) {
+            voiceFrames += 1;
+            lastVoiceAt = now;
+            if (spokeAt === 0 && voiceFrames >= 5) {
+              spokeAt = now;
+            }
+          } else if (spokeAt === 0 && voiceFrames > 0 && now - lastVoiceAt > 250) {
+            voiceFrames = 0;
+          } else if (spokeAt > 0 && voiceFrames >= 8 && now - lastVoiceAt >= 700) {
+            void finishVad();
+            return;
+          } else if (spokeAt === 0 && now - startedWaitAt > 8000) {
+            stopMedia();
+            if (!activeRef.current) {
+              setIsListening(false);
+              setLabel("こえで こたえる");
+            }
+            return;
+          }
         }
         vadFrameRef.current = window.requestAnimationFrame(checkVolume);
       };
@@ -262,8 +274,10 @@ export function VoiceAnswer({
       }
     } catch {
       stopMedia();
-      setIsListening(false);
-      setLabel("もういちど おしてね");
+      if (!activeRef.current) {
+        setIsListening(false);
+        setLabel("もういちど おしてね");
+      }
     }
   }
 
