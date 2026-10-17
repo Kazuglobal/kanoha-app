@@ -377,7 +377,13 @@ export function RealtimeTalkMic({
             commitText(json.transcript.trim());
           } else {
             setLiveTranscript("");
-            setIsListening(false);
+            if (shouldKeepListening()) {
+              restartTimerRef.current = window.setTimeout(() => {
+                void startVadFallback(targetLang);
+              }, 160);
+            } else {
+              setIsListening(false);
+            }
           }
         };
 
@@ -392,13 +398,13 @@ export function RealtimeTalkMic({
           const rms = Math.sqrt(sumSq / dataArray.length);
           const now = Date.now();
 
-          if (rms > 0.035) {
+          if (rms > 0.03) {
             if (spokeAt === 0) {
               spokeAt = now;
               setLiveTranscript("声をききとっています...");
             }
             lastVoiceAt = now;
-          } else if (spokeAt > 0 && now - spokeAt >= 260 && now - lastVoiceAt >= 680) {
+          } else if (spokeAt > 0 && now - spokeAt >= 240 && now - lastVoiceAt >= 640) {
             void finalizeVadUtterance();
             return;
           }
@@ -414,11 +420,11 @@ export function RealtimeTalkMic({
         setMicHint("マイクの許可をオンにするか、下の入力欄から送ってね");
       }
     },
-    [commitText, stopVadStream],
+    [commitText, shouldKeepListening, stopVadStream],
   );
 
   const startRecognition = useCallback(
-    (langOverride?: "en-US" | "ja-JP") => {
+    (langOverride?: "en-US" | "ja-JP", directFromGesture = false) => {
       const targetLang = langOverride ?? propsRef.current.recognitionLang;
 
       if (webSpeechFailedRef.current) {
@@ -438,7 +444,7 @@ export function RealtimeTalkMic({
       }
 
       // すでに同じ言語で聞き取り中なら再生成して abort させない
-      if (activeRef.current && activeLangRef.current === targetLang) {
+      if (!directFromGesture && activeRef.current && activeLangRef.current === targetLang) {
         setIsListening(true);
         return;
       }
@@ -453,7 +459,7 @@ export function RealtimeTalkMic({
       setMicHint(null);
 
       const launch = () => {
-        if (propsRef.current.disabled || propsRef.current.characterSpeaking || manualPauseRef.current) {
+        if (!directFromGesture && (propsRef.current.disabled || propsRef.current.characterSpeaking || manualPauseRef.current)) {
           setIsListening(false);
           return;
         }
@@ -541,7 +547,7 @@ export function RealtimeTalkMic({
             activeRef.current = null;
 
             // Chrome の Web Speech API がネットワーク制限やサービス未対応で失敗する場合は VAD フォールバックへ切り替え
-            if (err === "network" || err === "service-not-allowed") {
+            if (err === "network" || err === "service-not-allowed" || err === "language-not-supported") {
               webSpeechFailedRef.current = true;
               if (shouldKeepListening()) {
                 void startVadFallback(targetLang);
@@ -552,10 +558,10 @@ export function RealtimeTalkMic({
             }
 
             if (err === "not-allowed" || err === "audio-capture") {
-              manualPauseRef.current = true;
+              // 自動開始がブラウザ制限でブロックされた場合は、ボタンを「タップでマイクON」に戻してユーザータップを待つ
               userRequestedListenRef.current = false;
               setIsListening(false);
-              setMicHint("ブラウザのマイク許可をオンにするか、下の入力欄でお話ししてね");
+              setMicHint("マイクボタンを1回タップしてマイクをONにしてね！");
               return;
             }
 
@@ -603,8 +609,8 @@ export function RealtimeTalkMic({
         }
       };
 
-      // 直前のインスタンスを abort した直後は、Chrome の音声コントローラ解放を少し待ってから start する
-      if (hadActive) {
+      // ユーザータップによる明示的な起動時は、ブラウザのユーザージェスチャー権限を失わないよう同期的に start() する
+      if (hadActive && !directFromGesture) {
         restartTimerRef.current = window.setTimeout(launch, 45);
       } else {
         launch();
@@ -625,7 +631,7 @@ export function RealtimeTalkMic({
       if (!activeRef.current && !vadActiveRef.current) {
         startRecognition();
       }
-    }, 120);
+    }, 80);
     return () => window.clearTimeout(timer);
   }, [autoListen, characterSpeaking, disabled, startRecognition, stopRecognition, supported]);
 
@@ -639,17 +645,20 @@ export function RealtimeTalkMic({
     }
 
     if (characterSpeaking) {
+      propsRef.current.characterSpeaking = false;
       onInterruptSpeech?.();
       manualPauseRef.current = false;
       userRequestedListenRef.current = true;
       onAutoListenChange?.(true);
-      startRecognition();
+      startRecognition(undefined, true);
       return;
     }
 
-    if (isListening) {
-      // 自動開始の直後(500ms以内)に「タップでマイクON」を見て押した場合は、OFFにせずONを維持する
-      if (Date.now() - startedAtRef.current < 500) {
+    const actuallyActive = Boolean(activeRef.current || vadActiveRef.current);
+
+    if (isListening && actuallyActive) {
+      // 自動開始の直後(650ms以内)に「タップでマイクON」を見て押した場合は、OFFにせずONを維持する
+      if (Date.now() - startedAtRef.current < 650) {
         manualPauseRef.current = false;
         userRequestedListenRef.current = true;
         onAutoListenChange?.(true);
@@ -659,21 +668,24 @@ export function RealtimeTalkMic({
       userRequestedListenRef.current = false;
       stopRecognition();
     } else {
+      propsRef.current.characterSpeaking = false;
       onInterruptSpeech?.();
       manualPauseRef.current = false;
       userRequestedListenRef.current = true;
       onAutoListenChange?.(true);
-      startRecognition();
+      startRecognition(undefined, true);
     }
   };
 
   const handleLangSwitch = (nextLang: "en-US" | "ja-JP") => {
     setRecognitionLang(nextLang);
+    propsRef.current.recognitionLang = nextLang;
+    propsRef.current.characterSpeaking = false;
     manualPauseRef.current = false;
     userRequestedListenRef.current = true;
     onAutoListenChange?.(true);
     if (characterSpeaking) onInterruptSpeech?.();
-    startRecognition(nextLang);
+    startRecognition(nextLang, true);
   };
 
   if (!supported) return null;

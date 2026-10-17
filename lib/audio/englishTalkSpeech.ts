@@ -10,8 +10,10 @@ const emit = (name: "kanoha-coach-speaking-start" | "kanoha-coach-speaking-end")
   }
 };
 
+let talkSpeechGen = 0;
+
 /** Gemini TTS が使えない端末向け: ブラウザの読み上げ(en-US / ja-JP)。口パクのイベントも出す。 */
-function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US"): Promise<void> {
+function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US", gen = talkSpeechGen): Promise<void> {
   const synth = window.speechSynthesis;
   if (!synth || typeof SpeechSynthesisUtterance === "undefined") return Promise.resolve();
   try {
@@ -20,6 +22,8 @@ function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US"): Prom
     // ignore cancel errors
   }
   return new Promise((resolve) => {
+    if (gen !== talkSpeechGen) return resolve();
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = lang === "en-US" ? 0.88 : 0.96;
@@ -31,11 +35,16 @@ function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US"): Prom
     let settled = false;
     let startedAt = 0;
     let pollTimer: number | null = null;
+    let startCheckTimer: number | null = null;
 
     const cleanup = () => {
       if (pollTimer !== null) {
         window.clearInterval(pollTimer);
         pollTimer = null;
+      }
+      if (startCheckTimer !== null) {
+        window.clearTimeout(startCheckTimer);
+        startCheckTimer = null;
       }
     };
 
@@ -43,15 +52,30 @@ function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US"): Prom
       if (settled) return;
       settled = true;
       cleanup();
-      emit("kanoha-coach-speaking-end");
+      if (gen === talkSpeechGen) {
+        emit("kanoha-coach-speaking-end");
+      }
       resolve();
     };
 
     // ブラウザの speechSynthesis が onend を発火しないケースや音声エンジン未搭載環境への安全対策
-    const maxWaitMs = Math.min(3400, Math.max(1500, text.length * 90));
+    const maxWaitMs = Math.min(2800, Math.max(1200, text.length * 80));
     const safetyTimer = window.setTimeout(finish, maxWaitMs);
 
+    // 600ms 経っても onstart も speaking も始まらない場合は即座に終了してマイクを解放する
+    startCheckTimer = window.setTimeout(() => {
+      if (!settled && startedAt === 0 && !synth.speaking && !synth.pending) {
+        window.clearTimeout(safetyTimer);
+        finish();
+      }
+    }, 600);
+
     utterance.onstart = () => {
+      if (gen !== talkSpeechGen) {
+        window.clearTimeout(safetyTimer);
+        finish();
+        return;
+      }
       startedAt = Date.now();
       emit("kanoha-coach-speaking-start");
     };
@@ -67,11 +91,16 @@ function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US"): Prom
     // Windows Chrome 等で onend が発火しないバグ対策: speaking 状態を監視して話し終えたら即解放する
     pollTimer = window.setInterval(() => {
       if (settled) return;
-      if (startedAt > 0 && !synth.speaking && !synth.pending && Date.now() - startedAt > 250) {
+      if (gen !== talkSpeechGen) {
+        window.clearTimeout(safetyTimer);
+        finish();
+        return;
+      }
+      if (startedAt > 0 && !synth.speaking && !synth.pending && Date.now() - startedAt > 200) {
         window.clearTimeout(safetyTimer);
         finish();
       }
-    }, 180);
+    }, 150);
 
     try {
       synth.speak(utterance);
@@ -86,12 +115,17 @@ function speakWithBrowser(text: string, lang: "en-US" | "ja-JP" = "en-US"): Prom
 export async function speakTalkEnglish(text: string, mood: Mood = "happy"): Promise<void> {
   if (typeof window === "undefined") return;
   stopCoachVoice();
+  talkSpeechGen += 1;
+  const gen = talkSpeechGen;
   emit("kanoha-coach-speaking-start");
   try {
     const played = await speakVoice(text, { mood, lang: "en", silentFallback: true });
-    if (!played) await speakWithBrowser(text, "en-US");
+    if (gen !== talkSpeechGen) return;
+    if (!played) await speakWithBrowser(text, "en-US", gen);
   } finally {
-    emit("kanoha-coach-speaking-end");
+    if (gen === talkSpeechGen) {
+      emit("kanoha-coach-speaking-end");
+    }
   }
 }
 
@@ -99,16 +133,22 @@ export async function speakTalkEnglish(text: string, mood: Mood = "happy"): Prom
 export async function speakTalkJapanese(text: string): Promise<void> {
   if (typeof window === "undefined") return;
   stopCoachVoice();
+  talkSpeechGen += 1;
+  const gen = talkSpeechGen;
   emit("kanoha-coach-speaking-start");
   try {
     const played = await speakVoice(text, { mood: "think", silentFallback: true });
-    if (!played) await speakWithBrowser(text, "ja-JP");
+    if (gen !== talkSpeechGen) return;
+    if (!played) await speakWithBrowser(text, "ja-JP", gen);
   } finally {
-    emit("kanoha-coach-speaking-end");
+    if (gen === talkSpeechGen) {
+      emit("kanoha-coach-speaking-end");
+    }
   }
 }
 
 export function stopTalkSpeech(): void {
+  talkSpeechGen += 1;
   stopCoachVoice();
   if (typeof window !== "undefined") {
     try {

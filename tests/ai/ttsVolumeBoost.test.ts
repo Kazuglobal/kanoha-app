@@ -77,3 +77,33 @@ describe("boostWavOrPcm", () => {
     expect(boostedWav.readInt16LE(46)).toBe(-6000);
   });
 });
+
+describe("generateGeminiSpeech model selection", () => {
+  it("uses gemini-3.8-flash-tts / gemini-3.8-flash and does not call retired gemini-2.0-flash", async () => {
+    const { generateGeminiSpeech } = await import("@/lib/ai/tts");
+    const prevKey = process.env.GEMINI_API_KEY;
+    const prevModel = process.env.GEMINI_TTS_MODEL;
+    process.env.GEMINI_API_KEY = "test-api-key";
+    delete process.env.GEMINI_TTS_MODEL;
+
+    const calledUrls: string[] = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      calledUrls.push(String(input));
+      return new Response(JSON.stringify({ error: { code: 404, message: "not found" } }), { status: 404 });
+    }) as typeof fetch;
+
+    try {
+      const res = await generateGeminiSpeech({ text: "こんにちは", lang: "ja" });
+      expect(res.success).toBe(false);
+      expect(calledUrls.some((u) => u.includes("gemini-3.8-flash-tts"))).toBe(true);
+      expect(calledUrls.some((u) => u.includes("gemini-3.8-flash"))).toBe(true);
+      expect(calledUrls.some((u) => u.includes("gemini-2.0-flash"))).toBe(false);
+    } finally {
+      globalThis.fetch = origFetch;
+      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevKey;
+      if (prevModel !== undefined) process.env.GEMINI_TTS_MODEL = prevModel;
+    }
+  });
+});

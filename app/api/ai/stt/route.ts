@@ -20,8 +20,15 @@ export async function POST(request: Request) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
     if (apiKey && audioBase64) {
-      const model = process.env.GEMINI_TEXT_MODEL || "gemini-2.5-flash";
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+      const candidateModels = Array.from(
+        new Set(
+          [
+            process.env.GEMINI_STT_MODEL,
+            process.env.GEMINI_TEXT_MODEL,
+            "gemini-3.8-flash",
+          ].filter((m): m is string => Boolean(m)),
+        ),
+      );
       const contextHint = turn
         ? `Question asked to the child: "${turn.prompt}" (Expected example answer: "${turn.modelAnswer}").`
         : "";
@@ -36,30 +43,33 @@ export async function POST(request: Request) {
         .filter(Boolean)
         .join(" ");
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                { inlineData: { data: audioBase64, mimeType } },
-                { text: prompt },
-              ],
-            },
-          ],
-        }),
-      }).catch(() => null);
+      for (const model of candidateModels) {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { inlineData: { data: audioBase64, mimeType } },
+                  { text: prompt },
+                ],
+              },
+            ],
+          }),
+        }).catch(() => null);
 
-      if (response?.ok) {
-        const data = await response.json().catch(() => null);
-        const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (transcript) {
-          return NextResponse.json({ success: true, transcript });
+        if (response?.ok) {
+          const data = await response.json().catch(() => null);
+          const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (transcript) {
+            return NextResponse.json({ success: true, transcript });
+          }
         }
       }
     }

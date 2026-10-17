@@ -161,4 +161,57 @@ describe("EnglishTalkStage", () => {
       Reflect.deleteProperty(window, "webkitSpeechRecognition");
     }
   });
+
+  it("recovers and turns on the microphone on user tap even after an initial auto-start 'not-allowed' error", async () => {
+    mockCheck();
+    const instances: Array<{
+      lang: string;
+      start: ReturnType<typeof vi.fn>;
+      abort: ReturnType<typeof vi.fn>;
+      onresult: ((e: unknown) => void) | null;
+      onerror: ((e?: { error?: string }) => void) | null;
+      onend: (() => void) | null;
+    }> = [];
+
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      configurable: true,
+      value: class {
+        lang = "en-US";
+        continuous = false;
+        interimResults = false;
+        maxAlternatives = 1;
+        start = vi.fn();
+        abort = vi.fn();
+        onresult: ((e: unknown) => void) | null = null;
+        onerror: ((e?: { error?: string }) => void) | null = null;
+        onend: (() => void) | null = null;
+        constructor() {
+          instances.push(this);
+        }
+      },
+    });
+
+    try {
+      render(<EnglishTalkStage scene={scene} />);
+      await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
+
+      // Wait for auto-start instance and simulate browser blocking non-gesture auto-start with 'not-allowed'
+      await vi.waitFor(() => expect(instances.length).toBeGreaterThan(0));
+      const firstInstance = instances[instances.length - 1];
+      firstInstance.onerror?.({ error: "not-allowed" });
+
+      // Button should show "こえで こたえる（タップでマイクON）" and hint
+      const micButton = await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ });
+      expect(screen.getByText(/マイクボタンを1回タップしてマイクをONにしてね/)).toBeInTheDocument();
+
+      // Now user taps the button directly -> must synchronously start recognition and turn ON
+      await userEvent.click(micButton);
+      expect(screen.getByRole("button", { name: /マイクON・そのまま声で話してね！/ })).toBeInTheDocument();
+      const secondInstance = instances[instances.length - 1];
+      expect(secondInstance).not.toBe(firstInstance);
+      expect(secondInstance.start).toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(window, "webkitSpeechRecognition");
+    }
+  });
 });
