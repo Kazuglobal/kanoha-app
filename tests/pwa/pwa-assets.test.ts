@@ -29,5 +29,7 @@ describe("PWA assets", () => {
     expect(config).toContain('source: "/sw.js"');
     expect(config).toContain('"Cache-Control", value: "no-cache, no-store, must-revalidate"');
     expect(config).toContain('"Content-Security-Policy", value: "default-src \'self\'; script-src \'self\'"');
+    expect(config).toContain("microphone=(self)");
+    expect(config).toContain("media-src 'self' data: blob:");
   });
 });

@@ -476,6 +476,8 @@ export function RealtimeTalkMic({
 
             let spokeAt = 0;
             let lastVoiceAt = 0;
+            let voiceFrames = 0;
+            const streamStartedAt = Date.now();
             const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
             const finalizeVadUtterance = async () => {
@@ -567,17 +569,28 @@ export function RealtimeTalkMic({
               const rms = Math.sqrt(sumSq / dataArray.length);
               const now = Date.now();
 
-              if (rms > 0.022) {
-                if (spokeAt === 0) {
-                  spokeAt = now;
-                  if (!interimRef.current) {
-                    setLiveTranscript("声をききとっています...");
+              // マイク接続直後のポップノイズ(120ms以内)は無視する
+              if (now - streamStartedAt >= 120) {
+                if (rms > 0.025) {
+                  voiceFrames += 1;
+                  lastVoiceAt = now;
+                  if (spokeAt === 0 && voiceFrames >= 5) {
+                    spokeAt = now;
+                    if (!interimRef.current) {
+                      setLiveTranscript("声をききとっています...");
+                    }
                   }
+                } else if (spokeAt === 0 && voiceFrames > 0 && now - lastVoiceAt > 250) {
+                  voiceFrames = 0;
+                } else if (
+                  spokeAt > 0 &&
+                  voiceFrames >= 8 &&
+                  now - lastVoiceAt >= 750 &&
+                  !(interimRef.current.trim() && silenceTimerRef.current !== null)
+                ) {
+                  void finalizeVadUtterance();
+                  return;
                 }
-                lastVoiceAt = now;
-              } else if (spokeAt > 0 && now - spokeAt >= 200 && now - lastVoiceAt >= 620) {
-                void finalizeVadUtterance();
-                return;
               }
 
               vadFrameRef.current = window.requestAnimationFrame(checkVolume);
