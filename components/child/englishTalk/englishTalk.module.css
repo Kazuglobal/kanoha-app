@@ -253,6 +253,8 @@
 }
 
 .panel {
+  position: relative;
+  z-index: 5;
   display: grid;
   gap: 10px;
   padding: 16px 20px;
@@ -260,6 +262,7 @@
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 6px 20px rgb(80 60 120 / 10%);
+  pointer-events: auto;
 }
 
 .message {
@@ -328,9 +331,12 @@
 }
 
 .realtimeMicBox {
+  position: relative;
+  z-index: 6;
   display: grid;
   gap: 8px;
   width: min(100%, 640px);
+  pointer-events: auto;
 }
 
 .realtimeMicRow {
@@ -342,6 +348,8 @@
 }
 
 .realtimeMicButton {
+  position: relative;
+  z-index: 7;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -355,7 +363,20 @@
   font-size: 1.05rem;
   font-weight: 800;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  pointer-events: auto;
   transition: all 0.2s ease;
+}
+
+.realtimeMicButton:hover:not(:disabled) {
+  border-color: #38b2ac;
+  background: #edfafa;
+  transform: translateY(-1px);
+}
+
+.realtimeMicButton:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .realtimeMicActive {
@@ -627,6 +648,9 @@
 
 @media (max-width: 720px) {
   .stageWrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     gap: 8px;
     padding: 0 10px 16px;
   }

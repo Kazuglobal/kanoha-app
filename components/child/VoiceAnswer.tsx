@@ -282,10 +282,27 @@ export function VoiceAnswer({
       webkitSpeechRecognition?: SpeechRecognitionConstructor;
     };
     const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    const hasMedia = Boolean(
+      typeof navigator !== "undefined" &&
+        navigator.mediaDevices &&
+        typeof navigator.mediaDevices.getUserMedia === "function",
+    );
+
     if (!Recognition) {
       void startVadFallback();
       return;
     }
+
+    let delivered = false;
+    const finishOnce = (raw: string) => {
+      if (delivered) return;
+      delivered = true;
+      activeRef.current?.abort?.();
+      activeRef.current = null;
+      stopMedia();
+      setIsListening(false);
+      deliverTranscript(raw);
+    };
 
     try {
       const recognition = new Recognition();
@@ -294,18 +311,15 @@ export function VoiceAnswer({
 
       recognition.onresult = (event) => {
         if (activeRef.current !== recognition) return;
-        activeRef.current = null;
-        setIsListening(false);
         const raw = event.results[0]?.[0]?.transcript ?? "";
-        deliverTranscript(raw);
+        finishOnce(raw);
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = () => {
         if (activeRef.current !== recognition) return;
         activeRef.current = null;
-        const err = event?.error ?? "";
-        if (err === "network" || err === "service-not-allowed") {
-          void startVadFallback();
+        if (hasMedia) {
+          if (!vadActiveRef.current) void startVadFallback();
           return;
         }
         setIsListening(false);
@@ -318,6 +332,7 @@ export function VoiceAnswer({
       recognition.onend = () => {
         if (activeRef.current === recognition) {
           activeRef.current = null;
+          if (vadActiveRef.current) return;
           setIsListening(false);
           setLabel("こえで こたえる");
         }
@@ -326,6 +341,9 @@ export function VoiceAnswer({
       recognition.start();
       setIsListening(true);
       setLabel("きいているよ...はなしてね");
+      if (hasMedia) {
+        void startVadFallback();
+      }
     } catch {
       activeRef.current = null;
       void startVadFallback();

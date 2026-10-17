@@ -214,4 +214,53 @@ describe("EnglishTalkStage", () => {
       Reflect.deleteProperty(window, "webkitSpeechRecognition");
     }
   });
+
+  it("keeps the microphone ON when tapped even if Web Speech API immediately fails with 'network' or 'not-allowed'", async () => {
+    mockCheck();
+    const stopTrack = vi.fn();
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: stopTrack }],
+        }),
+      },
+    });
+
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      configurable: true,
+      value: class {
+        lang = "en-US";
+        continuous = false;
+        interimResults = false;
+        maxAlternatives = 1;
+        onresult: ((e: unknown) => void) | null = null;
+        onerror: ((e?: { error?: string }) => void) | null = null;
+        onend: (() => void) | null = null;
+        abort = vi.fn();
+        start = vi.fn(() => {
+          // Simulate Chrome/Edge immediately failing Web Speech API on start()
+          this.onerror?.({ error: "not-allowed" });
+          this.onend?.();
+        });
+      },
+    });
+
+    try {
+      render(<EnglishTalkStage scene={scene} />);
+      await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
+
+      // Turn auto-mic OFF first so we can explicitly test tapping "こえで こたえる（タップでマイクON）"
+      await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
+      const micButton = await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ });
+      await userEvent.click(micButton);
+
+      // Even though Web Speech API fired onerror('not-allowed') + onend() synchronously, the mic MUST stay ON via getUserMedia VAD!
+      expect(screen.getByRole("button", { name: /マイクON・そのまま声で話してね！/ })).toBeInTheDocument();
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(window, "webkitSpeechRecognition");
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    }
+  });
 });
