@@ -209,4 +209,101 @@ describe("KanohaCharacter multi-layer dress-up overlay", () => {
     });
     expect(baseSprite).toContain("-base.png");
   });
+
+  it("renders all 10 diverse hairstyles on Fuwari (char_fuwari) and syncs with hair color", () => {
+    const hairstyles = [
+      { id: "hair_bun", expectedSprite: "fuwari-style-bun.png", layer: "front" },
+      { id: "hair_bob", expectedSprite: "fuwari-style-bob.png", layer: "back" },
+      { id: "hair_twintail", expectedSprite: "fuwari-style-twintail.png", layer: "back" },
+      { id: "hair_pony", expectedSprite: "fuwari-style-pony.png", layer: "back" },
+      { id: "hair_side_tail", expectedSprite: "fuwari-style-side-tail.png", layer: "back" },
+      { id: "hair_long_wave", expectedSprite: "fuwari-style-long-wave.png", layer: "back" },
+      { id: "hair_twin_bun", expectedSprite: "fuwari-style-twin-bun.png", layer: "back" },
+      { id: "hair_braid", expectedSprite: "fuwari-style-braid.png", layer: "back" },
+      { id: "hair_halfup", expectedSprite: "fuwari-style-halfup.png", layer: "back" },
+    ] as const;
+
+    for (const style of hairstyles) {
+      const { container } = render(
+        <KanohaCharacter
+          mood="happy"
+          accessories={{
+            character: "char_fuwari",
+            clothes: "clothes_tshirt",
+            hairstyle: style.id,
+            hair_color: "hair_color_pink",
+            hat: "hat_none",
+            glasses: "glasses_none",
+            gloves: "gloves_none",
+          }}
+        />
+      );
+
+      const overlaySvg = container.querySelector(
+        `svg[data-hairstyle="${style.id}"][data-layer="${style.layer}"]`
+      ) as HTMLElement | null;
+      expect(overlaySvg).toBeTruthy();
+
+      const imageEl = overlaySvg?.querySelector("image");
+      expect(imageEl?.getAttribute("href")).toContain(style.expectedSprite);
+      // 髪色フィルター (hair_color_pink) が髪型エクステンションにも連動適用されること
+      expect(overlaySvg?.style.filter).toContain("hue-rotate(295deg)");
+    }
+
+    // 標準の「ふわふわエアリー (hair_fluffy)」の時は追加の髪型オーバーレイを描画しない
+    const { container: fluffyContainer } = render(
+      <KanohaCharacter
+        mood="happy"
+        accessories={{
+          character: "char_fuwari",
+          clothes: "clothes_tshirt",
+          hairstyle: "hair_fluffy",
+          hat: "hat_none",
+          glasses: "glasses_none",
+          gloves: "gloves_none",
+        }}
+      />
+    );
+    expect(fluffyContainer.querySelector("svg[data-hairstyle]")).toBeNull();
+  });
+
+  it("renders hats, shoes, shoe colors, gloves, glasses, hair colors, and accessories on Fuwari and all new characters", () => {
+    const { container } = render(
+      <KanohaCharacter
+        mood="happy"
+        accessories={{
+          character: "char_fuwari",
+          clothes: "clothes_school",
+          hairstyle: "hair_twintail",
+          hair_color: "hair_color_brown",
+          shoes: "shoes_magical",
+          shoes_color: "shoes_color_pink",
+          hat: "hat_crown",
+          glasses: "glasses_star",
+          gloves: "gloves_mitten",
+          accessory: "acc_wand",
+        }}
+      />
+    );
+
+    const imgs = Array.from(container.querySelectorAll("img"));
+    const srcs = imgs.map((img) => img.getAttribute("src") ?? "");
+
+    // 1. ベース衣装: 制服 (fuwari-school.png)
+    expect(srcs.some((s) => s.includes("fuwari-school.png"))).toBe(true);
+    // 2. 帽子: おうかん (fuwari-hero.png の頭部スワップ + fuwari-hero-hair.png)
+    expect(srcs.some((s) => s.includes("fuwari-hero.png"))).toBe(true);
+    expect(srcs.some((s) => s.includes("fuwari-hero-hair.png"))).toBe(true);
+    // 3. 靴: まほうのくつ (fuwari-wizard.png の足元スワップ) + いちごピンク色フィルター
+    expect(srcs.some((s) => s.includes("fuwari-wizard.png"))).toBe(true);
+    // 4. 手袋: ふわふわミトン (fuwari-hoodie.png の手元スワップ)
+    expect(srcs.some((s) => s.includes("fuwari-hoodie.png"))).toBe(true);
+    // 5. めがね: スターサングラス SVG
+    expect(container.querySelector('svg[data-glasses="glasses_star"]')).toBeTruthy();
+    // 6. 髪色: 銀髪キャラのふわりでも「茶髪 (hair_color_brown)」を選ぶとブラウンフィルターが適用される
+    const hairOverlay = container.querySelector('svg[data-hairstyle="hair_twintail"]') as HTMLElement | null;
+    expect(hairOverlay?.style.filter).toContain("hue-rotate(342deg)");
+  });
 });
+
+

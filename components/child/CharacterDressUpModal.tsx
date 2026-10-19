@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, Check, Lock, Shirt, RotateCcw } from "lucide-react";
+import { Sparkles, X, Check, Shirt, RotateCcw } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import Image from "next/image";
 import { KanohaCharacter, CHARACTER_DISPLAY_NAMES } from "./KanohaCharacter";
 import {
   ACCESSORY_CATALOG,
+  CHARACTER_DEFAULT_HAIRSTYLES,
+  CHARACTER_DEFAULT_HAIR_COLORS,
   DEFAULT_EQUIPPED,
   getCharacterProgress,
   getEquippedAccessories,
   equipAccessory,
-  isAccessoryUnlocked,
   type AccessoryCategory,
   type AccessoryItem,
   type CharacterId,
@@ -54,32 +55,55 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
 
   if (!isOpen) return null;
 
-  const totalCorrect = progress?.totalCorrect ?? 0;
   const currentCharId = ((equipped.character ?? "char_kanoha") in CHARACTER_DISPLAY_NAMES
     ? (equipped.character ?? "char_kanoha")
     : "char_kanoha") as CharacterId;
   const currentCharName = CHARACTER_DISPLAY_NAMES[currentCharId];
+  const currentDefaultHairstyle = CHARACTER_DEFAULT_HAIRSTYLES[currentCharId] ?? "hair_bun";
+  const currentDefaultHairColor = CHARACTER_DEFAULT_HAIR_COLORS[currentCharId] ?? "hair_color_brown";
 
   const filteredItems = ACCESSORY_CATALOG.filter((item) => item.category === activeTab);
 
+  const resolveCategoryDefault = (category: AccessoryCategory): string => {
+    if (category === "hairstyle") return currentDefaultHairstyle;
+    if (category === "hair_color") return currentDefaultHairColor;
+    return DEFAULT_EQUIPPED[category] ?? "";
+  };
+
   const handleSelect = (item: AccessoryItem) => {
-    if (!isAccessoryUnlocked(item, totalCorrect)) return;
     soundManager.playCorrect();
 
-    const defaultId = DEFAULT_EQUIPPED[item.category] ?? "";
+    const defaultId = resolveCategoryDefault(item.category);
     const isCurrent = (equipped[item.category] ?? defaultId) === item.id;
     // 選択中のアイテムを再タップした時は「はずす / デフォルト」に戻す
     const targetId = isCurrent ? defaultId : item.id;
 
-    const updated = equipAccessory(item.category, targetId);
-    setEquipped(updated);
+    let updated = equipAccessory(item.category, targetId);
     void saveEquipToServer(item.category, targetId);
+
+    // キャラクターを切り替えた時は、そのキャラクターの標準ヘアスタイル・髪色を初期セットする
+    if (item.category === "character") {
+      const nextCharId = (targetId in CHARACTER_DISPLAY_NAMES ? targetId : "char_kanoha") as CharacterId;
+      const nextHairstyle = CHARACTER_DEFAULT_HAIRSTYLES[nextCharId] ?? "hair_bun";
+      const nextHairColor = CHARACTER_DEFAULT_HAIR_COLORS[nextCharId] ?? "hair_color_brown";
+      updated = equipAccessory("hairstyle", nextHairstyle);
+      void saveEquipToServer("hairstyle", nextHairstyle);
+      updated = equipAccessory("hair_color", nextHairColor);
+      void saveEquipToServer("hair_color", nextHairColor);
+    }
+
+    setEquipped(updated);
   };
 
   const handleResetToDefault = () => {
     soundManager.playTap();
-    const currentChar = equipped.character ?? "char_kanoha";
-    const resetEquipped: EquippedAccessories = { ...DEFAULT_EQUIPPED, character: currentChar };
+    const currentChar = currentCharId;
+    const resetEquipped: EquippedAccessories = {
+      ...DEFAULT_EQUIPPED,
+      character: currentChar,
+      hairstyle: CHARACTER_DEFAULT_HAIRSTYLES[currentChar] ?? "hair_bun",
+      hair_color: CHARACTER_DEFAULT_HAIR_COLORS[currentChar] ?? "hair_color_brown",
+    };
     for (const cat of Object.keys(DEFAULT_EQUIPPED) as AccessoryCategory[]) {
       const val = resetEquipped[cat];
       if (typeof val === "string") {
@@ -115,7 +139,7 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
             </div>
             <h2 className={styles.dressUpTitle}>{currentCharName}を コーディネート！</h2>
             <p className={styles.dressUpSub}>
-              すきな キャラクターと おようふくを えらんでね！ もんだいを とくと あたらしい アイテムが ふえるよ！
+              すきな キャラクターと おようふく・かみがたを じゆうに えらんでね！
             </p>
           </div>
 
@@ -183,18 +207,17 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
               {/* Items List */}
               <div className={styles.dressUpItemsGrid}>
                 {filteredItems.map((item) => {
-                  const unlocked = isAccessoryUnlocked(item, totalCorrect);
-                  const isCurrent = (equipped[item.category] ?? DEFAULT_EQUIPPED[item.category]) === item.id;
+                  const categoryDefault = resolveCategoryDefault(item.category);
+                  const isCurrent = (equipped[item.category] ?? categoryDefault) === item.id;
 
                   return (
                     <motion.button
                       key={item.id}
                       type="button"
-                      whileHover={unlocked ? { scale: 1.03 } : {}}
-                      whileTap={unlocked ? { scale: 0.96 } : {}}
-                      className={`${styles.dressUpItemCard} ${isCurrent ? styles.dressUpItemCardActive : ""} ${!unlocked ? styles.dressUpItemLocked : ""}`}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.96 }}
+                      className={`${styles.dressUpItemCard} ${isCurrent ? styles.dressUpItemCardActive : ""}`}
                       onClick={() => handleSelect(item)}
-                      disabled={!unlocked}
                     >
                       <div className={styles.dressUpItemIconWrap}>
                         {item.previewImage ? (
@@ -220,22 +243,11 @@ export function CharacterDressUpModal({ isOpen, onClose }: CharacterDressUpModal
                             <Check size={14} />
                           </span>
                         )}
-                        {!unlocked && (
-                          <div className={styles.dressUpLockOverlay}>
-                            <Lock size={16} />
-                          </div>
-                        )}
                       </div>
 
                       <div className={styles.dressUpItemMeta}>
                         <strong className={styles.dressUpItemName}>{item.name}</strong>
-                        {unlocked ? (
-                          <span className={styles.dressUpItemDesc}>{item.description}</span>
-                        ) : (
-                          <span className={styles.dressUpItemUnlockNotice}>
-                            🔒 Lv.{item.unlockLevel} で かいほう！
-                          </span>
-                        )}
+                        <span className={styles.dressUpItemDesc}>{item.description}</span>
                       </div>
                     </motion.button>
                   );

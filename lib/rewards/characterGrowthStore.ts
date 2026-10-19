@@ -13,6 +13,8 @@ import { CATEGORIES, normalizeEquipped } from "./rewardLogic";
 
 export {
   ACCESSORY_CATALOG,
+  CHARACTER_DEFAULT_HAIRSTYLES,
+  CHARACTER_DEFAULT_HAIR_COLORS,
   DEFAULT_EQUIPPED,
   GROWTH_LEVELS,
   getCharacterLevel,

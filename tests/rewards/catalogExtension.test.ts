@@ -35,7 +35,8 @@ describe("Accessory Catalog and Dress-Up Extensions", () => {
     const shoesColors = ACCESSORY_CATALOG.filter((i) => i.category === "shoes_color");
     const accessories = ACCESSORY_CATALOG.filter((i) => i.category === "accessory");
 
-    expect(hairstyles.length).toBeGreaterThanOrEqual(5);
+    expect(hairstyles.length).toBe(10);
+    expect(hairstyles.every((h) => h.unlockLevel === 1)).toBe(true);
     expect(hairColors.length).toBeGreaterThanOrEqual(5);
     expect(shoes.length).toBeGreaterThanOrEqual(5);
     expect(shoesColors.length).toBeGreaterThanOrEqual(5);
