@@ -220,6 +220,12 @@ export function VoiceAnswer({
         activeRef.current = null;
         setIsListening(false);
 
+        if (!base64Audio || base64Audio.length < 50) {
+          setLabel("もういちど はなしてね");
+          setTimeout(() => setLabel("こえで こたえる"), 1500);
+          return;
+        }
+
         const res = await fetch("/api/ai/stt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

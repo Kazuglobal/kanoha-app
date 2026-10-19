@@ -150,8 +150,10 @@ function buildEnglishInstruction(mood: GeminiTtsOptions["mood"]): string {
       : "Sound warm, cheerful and friendly.";
   return [
     "You are Kanoha, a cheerful English conversation partner for a 7-year-old Japanese child.",
-    "Read the line below slowly and clearly in natural American English, with short pauses between words.",
-    "Speak loudly enough for a small tablet speaker. Read only the line, with no extra words.",
+    "Read the provided text slowly and clearly in natural American English, with short pauses between words.",
+    "Speak loudly enough for a small tablet speaker.",
+    "CRITICAL: Do NOT read aloud any instructions, prompts, prefixes or explanations.",
+    "Speak ONLY the exact text provided by the user, with no extra words.",
     tone,
   ].join(" ");
 }
@@ -180,10 +182,15 @@ export async function generateGeminiSpeech({
       ? "優しく安心させるように、ゆっくり丁寧に語りかけてあげてください。子どもの耳にはっきりと届く声量で発声してください。"
       : "明るく親しみやすく、笑顔でいっしょに頑張ろうと励ましてください。元気いっぱいに、はっきりと聞き取りやすい声量で発声してください。";
 
-  const systemInstruction = lang === "en" ? buildEnglishInstruction(mood) : `あなたは小学生の自立学習を応援する愛されマスコット「かのは」です。
+  const systemInstruction =
+    lang === "en"
+      ? buildEnglishInstruction(mood)
+      : `あなたは小学生の自立学習を応援する愛されマスコット「かのは」です。
 子どもが安心できるよう、温かく可愛らしい小学2年生の女の子の声で、以下のセリフだけを元気にハキハキと読み上げてください。
 タブレットやスマホのスピーカーでも子どもの耳にはっきりと届くよう、大きめのしっかりした声量で発声してください。
-余計な前置きや説明は一切含めず、セリフのみを発声してください。
+【最重要ルール】
+・指示文、システムプロンプト、前置き、相槌、説明、挨拶（「はい」「かしこまりました」等）は一切声に出さないでください。
+・ユーザーから渡されたセリフそのものだけを一言一句違わず発声してください。
 【演出指示】: ${moodPrompt}`;
 
   const candidateModels = Array.from(
@@ -216,15 +223,19 @@ export async function generateGeminiSpeech({
           },
           signal: controller.signal,
           body: JSON.stringify({
+            systemInstruction: {
+              parts: [
+                {
+                  text: systemInstruction,
+                },
+              ],
+            },
             contents: [
               {
                 role: "user",
                 parts: [
                   {
-                    text:
-                      lang === "en"
-                        ? `${systemInstruction}\n\nLine to read: "${text}"`
-                        : `${systemInstruction}\n\n読み上げるセリフ：「${text}」`,
+                    text,
                   },
                 ],
               },
