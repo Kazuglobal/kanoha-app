@@ -17,9 +17,19 @@ export async function POST(request: Request) {
     const turnId = typeof body.turnId === "string" ? body.turnId : "";
 
     const turn = sceneId && turnId ? getTalkTurn(sceneId, turnId) : undefined;
+    if (!audioBase64 || audioBase64.length < 50) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Audio data is required",
+        },
+        { status: 400 },
+      );
+    }
+
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
-    if (apiKey && audioBase64) {
+    if (apiKey) {
       const candidateModels = Array.from(
         new Set(
           [
@@ -74,22 +84,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // ローカル開発環境等で GEMINI_API_KEY 未設定かつ Web Speech API が使えない場合でも、
-    // マイクに向かって声を出したときにリアルタイム対話が止まらないようにするフォールバック
-    if (lang === "ja-JP") {
-      return NextResponse.json({
-        success: true,
-        transcript: "わからない",
-        fallback: true,
-      });
-    }
+    // テスト環境で Gemini API モック用のフォールバック
+    if (process.env.NODE_ENV === "test") {
+      if (lang === "ja-JP") {
+        return NextResponse.json({
+          success: true,
+          transcript: "わからない",
+          fallback: true,
+        });
+      }
 
-    if (turn) {
-      return NextResponse.json({
-        success: true,
-        transcript: turn.modelAnswer,
-        fallback: true,
-      });
+      if (turn) {
+        return NextResponse.json({
+          success: true,
+          transcript: turn.modelAnswer,
+          fallback: true,
+        });
+      }
     }
 
     return NextResponse.json({

@@ -527,6 +527,18 @@ export function RealtimeTalkMic({
                 return;
               }
 
+              if (!base64Audio || base64Audio.length < 50) {
+                setLiveTranscript("");
+                if (shouldKeepListening()) {
+                  restartTimerRef.current = window.setTimeout(() => {
+                    if (sessionTokenRef.current === myToken) startRecognition(targetLang);
+                  }, 150);
+                } else {
+                  setListeningBoth(false);
+                }
+                return;
+              }
+
               const res = await fetch("/api/ai/stt", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

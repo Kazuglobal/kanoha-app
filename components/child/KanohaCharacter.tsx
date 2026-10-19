@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import styles from "./KanohaCharacter.module.css";
 import {
+  CHARACTER_DEFAULT_HAIRSTYLES,
   DEFAULT_EQUIPPED,
   getEquippedAccessories,
   type CharacterId,
@@ -18,7 +19,11 @@ import {
   BearPochette,
   AngelWings,
   HairstyleExtension,
+  NewCharacterHairstyleOverlay,
+  NewCharacterGlassesOverlay,
+  NewCharacterGlovesOverlay,
   HAIR_COLOR_FILTERS,
+  resolveCharacterHairFilter,
 } from "./CharacterAccessories";
 
 type Mood = "happy" | "think" | "celebrate";
@@ -227,52 +232,78 @@ export const CHARACTER_DISPLAY_NAMES: Record<CharacterId, string> = {
 interface CharacterAnchorMeta {
   ribbonTop: string;
   ribbonLeft: string;
+  headRegionClip: string;
+  bodyWithoutHeadClip: string;
   shoesClip: string;
+  glovesClip?: string;
   hasBakedWingsInHero: boolean;
   pinTransform: string;
   earringTransform: string;
   wandTransform: string;
   bagTransform: string;
   wingsTransform: string;
+  baseHairToneFilter?: string;
+  hairstyleTransform?: string;
 }
 
 const CHARACTER_ANCHORS: Record<Exclude<CharacterId, "char_kanoha">, CharacterAnchorMeta> = {
   char_fuwari: {
     ribbonTop: "6%",
     ribbonLeft: "49%",
+    headRegionClip: "polygon(0% 0%, 74% 0%, 74% 25%, 67% 29.8%, 34% 29.8%, 34% 25.5%, 0% 25.5%)",
+    bodyWithoutHeadClip:
+      "polygon(0% 25.5%, 34% 25.5%, 34% 29.8%, 67% 29.8%, 74% 25%, 74% 0%, 100% 0%, 100% 100%, 0% 100%)",
     shoesClip: "polygon(26% 74%, 42% 74%, 42% 88%, 58% 85%, 58% 99.5%, 26% 99.5%)",
+    glovesClip:
+      "polygon(16% 0%, 16% 25.5%, 34.5% 25.5%, 34.5% 38.5%, 16% 38.5%, 16% 0%, 66% 0%, 66% 49%, 86% 49%, 86% 62%, 66% 62%, 66% 0%)",
     hasBakedWingsInHero: true,
     pinTransform: "translate(0%, -5%)",
     earringTransform: "translate(-1%, -7%) scale(0.88)",
     wandTransform: "translate(-2%, -10%) scale(0.9)",
     bagTransform: "translate(-2%, -10%) scale(0.9)",
     wingsTransform: "translate(0%, -8%) scale(0.95)",
+    baseHairToneFilter: "none",
   },
   char_hinata: {
     ribbonTop: "5%",
     ribbonLeft: "50%",
+    headRegionClip: "polygon(0% 0%, 100% 0%, 100% 32.2%, 72% 32.2%, 25% 32.2%, 25% 18%, 0% 18%)",
+    bodyWithoutHeadClip:
+      "polygon(0% 18%, 25% 18%, 25% 32.2%, 72% 32.2%, 100% 32.2%, 100% 100%, 0% 100%)",
     shoesClip: "polygon(36% 81%, 69% 81%, 69% 99.5%, 36% 99.5%)",
+    glovesClip:
+      "polygon(27% 0%, 27% 34%, 42% 34%, 42% 46%, 27% 46%, 27% 0%, 65% 0%, 65% 48%, 82% 48%, 82% 61%, 65% 61%, 65% 0%)",
     hasBakedWingsInHero: true,
     pinTransform: "translate(0%, -4%)",
     earringTransform: "translate(-2%, -5%) scale(0.88)",
     wandTransform: "translate(-2%, -6%) scale(0.9)",
     bagTransform: "translate(2%, -8%) scale(0.9)",
     wingsTransform: "translate(0%, -6%) scale(0.95)",
+    baseHairToneFilter: "sepia(0.85) hue-rotate(352deg) saturate(2.1) brightness(0.95)",
+    hairstyleTransform: "translate(1%, 0%) scale(0.98)",
   },
   char_ren: {
     ribbonTop: "4%",
     ribbonLeft: "46%",
-    shoesClip: "polygon(28% 87%, 70% 87%, 70% 99.8%, 28% 99.8%)",
+    headRegionClip: "polygon(0% 0%, 100% 0%, 100% 17%, 76% 17%, 70% 24%, 24% 24%, 24% 17%, 0% 17%)",
+    bodyWithoutHeadClip:
+      "polygon(0% 17%, 24% 17%, 24% 24%, 70% 24%, 76% 17%, 100% 17%, 100% 100%, 0% 100%)",
+    shoesClip: "polygon(23% 87%, 77% 87%, 77% 99.8%, 23% 99.8%)",
     hasBakedWingsInHero: true,
     pinTransform: "translate(-6%, -9%) scale(0.85)",
     earringTransform: "translate(-3%, -16%) scale(0.75)",
     wandTransform: "translate(2%, -8%) scale(0.88)",
     bagTransform: "translate(2%, -10%) scale(0.88)",
     wingsTransform: "translate(-1%, -12%) scale(0.95)",
+    baseHairToneFilter: "none",
+    hairstyleTransform: "translate(-3%, -2%) scale(0.94)",
   },
   char_riku: {
     ribbonTop: "5%",
     ribbonLeft: "55%",
+    headRegionClip: "polygon(24% 0%, 100% 0%, 100% 25%, 74% 29.2%, 34% 29.2%, 24% 21%)",
+    bodyWithoutHeadClip:
+      "polygon(0% 0%, 24% 0%, 24% 21%, 34% 29.2%, 74% 29.2%, 100% 25%, 100% 100%, 0% 100%)",
     shoesClip: "polygon(24% 68%, 39% 68%, 39% 84%, 67% 82%, 67% 99.5%, 24% 99.5%)",
     hasBakedWingsInHero: true,
     pinTransform: "translate(1%, -8%) scale(0.85)",
@@ -280,10 +311,15 @@ const CHARACTER_ANCHORS: Record<Exclude<CharacterId, "char_kanoha">, CharacterAn
     wandTransform: "translate(-2%, -10%) scale(0.88)",
     bagTransform: "translate(-1%, -12%) scale(0.88)",
     wingsTransform: "translate(2%, -10%) scale(0.95)",
+    baseHairToneFilter: "saturate(0.3) brightness(0.45) contrast(1.25)",
+    hairstyleTransform: "translate(4%, -1%) scale(0.95)",
   },
   char_mia: {
     ribbonTop: "4%",
     ribbonLeft: "48%",
+    headRegionClip: "polygon(0% 0%, 100% 0%, 100% 20%, 72% 25.5%, 28% 25.5%, 24% 20%, 0% 20%)",
+    bodyWithoutHeadClip:
+      "polygon(0% 20%, 24% 20%, 28% 25.5%, 72% 25.5%, 100% 20%, 100% 100%, 0% 100%)",
     shoesClip: "polygon(38% 85%, 62% 85%, 62% 99.5%, 38% 99.5%)",
     hasBakedWingsInHero: true,
     pinTransform: "translate(-3%, -8%) scale(0.85)",
@@ -291,7 +327,35 @@ const CHARACTER_ANCHORS: Record<Exclude<CharacterId, "char_kanoha">, CharacterAn
     wandTransform: "translate(4%, -10%) scale(0.88)",
     bagTransform: "translate(2%, -11%) scale(0.88)",
     wingsTransform: "translate(-1%, -11%) scale(0.95)",
+    baseHairToneFilter: "sepia(0.75) hue-rotate(345deg) saturate(1.8) brightness(0.88)",
+    hairstyleTransform: "translate(-1%, -2%) scale(0.94)",
   },
+};
+
+const NEW_CHAR_HAT_TO_VARIANT: Record<string, OutfitVariant> = {
+  hat_none: "base",
+  hat_ribbon: "base",
+  hat_safari: "safari",
+  hat_beret: "hoodie",
+  hat_wizard: "wizard",
+  hat_crown: "hero",
+};
+
+const NEW_CHAR_SHOES_TO_VARIANT: Record<string, OutfitVariant> = {
+  shoes_sneaker: "base",
+  shoes_pumps: "school",
+  shoes_boots: "safari",
+  shoes_magical: "wizard",
+  shoes_hero: "hero",
+};
+
+const NATIVE_VARIANT_SHOES: Record<OutfitVariant, OutfitVariant> = {
+  base: "base",
+  hoodie: "base",
+  school: "school",
+  safari: "safari",
+  wizard: "wizard",
+  hero: "hero",
 };
 
 function resolveNewCharacterVariant(
@@ -383,20 +447,62 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
   const displayName = CHARACTER_DISPLAY_NAMES[charId];
   const moodLabel = mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり";
 
-  // 新規5キャラクター選択時は、各キャラクター専用の3D生成フルボディスプライト・ピクセル精密髪色レイヤー・調整済みアクセサリを描画
+  // 新規5キャラクター選択時は、各キャラクター専用の3D生成フルボディスプライト・髪型・帽子・メガネ・手袋・靴・髪色・アクセサリを独立合成
   if (charId !== "char_kanoha") {
     const variant = resolveNewCharacterVariant(activeAccessories, previewCategory);
     const charSrc = NEW_CHARACTER_SPRITES[charId][variant];
     const hairSrc = charSrc.replace(/\.png$/, "-hair.png");
     const anchor = CHARACTER_ANCHORS[charId];
-    const hairColor = activeAccessories.hair_color ?? "hair_color_brown";
-    const hairFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
-    const shoesColor = activeAccessories.shoes_color ?? "shoes_color_pink";
-    const shoesFilter = SHOES_COLOR_FILTERS[shoesColor] ?? "none";
+
+    // 1. 髪型 & 髪色
+    const defaultHairstyle = CHARACTER_DEFAULT_HAIRSTYLES[charId] ?? "hair_fluffy";
+    const hairStyle = activeAccessories.hairstyle ?? defaultHairstyle;
+    const hairColor = activeAccessories.hair_color;
+    const hairFilter = resolveCharacterHairFilter(charId, hairColor);
+
+    // 2. 帽子 (hat_none の時は衣装内蔵の帽子を消し、選択された帽子があればその頭部スプライトを合成)
     const hatType = activeAccessories.hat ?? "hat_none";
+    const hatVariant = NEW_CHAR_HAT_TO_VARIANT[hatType] ?? "base";
+    const needsHeadSwap = hatVariant !== variant;
+    const hatVariantSrc = NEW_CHARACTER_SPRITES[charId][hatVariant];
+    const hatVariantHairSrc = hatVariantSrc.replace(/\.png$/, "-hair.png");
+    const hatCoversBun =
+      hatType === "hat_beret" || hatType === "hat_safari" || hatType === "hat_wizard";
+
+    // 3. 靴 & 靴色
+    const shoesType = activeAccessories.shoes ?? "shoes_sneaker";
+    const shoesVariant = activeAccessories.shoes
+      ? (NEW_CHAR_SHOES_TO_VARIANT[shoesType] ?? "base")
+      : NATIVE_VARIANT_SHOES[variant];
+    const needsShoesSwap = Boolean(activeAccessories.shoes) && shoesVariant !== NATIVE_VARIANT_SHOES[variant];
+    const shoesVariantSrc = NEW_CHARACTER_SPRITES[charId][shoesVariant];
+
+    const shoesColor = activeAccessories.shoes_color;
+    let shoesFilter = shoesColor ? (SHOES_COLOR_FILTERS[shoesColor] ?? "none") : "none";
+    // 新キャラの靴でストロベリーピンクが明示選択された場合はピンク着色フィルターを適用
+    if (shoesColor === "shoes_color_pink") {
+      shoesFilter = "sepia(0.65) hue-rotate(295deg) saturate(2.6) brightness(1.1)";
+    }
+
+    // 4. 手袋 & メガネ & アクセサリー
+    const glovesType = activeAccessories.gloves ?? "gloves_none";
+    const glassesType = activeAccessories.glasses ?? "glasses_none";
     const accessoryType = activeAccessories.accessory ?? "acc_none";
     const showWings =
       accessoryType === "acc_wings" && !(variant === "hero" && anchor.hasBakedWingsInHero);
+
+    // ふわり・ひなたは hoodie(ミトン) / hero(金のグローブ) / base(素手) の3D手領域スプライトを持つ
+    const hasNativeGloveSprites = Boolean(anchor.glovesClip);
+    let glovesVariant: OutfitVariant | null = null;
+    if (hasNativeGloveSprites) {
+      if (glovesType === "gloves_mitten" && variant !== "hoodie") {
+        glovesVariant = "hoodie";
+      } else if (glovesType === "gloves_gold" && variant !== "hero") {
+        glovesVariant = "hero";
+      } else if (glovesType === "gloves_none" && (variant === "hoodie" || variant === "hero")) {
+        glovesVariant = "base";
+      }
+    }
 
     return (
       <div
@@ -417,6 +523,17 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
             <AngelWings style={{ transform: anchor.wingsTransform, transformOrigin: "50% 40%" }} />
           )}
 
+          {/* 背面髪型レイヤー（ボブ・ツインテール・ポニーテール・サイドテール・ロングウェーブ・くまみみツインおだんご・三つ編み・ハーフアップ） */}
+          <NewCharacterHairstyleOverlay
+            hairstyle={hairStyle}
+            hairColor={hairColor}
+            layer="back"
+            baseToneFilter={anchor.baseHairToneFilter}
+            transform={anchor.hairstyleTransform}
+            hideTopBun={hatCoversBun}
+          />
+
+          {/* ベース全身衣装（帽子差し替え時は頭部領域をクリップ除外して衣装内蔵帽子の残骸を防止） */}
           <Image
             key={`char-${charId}-${charSrc}`}
             className={styles.sprite}
@@ -426,6 +543,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
             alt=""
             draggable={false}
             unoptimized
+            style={needsHeadSwap ? { clipPath: anchor.bodyWithoutHeadClip } : undefined}
           />
 
           {hairFilter !== "none" && (
@@ -439,12 +557,79 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
               draggable={false}
               unoptimized
               style={{
+                clipPath: needsHeadSwap ? anchor.bodyWithoutHeadClip : undefined,
                 filter: hairFilter,
                 pointerEvents: "none",
               }}
             />
           )}
 
+          {/* 帽子・頭部差し替えレイヤー（たんけんぼう・あかいベレーぼう・まほうのぼうし・きんのクラウン・なし） */}
+          {needsHeadSwap && (
+            <>
+              <Image
+                key={`hat-head-${charId}-${hatVariant}`}
+                className={styles.shoesOverlay}
+                src={hatVariantSrc}
+                width={768}
+                height={1024}
+                alt=""
+                draggable={false}
+                unoptimized
+                style={{
+                  clipPath: anchor.headRegionClip,
+                  pointerEvents: "none",
+                }}
+              />
+              {hairFilter !== "none" && (
+                <Image
+                  key={`hat-hair-${charId}-${hatVariant}-${hairColor}`}
+                  className={styles.shoesOverlay}
+                  src={hatVariantHairSrc}
+                  width={768}
+                  height={1024}
+                  alt=""
+                  draggable={false}
+                  unoptimized
+                  style={{
+                    clipPath: anchor.headRegionClip,
+                    filter: hairFilter,
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+            </>
+          )}
+
+          {/* 前面髪型レイヤー（おだんごアップ・ハーフアップリボン・サイドテールリボン） */}
+          <NewCharacterHairstyleOverlay
+            hairstyle={hairStyle}
+            hairColor={hairColor}
+            layer="front"
+            baseToneFilter={anchor.baseHairToneFilter}
+            transform={anchor.hairstyleTransform}
+            hideTopBun={hatCoversBun}
+          />
+
+          {/* 靴差し替えレイヤー（くまちゃんスニーカー・たんけんブーツ・リボンパンプス・まほうのシューズ・ゆうしゃのブーツ） */}
+          {needsShoesSwap && (
+            <Image
+              key={`shoes-swap-${charId}-${shoesVariant}`}
+              className={styles.shoesOverlay}
+              src={shoesVariantSrc}
+              width={768}
+              height={1024}
+              alt=""
+              draggable={false}
+              unoptimized
+              style={{
+                clipPath: anchor.shoesClip,
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
+          {/* 靴カラー変更レイヤー */}
           {shoesFilter !== "none" && (
             <svg
               viewBox="0 0 768 1024"
@@ -453,7 +638,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
               aria-hidden="true"
             >
               <image
-                href={charSrc}
+                href={shoesVariantSrc}
                 width="768"
                 height="1024"
                 style={{
@@ -463,6 +648,30 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
               />
             </svg>
           )}
+
+          {/* 手袋差し替えレイヤー（しろいミトン・きんのグローブ・なし） */}
+          {glovesVariant && anchor.glovesClip && (
+            <Image
+              key={`gloves-swap-${charId}-${glovesVariant}`}
+              className={styles.glovesOverlay}
+              src={NEW_CHARACTER_SPRITES[charId][glovesVariant]}
+              width={768}
+              height={1024}
+              alt=""
+              draggable={false}
+              unoptimized
+              style={{
+                clipPath: anchor.glovesClip,
+                pointerEvents: "none",
+              }}
+            />
+          )}
+          {!hasNativeGloveSprites && glovesType !== "gloves_none" && (
+            <NewCharacterGlovesOverlay charId={charId} gloves={glovesType} />
+          )}
+
+          {/* メガネレイヤー（まるめがね・ほしのサングラス） */}
+          <NewCharacterGlassesOverlay charId={charId} glasses={glassesType} />
 
           {hatType === "hat_ribbon" && (
             <div
@@ -545,12 +754,19 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
   const shoesType = activeAccessories.shoes ?? "shoes_sneaker";
   const shoesColor = activeAccessories.shoes_color ?? "shoes_color_pink";
   const shoesBaseSrc = SHOES_SPRITES[shoesType] ?? SPRITES.happy;
-  const shoesFilter = SHOES_COLOR_FILTERS[shoesColor] ?? "none";
+  let shoesFilter = SHOES_COLOR_FILTERS[shoesColor] ?? "none";
+  // スニーカー以外の靴（茶ブーツ・赤パンプス・紫魔法靴・金勇者靴）でピンク色が明示選択された場合はピンク着色フィルターを適用
+  if (
+    activeAccessories.shoes_color === "shoes_color_pink" &&
+    shoesType !== "shoes_sneaker"
+  ) {
+    shoesFilter = "sepia(0.65) hue-rotate(295deg) saturate(2.6) brightness(1.1)";
+  }
 
   const hasExplicitShoes = Boolean(activeAccessories.shoes || activeAccessories.shoes_color);
   const isNativeShoeUncolored =
     shoesType === (NATIVE_OUTFIT_SHOES[currentClothes] ?? "shoes_sneaker") &&
-    shoesColor === "shoes_color_pink";
+    shoesFilter === "none";
   const showShoesOverlay = hasExplicitShoes && !isNativeShoeUncolored;
 
   // 7. アクセサリー (Accessory)

@@ -243,12 +243,20 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
 
   // かみがた (Hairstyle)
   {
+    id: "hair_fluffy",
+    name: "ふわふわエアリー",
+    category: "hairstyle",
+    icon: "🌸",
+    unlockLevel: 1,
+    description: "ふわりちゃんの やわらか エアリーショート",
+  },
+  {
     id: "hair_bun",
     name: "おだんごアップ",
     category: "hairstyle",
     icon: "👧",
     unlockLevel: 1,
-    description: "いつもの ふんわり おだんごヘア",
+    description: "げんきな ふんわり おだんごヘア",
   },
   {
     id: "hair_bob",
@@ -256,31 +264,63 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
     category: "hairstyle",
     icon: "💇‍♀️",
     unlockLevel: 1,
-    description: "すずしげな ボブカット",
+    description: "すずしげで まとまりのある ボブカット",
   },
   {
     id: "hair_twintail",
     name: "ふわふわツインテール",
     category: "hairstyle",
     icon: "🎀",
-    unlockLevel: 2,
-    description: "ぴょんぴょん ゆれる ツインテール",
+    unlockLevel: 1,
+    description: "ぴょんぴょん ゆれる かわいい ツインテール",
   },
   {
     id: "hair_pony",
     name: "すっきりポニーテール",
     category: "hairstyle",
     icon: "🐎",
-    unlockLevel: 3,
-    description: "げんきいっぱいな ポニーテール",
+    unlockLevel: 1,
+    description: "げんきいっぱいに ゆれる ポニーテール",
+  },
+  {
+    id: "hair_side_tail",
+    name: "アイドルサイドテール",
+    category: "hairstyle",
+    icon: "🌟",
+    unlockLevel: 1,
+    description: "かたほうに まとめた キラキラ サイドテール",
   },
   {
     id: "hair_long_wave",
     name: "プリンセスウェーブ",
     category: "hairstyle",
     icon: "✨",
-    unlockLevel: 4,
-    description: "おひめさま みたいなおしゃれヘア",
+    unlockLevel: 1,
+    description: "おひめさま みたいな ゆるふわ ロングウェーブ",
+  },
+  {
+    id: "hair_twin_bun",
+    name: "くまみみツインおだんご",
+    category: "hairstyle",
+    icon: "🐻",
+    unlockLevel: 1,
+    description: "くまさんみたいに キュートな ふたつのおだんご",
+  },
+  {
+    id: "hair_braid",
+    name: "おさげみつあみ",
+    category: "hairstyle",
+    icon: "🍀",
+    unlockLevel: 1,
+    description: "やさしくて 清楚な みつあみ おさげスタイル",
+  },
+  {
+    id: "hair_halfup",
+    name: "リボンハーフアップ",
+    category: "hairstyle",
+    icon: "🎀",
+    unlockLevel: 1,
+    description: "おでかけに ぴったりな お嬢さま ハーフアップ",
   },
 
   // かみのいろ (Hair Color)
@@ -290,7 +330,15 @@ export const ACCESSORY_CATALOG: readonly AccessoryItem[] = [
     category: "hair_color",
     icon: "🟤",
     unlockLevel: 1,
-    description: "いつもの やさしい ちゃいろ",
+    description: "あたたかみのある やさしい ちゃいろ",
+  },
+  {
+    id: "hair_color_silver",
+    name: "プラチナシルバー",
+    category: "hair_color",
+    icon: "🤍",
+    unlockLevel: 1,
+    description: "ふんわり 透きとおる シルバーラベンダー",
   },
   {
     id: "hair_color_black",
@@ -484,6 +532,24 @@ export const DEFAULT_EQUIPPED: EquippedAccessories = {
   shoes: "shoes_sneaker",
   shoes_color: "shoes_color_pink",
   accessory: "acc_none",
+};
+
+export const CHARACTER_DEFAULT_HAIRSTYLES: Record<CharacterId, string> = {
+  char_kanoha: "hair_bun",
+  char_fuwari: "hair_fluffy",
+  char_hinata: "hair_bob",
+  char_ren: "hair_fluffy",
+  char_riku: "hair_fluffy",
+  char_mia: "hair_twin_bun",
+};
+
+export const CHARACTER_DEFAULT_HAIR_COLORS: Record<CharacterId, string> = {
+  char_kanoha: "hair_color_brown",
+  char_fuwari: "hair_color_silver",
+  char_hinata: "hair_color_brown",
+  char_ren: "hair_color_silver",
+  char_riku: "hair_color_black",
+  char_mia: "hair_color_brown",
 };
 
 export interface GrowthLevelInfo {
