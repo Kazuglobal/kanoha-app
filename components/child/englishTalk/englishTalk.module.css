@@ -799,3 +799,89 @@
     animation: none;
   }
 }
+
+
+.sceneTitleGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.friendNameBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgb(255 245 250 / 92%);
+  border: 2px solid #ffb3d1;
+  color: #8a355b;
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 8%);
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  width: min(100%, 600px);
+}
+
+.choice {
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 2px solid #d6bcfa;
+  border-radius: 16px;
+  background: #faf5ff;
+  color: #3b2a4d;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.choice:hover:not(:disabled) {
+  border-color: #9f7aea;
+  background: #f3e8ff;
+  transform: translateY(-1px);
+}
+
+.sceneThumb {
+  position: relative;
+}
+
+.sceneProgressBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 94%);
+  border: 2px solid #ffd166;
+  color: #7a5b00;
+  font-size: 0.8rem;
+  font-weight: 900;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 12%);
+}
+
+.sceneStars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.sceneFriendTag {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fff0f6;
+  color: #9c3668;
+  font-size: 0.8rem;
+  font-weight: 800;
+}

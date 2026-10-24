@@ -328,3 +328,34 @@ export function preloadCoachVoices(phrases?: readonly string[]): void {
     }
   }
 }
+
+/**
+ * 任意のセリフ（日本語または英語）をバックグラウンドで事前キャッシュする
+ */
+export function preloadVoice(
+  text: string,
+  {
+    mood = "happy",
+    lang = "ja",
+  }: { mood?: "happy" | "celebrate" | "think"; lang?: "ja" | "en" } = {}
+): void {
+  if (typeof window === "undefined" || !text || process.env.NODE_ENV === "test") return;
+  const cacheKey = lang === "ja" ? `${mood}:${text}` : `${lang}:${mood}:${text}`;
+  if (ttsAudioCache.has(cacheKey)) return;
+  fetch("/api/ai/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(
+      lang === "ja" ? { text, mood, voiceName: "Aoede" } : { text, mood, voiceName: "Aoede", lang }
+    ),
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data?.success && data.audioDataUrl) {
+        ttsAudioCache.set(cacheKey, data.audioDataUrl);
+      }
+    })
+    .catch(() => {
+      // ignore preload failures
+    });
+}

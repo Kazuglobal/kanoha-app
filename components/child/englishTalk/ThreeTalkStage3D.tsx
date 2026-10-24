@@ -87,6 +87,10 @@ const SCENE_THEMES: Record<string, SceneTheme> = {
   },
 };
 
+export function getSceneFriendName(sceneId: string): string {
+  return (SCENE_THEMES[sceneId] ?? SCENE_THEMES.greeting).friendName;
+}
+
 const CAMERA_TURN_OFFSETS: readonly { x: number; y: number; z: number; lookX: number; lookY: number }[] = [
   { x: 0.05, y: 1.38, z: 3.65, lookX: 0.22, lookY: 1.08 },
   { x: -0.08, y: 1.36, z: 3.55, lookX: 0.26, lookY: 1.06 },
@@ -632,6 +636,10 @@ export function ThreeTalkStage3D({
     let frameId = 0;
     const clock = new THREE.Clock();
     let walkPhase = 0;
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
@@ -642,14 +650,16 @@ export function ThreeTalkStage3D({
       // Smooth camera walk-in and per-turn framing
       const turnCam = CAMERA_TURN_OFFSETS[st.turnIndex % CAMERA_TURN_OFFSETS.length];
       const targetCamZ = st.started ? turnCam.z : 4.85;
-      const targetCamX = (st.started ? turnCam.x : Math.sin(elapsed * 0.35) * 0.22) + st.pointerX * 0.18;
+      const targetCamX =
+        (st.started ? turnCam.x : reducedMotion ? 0 : Math.sin(elapsed * 0.35) * 0.22) +
+        (reducedMotion ? 0 : st.pointerX * 0.18);
       const distZ = Math.abs(camera.position.z - targetCamZ);
 
-      if (st.started && distZ > 0.1) {
+      if (!reducedMotion && st.started && distZ > 0.1) {
         walkPhase += dt * 10;
       }
-      const walkBob = st.started && distZ > 0.1 ? Math.sin(walkPhase) * 0.032 : 0;
-      const targetCamY = (st.started ? turnCam.y : 1.58) + walkBob + st.pointerY * 0.1;
+      const walkBob = !reducedMotion && st.started && distZ > 0.1 ? Math.sin(walkPhase) * 0.032 : 0;
+      const targetCamY = (st.started ? turnCam.y : 1.58) + walkBob + (reducedMotion ? 0 : st.pointerY * 0.1);
 
       camera.position.x += (targetCamX - camera.position.x) * Math.min(1, dt * 3.8);
       camera.position.y += (targetCamY - camera.position.y) * Math.min(1, dt * 4.2);
@@ -662,62 +672,66 @@ export function ThreeTalkStage3D({
       camera.lookAt(currentLookAt);
 
       // Delicate skeletal vertex deformation on the 3D character mesh (breathing, hair sway, speaking bounce)
-      const posAttr = friendChar.mesh.geometry.attributes.position;
-      const posArr = posAttr.array as Float32Array;
-      const baseArr = friendChar.basePositions;
-      const swayRate = st.speaking ? 6.5 : 2.2;
-      const swayAmp = st.speaking ? 0.038 : 0.018;
-      const tiltTarget = st.mood === "think" ? -0.08 : 0;
+      if (!reducedMotion) {
+        const posAttr = friendChar.mesh.geometry.attributes.position;
+        const posArr = posAttr.array as Float32Array;
+        const baseArr = friendChar.basePositions;
+        const swayRate = st.speaking ? 6.5 : 2.2;
+        const swayAmp = st.speaking ? 0.038 : 0.018;
+        const tiltTarget = st.mood === "think" ? -0.08 : 0;
 
-      for (let i = 0; i < posArr.length; i += 3) {
-        const bx = baseArr[i];
-        const by = baseArr[i + 1];
-        const bz = baseArr[i + 2];
-        const heightRatio = Math.max(0, Math.min(1, by / 2.04));
+        for (let i = 0; i < posArr.length; i += 3) {
+          const bx = baseArr[i];
+          const by = baseArr[i + 1];
+          const bz = baseArr[i + 2];
+          const heightRatio = Math.max(0, Math.min(1, by / 2.04));
 
-        // Breathing expansion + soft hair/upper-body sway
-        const breathY = Math.sin(elapsed * 2.5) * 0.022 * heightRatio;
-        const swayX =
-          Math.sin(elapsed * swayRate + heightRatio * 1.6) * swayAmp * heightRatio * heightRatio +
-          tiltTarget * heightRatio;
-        const waveZ = Math.cos(elapsed * 2.8 + bx * 2.2) * 0.025 * heightRatio;
+          // Breathing expansion + soft hair/upper-body sway
+          const breathY = Math.sin(elapsed * 2.5) * 0.022 * heightRatio;
+          const swayX =
+            Math.sin(elapsed * swayRate + heightRatio * 1.6) * swayAmp * heightRatio * heightRatio +
+            tiltTarget * heightRatio;
+          const waveZ = Math.cos(elapsed * 2.8 + bx * 2.2) * 0.025 * heightRatio;
 
-        posArr[i] = bx + swayX;
-        posArr[i + 1] = by + breathY;
-        posArr[i + 2] = bz + waveZ;
+          posArr[i] = bx + swayX;
+          posArr[i + 1] = by + breathY;
+          posArr[i + 2] = bz + waveZ;
+        }
+        posAttr.needsUpdate = true;
       }
-      posAttr.needsUpdate = true;
 
       // Jump / Speaking / Listening motion
-      if (st.mood === "celebrate") {
+      if (!reducedMotion && st.mood === "celebrate") {
         friendChar.mesh.position.y = Math.abs(Math.sin(elapsed * 7.5)) * 0.24;
-      } else if (st.speaking) {
+      } else if (!reducedMotion && st.speaking) {
         friendChar.mesh.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.045;
       } else {
         friendChar.mesh.position.y = 0;
       }
 
-      friendChar.group.rotation.y = st.pointerX * 0.14 + Math.sin(elapsed * 1.4) * 0.04;
+      friendChar.group.rotation.y = reducedMotion ? 0 : st.pointerX * 0.14 + Math.sin(elapsed * 1.4) * 0.04;
 
       friendChar.glowRing.visible = st.isListening;
-      if (st.isListening) {
+      if (st.isListening && !reducedMotion) {
         friendChar.glowRing.scale.setScalar(1 + Math.sin(elapsed * 6) * 0.1);
       }
 
       friendChar.starsGroup.visible = st.mood === "celebrate";
-      if (friendChar.starsGroup.visible) {
+      if (friendChar.starsGroup.visible && !reducedMotion) {
         friendChar.starsGroup.rotation.z = elapsed * 1.4;
         friendChar.starsGroup.position.y = 1.35 + Math.sin(elapsed * 5) * 0.1;
       }
 
       // Animate floating sakura petals / light particles
-      for (const p of petals) {
-        p.mesh.position.y -= p.speed * dt;
-        p.mesh.position.x += Math.sin(elapsed * 1.5 + p.phase) * p.sway * dt;
-        p.mesh.rotation.x = elapsed * 1.8 + p.phase;
-        p.mesh.rotation.y = elapsed * 1.2 + p.phase;
-        if (p.mesh.position.y < 0.08) {
-          p.mesh.position.y = 3.6;
+      if (!reducedMotion) {
+        for (const p of petals) {
+          p.mesh.position.y -= p.speed * dt;
+          p.mesh.position.x += Math.sin(elapsed * 1.5 + p.phase) * p.sway * dt;
+          p.mesh.rotation.x = elapsed * 1.8 + p.phase;
+          p.mesh.rotation.y = elapsed * 1.2 + p.phase;
+          if (p.mesh.position.y < 0.08) {
+            p.mesh.position.y = 3.6;
+          }
         }
       }
 
