@@ -91,12 +91,18 @@ const FULL_STAGE_SVG_STYLE: React.CSSProperties = {
   pointerEvents: "none",
 };
 
-const FRONT_HAIR_CLIP =
-  "polygon(0% 0%, 100% 0%, 100% 39.5%, 63.5% 39.5%, 63.5% 34.2%, 41.2% 34.2%, 41.2% 39.5%, 0% 39.5%)";
+const SHORT_FRONT_HAIR_CLIP =
+  "polygon(0% 0%, 100% 0%, 100% 38.5%, 63.5% 38.5%, 63.5% 34.2%, 41.2% 34.2%, 41.2% 38.5%, 0% 38.5%)";
 
-// 背面髪型レイヤー用クリップ：頭頂部・おでこ・顔（y < 35%）を完全に除外し、肩の後ろ・背中に垂れる毛束（y: 35%〜70%）のみを描画
+const FRONT_HAIR_CLIP =
+  "polygon(0% 0%, 100% 0%, 100% 38.5%, 63.5% 38.5%, 63.5% 34.2%, 41.2% 34.2%, 34.5% 35.0%, 0% 35.0%)";
+
+const BRAID_FRONT_HAIR_CLIP =
+  "polygon(0% 0%, 100% 0%, 100% 56%, 64.5% 56%, 63.5% 34.2%, 41.2% 34.2%, 34.5% 35.0%, 0% 35.0%)";
+
+// 背面髪型レイヤー用クリップ：頭頂部・おでこ・顔（y < 35%）を完全に除外し、前面クリップ下端と隙間・重複なく接続して肩の後ろ・背中に垂れる毛束を描画
 const BACK_HAIR_CLIP =
-  "polygon(0% 35%, 100% 35%, 100% 70%, 0% 70%)";
+  "polygon(0% 35%, 41.2% 35%, 41.2% 38.5%, 100% 38.5%, 100% 70%, 0% 70%)";
 
 export function RibbonBow({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
@@ -231,7 +237,20 @@ export function HairstyleExtension({
   const spriteHref = HAIRSTYLE_SPRITES[spriteKey] ?? HAIRSTYLE_SPRITES.hair_bun;
   const colorFilter = HAIR_COLOR_FILTERS[hairColor] ?? "none";
 
-  const clipPath = layer === "front" ? FRONT_HAIR_CLIP : BACK_HAIR_CLIP;
+  const isShortStyle =
+    hairstyle === "hair_bun" ||
+    hairstyle === "hair_bob" ||
+    hairstyle === "hair_fluffy" ||
+    hairstyle === "hair_twin_bun";
+
+  const clipPath =
+    layer === "front"
+      ? hairstyle === "hair_braid"
+        ? BRAID_FRONT_HAIR_CLIP
+        : isShortStyle
+          ? SHORT_FRONT_HAIR_CLIP
+          : FRONT_HAIR_CLIP
+      : BACK_HAIR_CLIP;
 
   return (
     <svg
@@ -256,6 +275,7 @@ export function HairstyleExtension({
  */
 export function NewCharacterHairstyleOverlay({
   hairstyle,
+  defaultHairstyle = "hair_fluffy",
   hairColor,
   layer = "back",
   baseToneFilter = "none",
@@ -263,14 +283,16 @@ export function NewCharacterHairstyleOverlay({
   hideTopBun = false,
 }: {
   hairstyle: string;
+  defaultHairstyle?: string;
   hairColor?: string;
   layer?: "back" | "front";
   baseToneFilter?: string;
   transform?: string;
   hideTopBun?: boolean;
 }) {
-  // ふわふわエアリー (hair_fluffy) はベーススプライト標準のショートヘア
-  if (!hairstyle || hairstyle === "hair_fluffy") {
+  // キャラクター自身の標準ヘアスタイル（ふわり・レン・リク: hair_fluffy、ひなた: hair_bob、ミア: hair_twin_bun）の時は
+  // ベーススプライトの地毛をそのまま活かし、重複エクステンションを描画しない
+  if (!hairstyle || hairstyle === defaultHairstyle || hairstyle === "hair_fluffy") {
     return null;
   }
 
