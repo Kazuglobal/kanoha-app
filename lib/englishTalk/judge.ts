@@ -54,6 +54,12 @@ const KATAKANA_TO_ENGLISH: readonly [RegExp, string][] = [
   [/グッド|ぐっど/g, " good "],
   [/グレート|ぐれーと/g, " great "],
   [/ハッピー|はっぴー/g, " happy "],
+  [/スリーピー|すりーぴー|ねむい|眠い/g, " sleepy "],
+  [/ハングリー|はんぐりー|おなかすいた/g, " hungry "],
+  [/タイアード|たいあーど|つかれた|疲れた/g, " tired "],
+  [/シュア|しゅあ/g, " sure "],
+  [/コールミー|こーるみー/g, " call me "],
+  [/ビッグ|びっぐ|おおきい|大きい/g, " big "],
   [/オーケー|おーけー|オッケー|おっけー/g, " ok "],
   [/イエス|いえす|イェス|ヤー|やー/g, " yes "],
   [/ノー|のー/g, " no "],
@@ -76,16 +82,21 @@ const KATAKANA_TO_ENGLISH: readonly [RegExp, string][] = [
  * 日本人の英語発音で Web Speech API (en-US) がよく誤変換する同音・近似語
  */
 const SPOKEN_PHONETIC_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  one: ["won"],
+  two: ["to", "too", "tu"],
   three: ["tree", "free", "sri", "thee"],
+  four: ["for", "fore"],
+  seven: ["heaven", "saving"],
+  eight: ["ate"],
   dog: ["dock", "dug", "dawg", "dark", "dogs"],
   red: ["read", "led", "let", "bed"],
   fine: ["find", "vine", "pine"],
-  seven: ["heaven", "saving"],
   pencil: ["cancel", "pencils", "pens"],
   elephant: ["eleven", "element", "elephants"],
   morning: ["warning"],
   thank: ["tank", "sank"],
   goodbye: ["good by", "bye bye", "byebye"],
+  lets: ["let us", "less"],
 };
 
 /** 小文字化・アポストロフィ除去・記号除去・空白の正規化。 */
@@ -278,3 +289,33 @@ export const toPublicScene = (scene: TalkScene): PublicTalkScene => ({
     ...(turn.visual ? { visual: turn.visual } : {}),
   })),
 });
+
+
+export interface ChosenFruit {
+  readonly singular: string;
+  readonly plural: string;
+  readonly labelJa: string;
+  readonly emoji: string;
+}
+
+const FRUIT_INFO: readonly ChosenFruit[] = [
+  { singular: "apple", plural: "apples", labelJa: "りんご", emoji: "🍎" },
+  { singular: "banana", plural: "bananas", labelJa: "バナナ", emoji: "🍌" },
+  { singular: "orange", plural: "oranges", labelJa: "オレンジ", emoji: "🍊" },
+  { singular: "melon", plural: "melons", labelJa: "メロン", emoji: "🍈" },
+  { singular: "grape", plural: "grapes", labelJa: "ぶどう", emoji: "🍇" },
+  { singular: "strawberry", plural: "strawberries", labelJa: "いちご", emoji: "🍓" },
+  { singular: "peach", plural: "peaches", labelJa: "もも", emoji: "🍑" },
+];
+
+/** おみせの1ターン目で子どもが選んだ果物を検出し、2ターン目の「How many ...?」を自然な文脈にする。 */
+export const detectChosenFruit = (answer: string): ChosenFruit | null => {
+  const norm = normalizeSpokenEnglish(answer);
+  if (!norm) return null;
+  for (const fruit of FRUIT_INFO) {
+    if (containsPhrase(norm, fruit.singular) || containsPhrase(norm, fruit.plural)) {
+      return fruit;
+    }
+  }
+  return null;
+};

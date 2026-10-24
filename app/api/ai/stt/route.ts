@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
+
+/** 音声 Base64 の最大文字数（約 1.5MB 相当の音声データまで許容） */
+const MAX_AUDIO_BASE64_LENGTH = 2_000_000;
 
 /**
  * リアルタイム英会話 音声認識 (STT) エンドポイント
@@ -9,6 +13,17 @@ import { getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
  */
 export async function POST(request: Request) {
   try {
+    const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+    if (!checkRateLimit(`stt:${forwarded}`, 60)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many requests",
+        },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const audioBase64 = typeof body.audioBase64 === "string" ? body.audioBase64 : "";
     const mimeType = typeof body.mimeType === "string" && body.mimeType ? body.mimeType : "audio/webm";
@@ -24,6 +39,16 @@ export async function POST(request: Request) {
           error: "Audio data is required",
         },
         { status: 400 },
+      );
+    }
+
+    if (audioBase64.length > MAX_AUDIO_BASE64_LENGTH) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Audio data is too large",
+        },
+        { status: 413 },
       );
     }
 
