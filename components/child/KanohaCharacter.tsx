@@ -114,16 +114,23 @@ function buildBaseClipPath({
   if (clipTopHead) {
     points.push(
       "0% 0%",
-      "32% 0%",
+      "12% 0%",
+      "12% 35.2%",
+      "34.5% 35.2%",
+      "32.5% 33.5%",
       "32.5% 28%",
       "33.5% 23%",
       "36% 21.8%",
       "41% 21.2%",
       "61% 21.2%",
       "66.5% 22.8%",
-      "68% 28%",
-      "70.5% 29%",
-      "71% 0%",
+      "68% 26%",
+      "70.5% 26.5%",
+      "70.5% 32.5%",
+      "66.5% 34.5%",
+      "66.5% 38%",
+      "96% 38%",
+      "96% 0%",
       "100% 0%",
     );
   } else {
@@ -526,6 +533,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
           {/* 背面髪型レイヤー（ボブ・ツインテール・ポニーテール・サイドテール・ロングウェーブ・くまみみツインおだんご・三つ編み・ハーフアップ） */}
           <NewCharacterHairstyleOverlay
             hairstyle={hairStyle}
+            defaultHairstyle={defaultHairstyle}
             hairColor={hairColor}
             layer="back"
             baseToneFilter={anchor.baseHairToneFilter}
@@ -604,6 +612,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
           {/* 前面髪型レイヤー（おだんごアップ・ハーフアップリボン・サイドテールリボン） */}
           <NewCharacterHairstyleOverlay
             hairstyle={hairStyle}
+            defaultHairstyle={defaultHairstyle}
             hairColor={hairColor}
             layer="front"
             baseToneFilter={anchor.baseHairToneFilter}
