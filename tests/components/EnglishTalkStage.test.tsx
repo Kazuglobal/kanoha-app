@@ -10,6 +10,7 @@ vi.mock("@/lib/audio/englishTalkSpeech", () => ({
   speakTalkEnglish: vi.fn(async () => undefined),
   speakTalkJapanese: vi.fn(async () => undefined),
   stopTalkSpeech: vi.fn(),
+  preloadTalkSceneSpeech: vi.fn(),
 }));
 
 vi.mock("@/lib/audio/soundSystem", () => ({
@@ -262,5 +263,53 @@ describe("EnglishTalkStage", () => {
       Reflect.deleteProperty(window, "webkitSpeechRecognition");
       Reflect.deleteProperty(navigator, "mediaDevices");
     }
+  });
+
+  it("shows the friend badge, toggles hint choices on demand, and records reward & scene star progress", async () => {
+    mockCheck();
+    const { getRewardState } = await import("@/lib/rewards/rewardStore");
+    const { getEnglishTalkProgress } = await import("@/lib/englishTalk/progressStore");
+    const beforeCorrect = getRewardState().totalCorrectCount;
+
+    render(<EnglishTalkStage scene={scene} />);
+    expect(screen.getByTestId("scene-friend-badge")).toHaveTextContent("リクくん");
+
+    await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
+    await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
+
+    // Open hint choices and select the correct answer by tap
+    await userEvent.click(screen.getByRole("button", { name: /こたえの ヒント（えらんで こたえる）/ }));
+    await userEvent.click(screen.getByRole("button", { name: "It's a dog." }));
+
+    expect(await screen.findByText(/ばっちり つたわったよ/)).toBeInTheDocument();
+    expect(getRewardState().totalCorrectCount).toBe(beforeCorrect + 1);
+
+    await userEvent.click(await screen.findByRole("button", { name: /つぎの場面へ/ }));
+    expect(await screen.findByText("おはなし できたね！")).toBeInTheDocument();
+    expect(getEnglishTalkProgress().park?.stars).toBe(3);
+  });
+
+  it("dynamically adapts the second shop turn to the fruit chosen in the first turn", async () => {
+    const shopData = TALK_SCENES.find(({ id }) => id === "shop")!;
+    const shopScene = { ...toPublicScene(shopData), turns: toPublicScene(shopData).turns.slice(0, 2) };
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const { turnId, answer } = JSON.parse(String(init?.body ?? "{}"));
+      const t = shopData.turns.find(({ id }) => id === turnId)!;
+      const correct = judgeTalkAnswer(t, answer);
+      return new Response(JSON.stringify({ success: true, data: { correct } }), { status: 200 });
+    });
+
+    render(<EnglishTalkStage scene={shopScene} />);
+    await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
+    await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
+
+    const input = screen.getByLabelText("声でつたえることば");
+    await userEvent.type(input, "Bananas, please.");
+    await userEvent.click(screen.getByRole("button", { name: /はなす/ }));
+
+    await userEvent.click(await screen.findByRole("button", { name: /つぎの場面へ/ }));
+    expect(await screen.findByText("How many bananas?")).toBeInTheDocument();
+    expect(screen.getByText("🍌🍌🍌")).toBeInTheDocument();
   });
 });

@@ -258,10 +258,9 @@ export function RealtimeTalkMic({
 
   /**
    * マイク聞き取りの開始:
-   * 1. getUserMedia + Web Audio VAD + MediaRecorder + /api/ai/stt をメインで常時稼働させ、
-   *    Chrome の Web Speech API の network / not-allowed / no-speech による瞬断に一切影響されないようにする。
-   * 2. Web Speech API が利用可能な場合は補助（リアルタイム字幕用）として並列起動するが、
-   *    Web Speech API がエラーや終了になっても絶対にマイクを OFF にしない。
+   * 1. Web Speech API が利用可能な場合はまず Web Speech API を起動し、二重録音によるマイク競合を防ぐ。
+   * 2. Web Speech API が未対応、または network / not-allowed 等でエラーになった場合は、
+   *    即座に getUserMedia + Web Audio VAD + MediaRecorder + /api/ai/stt へシームレスに切り替えてマイク ON を維持する。
    */
   const startRecognition = useCallback(
     (langOverride?: "en-US" | "ja-JP", directFromGesture = false) => {
@@ -294,137 +293,11 @@ export function RealtimeTalkMic({
           typeof navigator.mediaDevices.getUserMedia === "function",
       );
 
-      // A) Web Speech API (リアルタイム字幕 & テスト環境互換)
-      if (Recognition) {
-        try {
-          const recognition = new Recognition();
-          activeRef.current = recognition;
-          recognition.lang = targetLang;
-          recognition.continuous = true;
-          recognition.interimResults = true;
-          recognition.maxAlternatives = 5;
-
-          recognition.onresult = (event) => {
-            if (sessionTokenRef.current !== myToken || committedInSessionRef.current) return;
-
-            let finalChunk = "";
-            let interimChunk = "";
-            let hasExplicitFinal = false;
-            let hasUndefinedFinal = false;
-
-            for (let i = 0; i < event.results.length; i += 1) {
-              const item = event.results[i];
-              if (!item || item.length === 0) continue;
-
-              let chosen = item[0]?.transcript ?? "";
-              for (let a = 0; a < item.length; a += 1) {
-                const alt = item[a]?.transcript ?? "";
-                if (isDontKnowAnswer(alt)) {
-                  chosen = alt;
-                  break;
-                }
-              }
-
-              if (item.isFinal === undefined) {
-                hasUndefinedFinal = true;
-                finalChunk += ` ${chosen}`;
-              } else if (item.isFinal) {
-                hasExplicitFinal = true;
-                finalChunk += ` ${chosen}`;
-              } else {
-                interimChunk += ` ${chosen}`;
-              }
-            }
-
-            const combined = `${finalChunk} ${interimChunk}`.replace(/\s+/g, " ").trim();
-            if (!combined) return;
-
-            interimRef.current = combined;
-            setLiveTranscript(combined);
-
-            if (silenceTimerRef.current !== null) {
-              window.clearTimeout(silenceTimerRef.current);
-              silenceTimerRef.current = null;
-            }
-
-            if (hasUndefinedFinal && !interimChunk.trim()) {
-              commitText(combined);
-              return;
-            }
-
-            if (isDontKnowAnswer(combined)) {
-              silenceTimerRef.current = window.setTimeout(() => {
-                if (interimRef.current.trim()) commitText(interimRef.current);
-              }, 260);
-              return;
-            }
-
-            const incomplete = isIncompleteUtterance(combined);
-            const waitMs = incomplete ? 1200 : hasExplicitFinal && !interimChunk.trim() ? 320 : 750;
-
-            silenceTimerRef.current = window.setTimeout(() => {
-              if (interimRef.current.trim()) {
-                commitText(interimRef.current);
-              }
-            }, waitMs);
-          };
-
-          recognition.onerror = (event) => {
-            if (activeRef.current !== recognition) return;
-            activeRef.current = null;
-            const err = event?.error ?? "";
-
-            // getUserMedia が同時に動いている場合は Web Speech のエラーでマイクを止めない
-            if (vadActiveRef.current || hasGetUserMedia) {
-              return;
-            }
-
-            if (err === "not-allowed" || err === "audio-capture") {
-              userRequestedListenRef.current = false;
-              setListeningBoth(false);
-              setMicHint("マイクボタンを1回タップしてマイクをONにしてね！");
-              return;
-            }
-
-            if (shouldKeepListening()) {
-              restartTimerRef.current = window.setTimeout(() => {
-                if (sessionTokenRef.current === myToken) startRecognition(targetLang);
-              }, 200);
-            } else {
-              setListeningBoth(false);
-            }
-          };
-
-          recognition.onend = () => {
-            if (activeRef.current !== recognition) return;
-            activeRef.current = null;
-
-            if (!committedInSessionRef.current && interimRef.current.trim()) {
-              commitText(interimRef.current);
-              return;
-            }
-
-            // VAD ストリームが動いている間は Web Speech が勝手に切れてもマイク ON を維持
-            if (vadActiveRef.current) return;
-
-            if (shouldKeepListening()) {
-              restartTimerRef.current = window.setTimeout(() => {
-                if (sessionTokenRef.current === myToken) startRecognition(targetLang);
-              }, 160);
-            } else {
-              setListeningBoth(false);
-            }
-          };
-
-          recognition.start();
-        } catch {
-          activeRef.current = null;
-        }
-      }
-
-      // B) Web Audio VAD + MediaRecorder + /api/ai/stt (どんなブラウザでも確実に声を拾うメインエンジン)
-      if (hasGetUserMedia) {
+      // Web Audio VAD + MediaRecorder + /api/ai/stt フォールバック起動関数
+      const startVadFallback = () => {
+        if (vadActiveRef.current || !hasGetUserMedia) return;
         vadActiveRef.current = true;
+        setListeningBoth(true);
         void (async () => {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -482,7 +355,6 @@ export function RealtimeTalkMic({
 
             const finalizeVadUtterance = async () => {
               if (sessionTokenRef.current !== myToken || committedInSessionRef.current) return;
-              // すでに Web Speech API 側でテキストが取れていればそれを即確定する
               if (interimRef.current.trim()) {
                 commitText(interimRef.current);
                 return;
@@ -581,7 +453,6 @@ export function RealtimeTalkMic({
               const rms = Math.sqrt(sumSq / dataArray.length);
               const now = Date.now();
 
-              // マイク接続直後のポップノイズ(120ms以内)は無視する
               if (now - streamStartedAt >= 120) {
                 if (rms > 0.025) {
                   voiceFrames += 1;
@@ -619,6 +490,141 @@ export function RealtimeTalkMic({
             }
           }
         })();
+      };
+
+      // A) Web Speech API (リアルタイム字幕 & メイン認識)
+      if (Recognition) {
+        try {
+          const recognition = new Recognition();
+          activeRef.current = recognition;
+          recognition.lang = targetLang;
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.maxAlternatives = 5;
+
+          recognition.onresult = (event) => {
+            if (sessionTokenRef.current !== myToken || committedInSessionRef.current) return;
+
+            let finalChunk = "";
+            let interimChunk = "";
+            let hasExplicitFinal = false;
+            let hasUndefinedFinal = false;
+
+            for (let i = 0; i < event.results.length; i += 1) {
+              const item = event.results[i];
+              if (!item || item.length === 0) continue;
+
+              let chosen = item[0]?.transcript ?? "";
+              for (let a = 0; a < item.length; a += 1) {
+                const alt = item[a]?.transcript ?? "";
+                if (isDontKnowAnswer(alt)) {
+                  chosen = alt;
+                  break;
+                }
+              }
+
+              if (item.isFinal === undefined) {
+                hasUndefinedFinal = true;
+                finalChunk += ` ${chosen}`;
+              } else if (item.isFinal) {
+                hasExplicitFinal = true;
+                finalChunk += ` ${chosen}`;
+              } else {
+                interimChunk += ` ${chosen}`;
+              }
+            }
+
+            const combined = `${finalChunk} ${interimChunk}`.replace(/\s+/g, " ").trim();
+            if (!combined) return;
+
+            interimRef.current = combined;
+            setLiveTranscript(combined);
+
+            if (silenceTimerRef.current !== null) {
+              window.clearTimeout(silenceTimerRef.current);
+              silenceTimerRef.current = null;
+            }
+
+            if (hasUndefinedFinal && !interimChunk.trim()) {
+              commitText(combined);
+              return;
+            }
+
+            if (isDontKnowAnswer(combined)) {
+              silenceTimerRef.current = window.setTimeout(() => {
+                if (interimRef.current.trim()) commitText(interimRef.current);
+              }, 260);
+              return;
+            }
+
+            const incomplete = isIncompleteUtterance(combined);
+            const waitMs = incomplete ? 1200 : hasExplicitFinal && !interimChunk.trim() ? 320 : 750;
+
+            silenceTimerRef.current = window.setTimeout(() => {
+              if (interimRef.current.trim()) {
+                commitText(interimRef.current);
+              }
+            }, waitMs);
+          };
+
+          recognition.onerror = (event) => {
+            if (activeRef.current !== recognition) return;
+            activeRef.current = null;
+            const err = event?.error ?? "";
+
+            // Web Speech がエラーになった場合、getUserMedia が使えれば即座に VAD フォールバックへ引き継いでマイク ON を維持
+            if (vadActiveRef.current || hasGetUserMedia) {
+              startVadFallback();
+              return;
+            }
+
+            if (err === "not-allowed" || err === "audio-capture") {
+              userRequestedListenRef.current = false;
+              setListeningBoth(false);
+              setMicHint("マイクボタンを1回タップしてマイクをONにしてね！");
+              return;
+            }
+
+            if (shouldKeepListening()) {
+              restartTimerRef.current = window.setTimeout(() => {
+                if (sessionTokenRef.current === myToken) startRecognition(targetLang);
+              }, 200);
+            } else {
+              setListeningBoth(false);
+            }
+          };
+
+          recognition.onend = () => {
+            if (activeRef.current !== recognition) return;
+            activeRef.current = null;
+
+            if (!committedInSessionRef.current && interimRef.current.trim()) {
+              commitText(interimRef.current);
+              return;
+            }
+
+            // VAD ストリームが動いている間は Web Speech が切れてもマイク ON を維持
+            if (vadActiveRef.current) return;
+
+            if (shouldKeepListening()) {
+              restartTimerRef.current = window.setTimeout(() => {
+                if (sessionTokenRef.current === myToken) startRecognition(targetLang);
+              }, 160);
+            } else {
+              setListeningBoth(false);
+            }
+          };
+
+          recognition.start();
+        } catch {
+          activeRef.current = null;
+          if (hasGetUserMedia) {
+            startVadFallback();
+          }
+        }
+      } else if (hasGetUserMedia) {
+        // B) Web Speech API が存在しない環境では最初から VAD + /api/ai/stt を起動
+        startVadFallback();
       }
     },
     [clearTimers, commitText, detachRecognition, setListeningBoth, shouldKeepListening, stopVadStream],

@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 import { generateGeminiSpeech } from "@/lib/ai/tts";
+import { checkRateLimit } from "@/lib/utils/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+    if (!checkRateLimit(`tts:${forwarded}`, 120)) {
+      return NextResponse.json(
+        {
+          success: false,
+          fallback: true,
+          error: "Too many requests",
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const text = typeof body.text === "string" ? body.text.trim() : "";
     const mood = body.mood === "celebrate" || body.mood === "think" ? body.mood : "happy";

@@ -8,16 +8,21 @@ import {
   repeatTalk,
   REPEAT_TARGET,
   startTalk,
+  talkScore,
   type TalkState,
 } from "@/lib/englishTalk/flow";
 import {
   buildCorrectiveFeedbackEn,
+  detectChosenFruit,
   isDontKnowAnswer,
+  type ChosenFruit,
   type PublicTalkScene,
   type PublicTalkTurn,
 } from "@/lib/englishTalk/judge";
-import { speakTalkEnglish, speakTalkJapanese, stopTalkSpeech } from "@/lib/audio/englishTalkSpeech";
+import { recordEnglishTalkSceneClear } from "@/lib/englishTalk/progressStore";
+import * as talkSpeech from "@/lib/audio/englishTalkSpeech";
 import { soundManager } from "@/lib/audio/soundSystem";
+import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import type { TalkMood } from "./TalkCharacter";
 
 export interface TalkTeach {
@@ -49,11 +54,28 @@ async function postCheck(body: Record<string, unknown>): Promise<CheckResult | n
   return response?.ok && json?.success ? (json.data as CheckResult) : null;
 }
 
+function adaptTurnWithContext(
+  rawTurn: PublicTalkTurn | undefined,
+  chosenFruit: ChosenFruit | null,
+): PublicTalkTurn | undefined {
+  if (!rawTurn) return undefined;
+  if (rawTurn.id === "shop-how-many" && chosenFruit && chosenFruit.singular !== "apple") {
+    return {
+      ...rawTurn,
+      prompt: `How many ${chosenFruit.plural}?`,
+      promptJa: `${chosenFruit.labelJa}は いくつ ほしいですか？`,
+      visual: `${chosenFruit.emoji}${chosenFruit.emoji}${chosenFruit.emoji}`,
+    };
+  }
+  return rawTurn;
+}
+
 /**
  * 英会話れんしゅうの状態と操作。
  * - 声(en-US)でキャラクターと対話する
  * - 「I don't know」「わからない」と言ったら日本語にして教える
  * - まちがえたらすぐ英語で正しいフィードバックを返す
+ * - 初回正解でごほうびメーターを進め、シーン完了時に獲得スターを記録する
  */
 export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
   const turnIds = useMemo(() => scene.turns.map(({ id }) => id), [scene]);
@@ -67,22 +89,40 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
   const [checking, setChecking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [directVoiceMode, setDirectVoiceMode] = useState(true);
+  const [chosenFruit, setChosenFruit] = useState<ChosenFruit | null>(null);
 
   // 遅れて届いた声のこたえ(古い描画のコールバック)でも、いまの状態で判断する
   const stateRef = useRef(state);
   const checkingRef = useRef(false);
   const directVoiceRef = useRef(true);
+  const chosenFruitRef = useRef<ChosenFruit | null>(null);
+  const autoNextTimerRef = useRef<number | null>(null);
   stateRef.current = state;
   directVoiceRef.current = directVoiceMode;
+  chosenFruitRef.current = chosenFruit;
 
   const activeTurnId = currentTurnId(state);
-  const turn: PublicTalkTurn | undefined = scene.turns.find(({ id }) => id === activeTurnId);
+  const rawTurn: PublicTalkTurn | undefined = scene.turns.find(({ id }) => id === activeTurnId);
+  const turn = useMemo(() => adaptTurnWithContext(rawTurn, chosenFruit), [rawTurn, chosenFruit]);
   const turnIndex = useMemo(() => {
     const idx = scene.turns.findIndex(({ id }) => id === activeTurnId);
     return idx >= 0 ? idx : 0;
   }, [activeTurnId, scene.turns]);
 
-  useEffect(() => () => stopTalkSpeech(), []);
+  const clearAutoNextTimer = useCallback(() => {
+    if (autoNextTimerRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(autoNextTimerRef.current);
+      autoNextTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearAutoNextTimer();
+      talkSpeech.stopTalkSpeech();
+    },
+    [clearAutoNextTimer],
+  );
 
   useEffect(() => {
     const onStart = () => setSpeaking(true);
@@ -95,28 +135,41 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     };
   }, []);
 
+  // シーン完了時に獲得した星（★1〜3）を記録する
+  useEffect(() => {
+    if (state.phase !== "done") return;
+    const score = talkScore(state);
+    const stars: 1 | 2 | 3 =
+      score.firstTry === score.total ? 3 : score.firstTry * 2 >= score.total ? 2 : 1;
+    recordEnglishTalkSceneClear(scene.id, stars, childId);
+  }, [childId, scene.id, state]);
+
   const sayPrompt = useCallback((target?: PublicTalkTurn) => {
-    if (target) void speakTalkEnglish(target.prompt);
+    if (target) void talkSpeech.speakTalkEnglish(target.prompt);
   }, []);
 
   const begin = useCallback(() => {
+    clearAutoNextTimer();
     setStarted(true);
     setLastHeard(null);
+    talkSpeech.preloadTalkSceneSpeech?.(scene.turns.map((t) => t.prompt));
     sayPrompt(turn);
-  }, [sayPrompt, turn]);
+  }, [clearAutoNextTimer, sayPrompt, scene.turns, turn]);
 
   const askInJapanese = useCallback(() => {
     if (!turn) return;
     setShowJapanese(true);
     setMood("think");
     setMessage("にほんごに したよ！ きいてから えいごで はなしてみよう");
-    void speakTalkJapanese(`${turn.promptJa} ${turn.answerHintJa}`);
+    void talkSpeech.speakTalkJapanese(`${turn.promptJa} ${turn.answerHintJa}`);
   }, [turn]);
 
   const next = useCallback(() => {
+    clearAutoNextTimer();
     setState((current) => {
       const following = nextTalk(current);
-      const nextTurn = scene.turns.find(({ id }) => id === currentTurnId(following));
+      const nextRaw = scene.turns.find(({ id }) => id === currentTurnId(following));
+      const nextTurn = adaptTurnWithContext(nextRaw, chosenFruitRef.current);
       if (following.phase === "ask" && nextTurn) {
         sayPrompt(nextTurn);
       }
@@ -127,7 +180,21 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     setLastHeard(null);
     setMood("happy");
     setMessage(null);
-  }, [sayPrompt, scene.turns]);
+  }, [clearAutoNextTimer, sayPrompt, scene.turns]);
+
+  const scheduleAutoNext = useCallback(
+    (delayMs: number) => {
+      clearAutoNextTimer();
+      if (typeof window === "undefined") return;
+      autoNextTimerRef.current = window.setTimeout(() => {
+        autoNextTimerRef.current = null;
+        if (directVoiceRef.current && stateRef.current.phase === "correct") {
+          next();
+        }
+      }, delayMs);
+    },
+    [clearAutoNextTimer, next],
+  );
 
   const answer = useCallback(
     async (text: string, mode: Exclude<CheckMode, "repeat"> = "voice") => {
@@ -159,19 +226,29 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         return;
       }
 
+      const wasFirstTry = !stateRef.current.isRetry && !stateRef.current.missed.includes(turn.id);
       setState((current) => answerTalk(current, result.correct));
+
       if (result.correct) {
+        if (turn.id === "shop-want") {
+          const detected = detectChosenFruit(trimmed);
+          if (detected) {
+            chosenFruitRef.current = detected;
+            setChosenFruit(detected);
+          }
+        }
+        if (wasFirstTry) {
+          recordCorrectAnswer();
+        }
         const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
         setMood("celebrate");
         setMessage(result.feedback ?? `${praise} ばっちり つたわったよ！`);
         soundManager.playCorrect();
-        void speakTalkEnglish(praise, "celebrate");
+        await talkSpeech.speakTalkEnglish(praise, "celebrate");
 
         // 直接対話モードのときは、褒め言葉のあと自動で次のターンへ
         if (directVoiceRef.current) {
-          setTimeout(() => {
-            next();
-          }, 1600);
+          scheduleAutoNext(700);
         }
         return;
       }
@@ -187,9 +264,9 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         modelAnswerJa: result.modelAnswerJa ?? "",
       });
       setMessage(feedbackEn);
-      void speakTalkEnglish(feedbackEn, "think");
+      void talkSpeech.speakTalkEnglish(feedbackEn, "think");
     },
-    [askInJapanese, childId, next, scene.id, turn],
+    [askInJapanese, childId, scene.id, scheduleAutoNext, turn],
   );
 
   const repeat = useCallback(
@@ -200,7 +277,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         setLastHeard(trimmed);
         if (isDontKnowAnswer(trimmed)) {
           if (teach?.modelAnswerJa) {
-            void speakTalkJapanese(`${teach.modelAnswerJa} 「${teach.modelAnswer}」って まねして いってみよう`);
+            void talkSpeech.speakTalkJapanese(`${teach.modelAnswerJa} 「${teach.modelAnswer}」って まねして いってみよう`);
           }
           return;
         }
@@ -215,7 +292,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
           ? `Almost! Try saying: ${teach.modelAnswer}`
           : "Almost! Try saying it again.";
         setMessage(retryFeedbackEn);
-        void speakTalkEnglish(retryFeedbackEn, "think");
+        void talkSpeech.speakTalkEnglish(retryFeedbackEn, "think");
         return;
       }
       soundManager.playCorrect();
@@ -226,16 +303,17 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
 
       // リピート目標達成時、直接対話モードなら自動で次へ
       if (nextCount >= REPEAT_TARGET && directVoiceRef.current) {
-        setTimeout(() => {
-          next();
-        }, 1500);
+        scheduleAutoNext(800);
       }
     },
-    [next, scene.id, teach, turn],
+    [scene.id, scheduleAutoNext, teach, turn],
   );
 
   const restart = useCallback(() => {
-    stopTalkSpeech();
+    clearAutoNextTimer();
+    talkSpeech.stopTalkSpeech();
+    chosenFruitRef.current = null;
+    setChosenFruit(null);
     setState(startTalk(turnIds));
     setTeach(null);
     setShowJapanese(false);
@@ -243,7 +321,7 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     setMood("happy");
     setMessage(null);
     setStarted(false);
-  }, [turnIds]);
+  }, [clearAutoNextTimer, turnIds]);
 
   return {
     state,

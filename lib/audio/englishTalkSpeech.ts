@@ -1,6 +1,6 @@
 "use client";
 
-import { speakVoice, stopCoachVoice } from "./coachSpeech";
+import { preloadVoice, speakVoice, stopCoachVoice } from "./coachSpeech";
 
 type Mood = "happy" | "celebrate" | "think";
 
@@ -158,4 +158,14 @@ export function stopTalkSpeech(): void {
     }
     emit("kanoha-coach-speaking-end");
   }
+}
+
+
+/** シーン開始時に英語の質問セリフと褒め言葉をバックグラウンドで事前ロードし、再生遅延をゼロにする。 */
+export function preloadTalkSceneSpeech(prompts: readonly string[]): void {
+  if (typeof window === "undefined" || process.env.NODE_ENV === "test") return;
+  for (const prompt of prompts) {
+    preloadVoice(prompt, { mood: "happy", lang: "en" });
+  }
+  preloadVoice("Great job!", { mood: "celebrate", lang: "en" });
 }

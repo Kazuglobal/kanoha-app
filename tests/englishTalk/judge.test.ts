@@ -121,3 +121,21 @@ describe("toPublicScene", () => {
     expect(new Set(positions).size).toBeGreaterThan(1);
   });
 });
+
+describe("detectChosenFruit and expanded phonetic/katakana aliases", () => {
+  it("detects chosen fruit in English or Japanese/katakana", async () => {
+    const { detectChosenFruit } = await import("@/lib/englishTalk/judge");
+    expect(detectChosenFruit("Bananas, please.")?.plural).toBe("bananas");
+    expect(detectChosenFruit("バナナ")?.emoji).toBe("🍌");
+    expect(detectChosenFruit("いちご please")?.singular).toBe("strawberry");
+    expect(detectChosenFruit("I'm fine.")).toBeNull();
+  });
+
+  it("accepts newly added katakana and phonetic aliases", () => {
+    expect(judgeTalkAnswer(turn("greeting", "greeting-how-are-you"), "スリーピー")).toBe(true);
+    expect(judgeTalkAnswer(turn("greeting", "greeting-how-are-you"), "ハングリー")).toBe(true);
+    expect(judgeTalkAnswer(turn("greeting", "greeting-age"), "too")).toBe(true);
+    expect(judgeTalkAnswer(turn("greeting", "greeting-age"), "ate")).toBe(true);
+    expect(judgeTalkAnswer(turn("school", "school-sing"), "シュア")).toBe(true);
+  });
+});
