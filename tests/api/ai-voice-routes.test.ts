@@ -100,6 +100,20 @@ describe("POST /api/ai/tts", () => {
     expect(state.limitCalls[2].key).toMatch(/^signed-in:\d{4}-\d{2}-\d{2}$/);
   });
 
+  it("keeps the app-wide signed-in budget well above one account's quota, and lets operators tune it", async () => {
+    state.user = { id: "user-1" };
+    await call({ text: "hi" });
+    const daily = state.limitCalls.find((c) => c.action === "tts-daily")!;
+    const shared = state.limitCalls.find((c) => c.action === "tts-daily-global")!;
+    expect(shared.limit).toBeGreaterThanOrEqual(daily.limit * 5);
+
+    vi.stubEnv("TTS_SIGNED_IN_DAILY_LIMIT", "123");
+    state.limitCalls.length = 0;
+    await call({ text: "hi" });
+    expect(state.limitCalls.find((c) => c.action === "tts-daily-global")!.limit).toBe(123);
+    vi.unstubAllEnvs();
+  });
+
   it("does not spend any budget on invalid requests (validated before the shared limits)", async () => {
     await call({ text: "   " }, { "cf-connecting-ip": "203.0.113.7" });
     await call("{not json", { "cf-connecting-ip": "203.0.113.7" });
@@ -194,6 +208,20 @@ describe("POST /api/ai/stt", () => {
     const res = await call({ audioBase64: AUDIO });
     expect(res.status).toBe(401);
     expect(state.transcribeArgs).toHaveLength(0);
+  });
+
+  it("keeps the app-wide signed-in budget well above one account's quota, and lets operators tune it", async () => {
+    state.user = { id: "user-1" };
+    await call({ audioBase64: AUDIO });
+    const daily = state.limitCalls.find((c) => c.action === "stt-daily")!;
+    const shared = state.limitCalls.find((c) => c.action === "stt-daily-global")!;
+    expect(shared.limit).toBeGreaterThanOrEqual(daily.limit * 5);
+
+    vi.stubEnv("STT_SIGNED_IN_DAILY_LIMIT", "77");
+    state.limitCalls.length = 0;
+    await call({ audioBase64: AUDIO });
+    expect(state.limitCalls.find((c) => c.action === "stt-daily-global")!.limit).toBe(77);
+    vi.unstubAllEnvs();
   });
 
   it("limits signed-in users per minute and per day", async () => {

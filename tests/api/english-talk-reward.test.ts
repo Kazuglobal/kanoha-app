@@ -156,3 +156,35 @@ describe("POST /api/english-talk/check awards the reward on the server", () => {
     }
   });
 });
+
+describe("english-talk and demo checks ignore the spoofable x-forwarded-for header for rate limiting", () => {
+  const send = (path: string, body: unknown, headers: Record<string, string>) =>
+    import(path === "demo" ? "@/app/api/demo/check/route" : "@/app/api/english-talk/check/route").then(({ POST }) =>
+      POST(
+        new Request(`http://localhost/api/${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify(body),
+        }),
+      ),
+    );
+
+  it("english-talk/check: rotating x-forwarded-for does not reset the limit", async () => {
+    const body = { sceneId: "park", turnId: "park-dog", answer: "It's a dog.", mode: "choice" };
+    let limited = 0;
+    for (let i = 0; i < 125; i += 1) {
+      const res = await send("english-talk/check", body, { "cf-connecting-ip": "198.51.100.77", "x-forwarded-for": `10.0.0.${i}` });
+      if (res.status === 429) limited += 1;
+    }
+    expect(limited).toBeGreaterThan(0);
+  });
+
+  it("demo/check: rotating x-forwarded-for does not reset the limit", async () => {
+    let limited = 0;
+    for (let i = 0; i < 125; i += 1) {
+      const res = await send("demo", { checkId: "nope", answer: "1" }, { "cf-connecting-ip": "198.51.100.78", "x-forwarded-for": `10.0.1.${i}` });
+      if (res.status === 429) limited += 1;
+    }
+    expect(limited).toBeGreaterThan(0);
+  });
+});

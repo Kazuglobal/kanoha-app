@@ -77,6 +77,39 @@ describe("reserveAiUsage", () => {
       expect(global).not.toHaveBeenCalled();
     });
 
+    it("also keeps an app-wide cost ceiling in micro-dollars, keyed by the JST date", async () => {
+      vi.spyOn(operations, "incrementAiUsage").mockResolvedValueOnce({ allowed: true, calls: 1, costUsd: 0.01 });
+      vi.spyOn(operations, "checkDbRateLimit").mockResolvedValueOnce(true);
+      const budget = vi.spyOn(operations, "reserveDailyBudget").mockResolvedValueOnce(true);
+
+      await reserveAiUsage("user-1", 0.01, limits);
+
+      expect(budget).toHaveBeenCalledWith(
+        expect.stringMatching(/^global:ai-cost:\d{4}-\d{2}-\d{2}$/),
+        10_000, // $0.01
+        10_000_000, // 既定 $10
+        expect.anything(),
+      );
+    });
+
+    it("denies when the app-wide cost ceiling is exhausted", async () => {
+      vi.spyOn(operations, "incrementAiUsage").mockResolvedValueOnce({ allowed: true, calls: 1, costUsd: 0.01 });
+      vi.spyOn(operations, "checkDbRateLimit").mockResolvedValueOnce(true);
+      vi.spyOn(operations, "reserveDailyBudget").mockResolvedValueOnce(false);
+
+      await expect(reserveAiUsage("user-1", 0.01, limits)).resolves.toMatchObject({ outcome: "denied" });
+    });
+
+    it("does not spend the cost ceiling when the call ceiling already denied", async () => {
+      vi.spyOn(operations, "incrementAiUsage").mockResolvedValueOnce({ allowed: true, calls: 1, costUsd: 0.01 });
+      vi.spyOn(operations, "checkDbRateLimit").mockResolvedValueOnce(false);
+      const budget = vi.spyOn(operations, "reserveDailyBudget");
+      budget.mockClear();
+
+      await reserveAiUsage("user-1", 0.01, limits);
+      expect(budget).not.toHaveBeenCalled();
+    });
+
     it("fails closed when the ceiling check errors, and reads AI_GLOBAL_DAILY_CALL_LIMIT", async () => {
       vi.stubEnv("AI_GLOBAL_DAILY_CALL_LIMIT", "250");
       vi.spyOn(operations, "incrementAiUsage").mockResolvedValue({ allowed: true, calls: 1, costUsd: 0.01 });

@@ -5,6 +5,7 @@ import { transcribeAudio } from "@/lib/ai/stt";
 import { getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
 import { bodyTooLarge, parseJsonText, readBodyText, requireUser } from "@/lib/utils/api";
 import { todayKeyJst } from "@/lib/utils/date";
+import { envNumber } from "@/lib/utils/envNumber";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
 /** 音声 Base64 の最大文字数（約 1.5MB 相当の音声データまで許容） */
@@ -15,7 +16,9 @@ const DAY_SECONDS = 86_400;
 /** 本文の上限(バイト)。音声(base64 2,000,000文字)に JSON の枠ぶんの余裕を足した値 */
 const MAX_BODY_BYTES = MAX_AUDIO_BASE64_LENGTH + 4_096;
 /** signedInSharedPerDay: ログイン中の全員でまとめた1日の上限(アカウントを増やしても総量は増えない) */
-const LIMITS = { perMinute: 30, perDay: 300, signedInSharedPerDay: 1_000 } as const;
+const LIMITS = { perMinute: 30, perDay: 300, signedInSharedPerDay: 2_000 } as const;
+/** ログイン中の全員でまとめた1日の上限。STT_SIGNED_IN_DAILY_LIMIT で調整する。 */
+const signedInSharedDailyLimit = (): number => envNumber("STT_SIGNED_IN_DAILY_LIMIT", LIMITS.signedInSharedPerDay);
 
 const schema = z.object({
   audioBase64: z.string().catch(""),
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
     if (
       !(await checkRateLimitDb(user.id, "stt", LIMITS.perMinute)) ||
       !(await checkRateLimitDb(user.id, "stt-daily", LIMITS.perDay, DAY_SECONDS)) ||
-      !(await checkRateLimitDb(`signed-in:${todayKeyJst()}`, "stt-daily-global", LIMITS.signedInSharedPerDay, DAY_SECONDS))
+      !(await checkRateLimitDb(`signed-in:${todayKeyJst()}`, "stt-daily-global", signedInSharedDailyLimit(), DAY_SECONDS))
     ) {
       return failure("Too many requests", 429);
     }

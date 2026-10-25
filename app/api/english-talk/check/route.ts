@@ -8,6 +8,7 @@ import { buildCorrectiveFeedbackEn, isDontKnowAnswer, judgeTalkAnswer } from "@/
 import type { RewardState } from "@/lib/rewards/rewardLogic";
 import { recordEnglishTalkClear } from "@/lib/rewards/serverRewards";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
+import { clientIpFrom } from "@/lib/utils/clientIp";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { uuid } from "@/lib/utils/schemas";
 
@@ -48,8 +49,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError("Invalid check request");
   const { sceneId, turnId, answer, mode, childId, firstTry } = parsed.data;
 
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
-  if (!checkRateLimit(`english-talk:${childId ?? forwarded}`, 120)) {
+  // 端末が送る childId や x-forwarded-for は偽装できるので、制限のキーには使わない
+  if (!checkRateLimit(`english-talk:${clientIpFrom(request)}`, 120)) {
     return apiError("Too many requests", 429);
   }
 

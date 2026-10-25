@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TTS_VOICES, generateGeminiSpeech } from "@/lib/ai/tts";
 import { bodyTooLarge, parseJsonText, readBodyText, requireUser } from "@/lib/utils/api";
 import { todayKeyJst } from "@/lib/utils/date";
+import { envNumber } from "@/lib/utils/envNumber";
 import { clientIpFrom } from "@/lib/utils/clientIp";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
@@ -15,19 +16,15 @@ const MAX_BODY_BYTES = 8_192;
 /** ログイン中は ユーザーごと。未ログイン(デモ)は IP ごとの上限に加え、全体共通の1日の上限でコストを抑える。 */
 const LIMITS = {
   /** signedInSharedPerDay: ログイン中の全員でまとめた1日の上限(アカウントを増やしても総量は増えない) */
-  user: { perMinute: 60, perDay: 600, signedInSharedPerDay: 2_000 },
+  user: { perMinute: 60, perDay: 600, signedInSharedPerDay: 4_000 },
   anonymous: { perMinute: 20, sharedPerDay: 300 },
 } as const;
 
-/**
- * 未ログインの1日の共通上限。デモの来訪が多い環境では TTS_ANON_DAILY_LIMIT で調整する(0 なら未ログインの声を止める)。
- * 環境変数は呼び出し時に読む。
- */
-const anonymousDailyLimit = (): number => {
-  const configured = process.env.TTS_ANON_DAILY_LIMIT;
-  const parsed = configured === undefined || configured.trim() === "" ? NaN : Number(configured);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : LIMITS.anonymous.sharedPerDay;
-};
+/** 未ログインの1日の共通上限(0 なら未ログインの声を止める)。デモの来訪が多い環境では TTS_ANON_DAILY_LIMIT で調整する。 */
+const anonymousDailyLimit = (): number => envNumber("TTS_ANON_DAILY_LIMIT", LIMITS.anonymous.sharedPerDay);
+
+/** ログイン中の全員でまとめた1日の上限。TTS_SIGNED_IN_DAILY_LIMIT で調整する。 */
+const signedInSharedDailyLimit = (): number => envNumber("TTS_SIGNED_IN_DAILY_LIMIT", LIMITS.user.signedInSharedPerDay);
 
 /** 全体で共有する1日枠のキー。日本時間の日付ごとに新しくなる(固定24時間の窓だと、使い切った影響が翌日まで残る)。 */
 const sharedDailyKey = (name: string): string => `${name}:${todayKeyJst()}`;
@@ -53,7 +50,7 @@ async function withinLimits(request: Request, userId: string | null): Promise<bo
     return (
       (await checkRateLimitDb(userId, "tts", LIMITS.user.perMinute)) &&
       (await checkRateLimitDb(userId, "tts-daily", LIMITS.user.perDay, DAY_SECONDS)) &&
-      (await checkRateLimitDb(sharedDailyKey("signed-in"), "tts-daily-global", LIMITS.user.signedInSharedPerDay, DAY_SECONDS))
+      (await checkRateLimitDb(sharedDailyKey("signed-in"), "tts-daily-global", signedInSharedDailyLimit(), DAY_SECONDS))
     );
   }
   return (

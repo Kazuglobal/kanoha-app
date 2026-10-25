@@ -48,6 +48,31 @@ export const incrementAiUsage = async (
   return row ? { allowed: true, calls: row.calls, costUsd: row.costUsd } : { allowed: false, ...(await current()) };
 };
 
+/**
+ * 1日分の「予算」(整数の単位)を原子的に予約する。key ごとに合計を持ち、合計が limit に収まるときだけ加算する。
+ * 呼び出し側が key に日付を含めて、日ごとに新しい予算にする。収まらないときは何も記録せず false。
+ */
+export const reserveDailyBudget = async (
+  key: string,
+  amount: number,
+  limit: number,
+  db = getDb(),
+): Promise<boolean> => {
+  if (!Number.isInteger(amount) || amount < 0 || amount > limit) return false;
+  const budget = schema.rateLimits;
+  const row = await db
+    .insert(budget)
+    .values({ id: crypto.randomUUID(), limiterKey: key, action: "budget", windowStart: new Date().toISOString(), callCount: amount })
+    .onConflictDoUpdate({
+      target: budget.limiterKey,
+      set: { callCount: sql`${budget.callCount} + ${amount}` },
+      setWhere: sql`${budget.callCount} + ${amount} <= ${limit}`,
+    })
+    .returning({ total: budget.callCount })
+    .get();
+  return row !== undefined;
+};
+
 /** 窓が終わってからこの時間(ミリ秒)を過ぎたレート制限の行は消してよい。 */
 const STALE_RATE_LIMIT_MS = 2 * 86_400_000;
 /** 掃除は毎回やらず、おおよそこの回数に1回だけ行う。 */

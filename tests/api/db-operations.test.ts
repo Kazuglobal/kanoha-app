@@ -6,6 +6,7 @@ import {
   checkDbRateLimit,
   incrementAiUsage,
   purgeStaleRateLimits,
+  reserveDailyBudget,
 } from "@/lib/db/operations";
 import * as schema from "@/lib/db/schema";
 
@@ -115,5 +116,34 @@ describe("incrementAiUsage (real DB)", () => {
     expect((await incrementAiUsage(USER_A, 0.01, 1, 2)).allowed).toBe(false);
     vi.setSystemTime(new Date("2026-10-25T15:01:00Z")); // 00:01 JST next day
     expect((await incrementAiUsage(USER_A, 0.01, 1, 2)).allowed).toBe(true);
+  });
+});
+
+describe("reserveDailyBudget (real DB)", () => {
+  const db = getDb();
+
+  beforeEach(async () => {
+    await db.delete(schema.rateLimits).run();
+  });
+
+  it("adds the amount while it fits under the limit and refuses (without recording) once it would not", async () => {
+    expect(await reserveDailyBudget("budget:a", 400, 1000, db)).toBe(true);
+    expect(await reserveDailyBudget("budget:a", 400, 1000, db)).toBe(true);
+    expect(await reserveDailyBudget("budget:a", 400, 1000, db)).toBe(false); // 1200 > 1000
+    expect(await reserveDailyBudget("budget:a", 200, 1000, db)).toBe(true); // 1000 ちょうどは入る
+    const row = await db.select().from(schema.rateLimits).where(eq(schema.rateLimits.limiterKey, "budget:a")).get();
+    expect(row?.callCount).toBe(1000);
+  });
+
+  it("refuses a first amount that already exceeds the limit and keeps keys separate", async () => {
+    expect(await reserveDailyBudget("budget:big", 2000, 1000, db)).toBe(false);
+    expect(await db.select().from(schema.rateLimits).where(eq(schema.rateLimits.limiterKey, "budget:big")).all()).toHaveLength(0);
+    expect(await reserveDailyBudget("budget:b", 900, 1000, db)).toBe(true);
+    expect(await reserveDailyBudget("budget:c", 900, 1000, db)).toBe(true);
+  });
+
+  it("never lets a parallel burst exceed the limit", async () => {
+    const results = await Promise.all(Array.from({ length: 12 }, () => reserveDailyBudget("budget:burst", 100, 500, db)));
+    expect(results.filter(Boolean)).toHaveLength(5);
   });
 });
