@@ -16,7 +16,6 @@ interface FiveYenRewardModalProps {
 export function FiveYenRewardModal({
   isOpen,
   onClose,
-  earnedAmountYen = 5,
   onOpenExchange,
 }: FiveYenRewardModalProps) {
   const [totalYen, setTotalYen] = useState(0);

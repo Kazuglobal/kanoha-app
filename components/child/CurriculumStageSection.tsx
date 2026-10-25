@@ -6,7 +6,7 @@ import { Lock, Sparkles, Trophy } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import { RubyAuto } from "@/components/child/RubyText";
 import { getCurriculumStages } from "@/lib/curriculum/curriculumBank";
-import { SUBJECT_CONFIG, type Subject } from "@/lib/curriculum/subjects";
+import type { Subject } from "@/lib/curriculum/subjects";
 
 interface CurriculumStageSectionProps {
   currentSubject: Subject;

@@ -5,7 +5,6 @@ import type { Route } from "next";
 import Link from "next/link";
 import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
-import { speakCoachVoice } from "@/lib/audio/coachSpeech";
 import { CharacterCoach } from "./CharacterCoach";
 import { RubyAuto } from "./RubyText";
 import { FLOW_TEXT } from "./childStrings";
@@ -49,13 +48,9 @@ export function FinishedScreen({
   isLastInUnit?: boolean;
   onRestart: () => void;
 }) {
+  // 声は手動再生のみ(自動再生しない)。効果音だけ鳴らし、声はコーチの吹き出しをタップしたときに聞ける。
   useEffect(() => {
     soundManager.playCelebrate();
-    if (score >= 4) {
-      void speakCoachVoice("ぜんぶ できたね！すごいっ！", "celebrate");
-    } else {
-      void speakCoachVoice("よく がんばったね！つぎも いっしょに やろう！", "happy");
-    }
   }, [score]);
 
   const mastered = score >= 4;

@@ -28,12 +28,8 @@ export function CharacterCoach({
   const [tapMessage, setTapMessage] = useState<string | null>(null);
   const [tapMood, setTapMood] = useState<"happy" | "think" | "celebrate" | null>(null);
   const [isJumping, setIsJumping] = useState(false);
-  const [accessories, setAccessories] = useState<EquippedAccessories>(() => {
-    if (typeof window !== "undefined") {
-      return getEquippedAccessories();
-    }
-    return DEFAULT_EQUIPPED;
-  });
+  // 最初の描画はサーバーと同じ(端末の保存値は読まない)にし、マウント後に反映する(hydration の不一致を避ける)。
+  const [accessories, setAccessories] = useState<EquippedAccessories>(DEFAULT_EQUIPPED);
 
   useEffect(() => {
     setAccessories(getEquippedAccessories());

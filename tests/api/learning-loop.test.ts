@@ -36,7 +36,6 @@ const post = (path: string, body: unknown) =>
   });
 
 const SIMILAR_CHOICES = ["2000mL", "200mL", "20000mL", "1000mL"];
-const SIMILAR_IDS = Array.from({ length: 5 }, (_, index) => `similar-${index}`);
 
 describe("learning loop: attempts → weakness → review → schedule", () => {
   const db = getDb();
@@ -333,7 +332,6 @@ describe("learning loop: attempts → weakness → review → schedule", () => {
   });
 
   it("typed similar-problem answers are accepted when the problem has no choices", async () => {
-    const now = nowJstIso();
     await db
       .update(schema.generatedSimilarProblems)
       .set({ choices: null, answer: "3L50mL" })
@@ -879,7 +877,6 @@ describe("learning loop: repeated mistakes lower similar-problem difficulty", ()
   });
 
   it("passes one difficulty lower and the repeated mistakeType to the provider", async () => {
-    const now = nowJstIso();
 
     // 直近2回の同一ミス (unit_conversion_error) をセットアップ
     await db.insert(schema.attempts).values([

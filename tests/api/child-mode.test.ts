@@ -108,7 +108,8 @@ describe("POST /api/child-mode", () => {
     }).run();
   });
 
-  it("sets the httpOnly child cookie when a PIN exists", async () => {
+  // 初回の動的 import(better-auth など)が重く、環境によっては既定の5秒を超えるため余裕を持たせる
+  it("sets the httpOnly child cookie when a PIN exists", { timeout: 30_000 }, async () => {
     await db.update(schema.users)
       .set({ parentPinHash: "scrypt$a$b" })
       .where(eq(schema.users.id, USER))

@@ -19,7 +19,6 @@ interface AnimeCharacterGirlProps {
  */
 export function AnimeCharacterGirl({
   mood = "happy",
-  level = 1,
   accessories,
   className,
   onClick,
@@ -187,7 +186,6 @@ export function AnimeCharacterGirl({
     if (onClick) onClick();
   };
 
-  const clothes = accessories?.clothes || "clothes_school";
   const hat = accessories?.hat || "hat_none";
   const glasses = accessories?.glasses || "glasses_none";
 

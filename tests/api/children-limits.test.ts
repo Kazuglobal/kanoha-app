@@ -37,7 +37,6 @@ describe("POST /api/children (rate limit + profile cap)", () => {
 
   beforeEach(async () => {
     state.rateLimitAllowed = true;
-    const now = nowJstIso();
 
     await db
       .insert(schema.users)

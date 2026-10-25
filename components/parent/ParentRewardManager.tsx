@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Gift, CheckCircle2, Clock, Plus, Trash2, Edit2, RotateCcw } from "lucide-react";
+import { Gift, CheckCircle2, Clock, Plus, Trash2, RotateCcw } from "lucide-react";
 import styles from "@/components/kanoha.module.css";
 import {
   getRealRewardItems,

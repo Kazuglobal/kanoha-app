@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 import * as schema from "@/lib/db/schema";
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       },
       auth.db,
     );
-    if (!weakness) return internalError();
+    if (!weakness) return discardAttempt(auth.db, attemptId);
 
     const review = input.problemId
       ? await transitionReview(
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
           auth.db,
         )
       : { action: "none" as const };
-    if (review.action === "error") return internalError();
+    if (review.action === "error") return discardAttempt(auth.db, attemptId);
 
     // ごほうびは対象の元問題の正解だけで増える(答えを見たあと・同じ日の同じ問題は対象外)。
     // 記録はもう保存ずみなので、失敗しても回答は失敗扱いにしない。
@@ -146,8 +147,21 @@ export async function POST(request: Request) {
       201,
     );
   } catch {
-    return internalError();
+    return discardAttempt(auth.db, attemptId);
   }
+}
+
+/**
+ * 回答の保存後に弱点・復習の更新が失敗したら、保存した回答を取り消してエラーにする。
+ * 残したままだと、再送で同じ回答が二重に数えられる。
+ */
+async function discardAttempt(db: Auth["db"], attemptId: string) {
+  await db
+    .delete(schema.attempts)
+    .where(eq(schema.attempts.id, attemptId))
+    .run()
+    .catch(() => undefined);
+  return internalError();
 }
 
 const tapAnswerAllowed = (input: Input, target: AttemptTarget): boolean =>

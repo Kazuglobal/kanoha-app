@@ -79,11 +79,6 @@ export async function POST(request: Request) {
   });
 }
 
-interface SimilarAttemptRow {
-  similar_problem_id: string;
-  is_correct: boolean;
-}
-
 async function countSimilarCorrect(db: Database, input: Input): Promise<number | null> {
   try {
     const similarRows = await db
