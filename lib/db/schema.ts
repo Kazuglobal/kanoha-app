@@ -284,3 +284,19 @@ export const childRewards = sqliteTable("child_rewards", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * ごほうびの請求記録。同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ出すための重複防止。
+ * kind: "english_talk"(ref_id は "場面:ターン") / "problem"(ref_id は問題ID)
+ */
+export const rewardClaims = sqliteTable(
+  "reward_claims",
+  {
+    childId: text("child_id").notNull().references(() => childProfiles.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    refId: text("ref_id").notNull(),
+    claimDate: text("claim_date").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.childId, table.kind, table.refId, table.claimDate] })],
+);

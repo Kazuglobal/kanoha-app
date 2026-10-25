@@ -1,7 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, lt, max, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { nowJstIso } from "@/lib/utils/date";
+import { jstDayRange, nowJstIso, todayKeyJst } from "@/lib/utils/date";
+import { ANSWER_HINT_LEVEL } from "@/lib/utils/resources";
 import type { EquippedAccessories } from "./catalog";
 import {
   DEFAULT_REWARD_STATE,
@@ -71,6 +72,95 @@ export async function recordCorrectReward(db: Database, childId: string): Promis
     .returning(rewardColumns)
     .get();
   return normalizeRewardState(row);
+}
+
+type ClaimKind = "english_talk" | "problem";
+
+/**
+ * 同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ数える。
+ * 請求の記録は主キーで原子的に取る(同時に来ても1回だけ)。数えられなかったときは記録を戻し、あとで数え直せるようにする。
+ * すでに今日数えていれば null。
+ */
+async function claimOnceThenRecord(
+  db: Database,
+  childId: string,
+  kind: ClaimKind,
+  refId: string,
+): Promise<RewardState | null> {
+  const claimDate = todayKeyJst();
+  const claimed = await db
+    .insert(schema.rewardClaims)
+    .values({ childId, kind, refId, claimDate, createdAt: nowJstIso() })
+    .onConflictDoNothing()
+    .returning({ childId: schema.rewardClaims.childId })
+    .all();
+  if (claimed.length === 0) return null;
+
+  try {
+    return await recordCorrectReward(db, childId);
+  } catch (error) {
+    await db
+      .delete(schema.rewardClaims)
+      .where(
+        and(
+          eq(schema.rewardClaims.childId, childId),
+          eq(schema.rewardClaims.kind, kind),
+          eq(schema.rewardClaims.refId, refId),
+          eq(schema.rewardClaims.claimDate, claimDate),
+        ),
+      )
+      .run()
+      .catch(() => undefined);
+    throw error;
+  }
+}
+
+/** 英会話れんしゅうの1ターン正解(子ども×場面×ターン×日に1回)。 */
+export const recordEnglishTalkClear = (
+  db: Database,
+  childId: string,
+  sceneId: string,
+  turnId: string,
+): Promise<RewardState | null> => claimOnceThenRecord(db, childId, "english_talk", `${sceneId}:${turnId}`);
+
+/** 今日(JST)、この子がこの問題で「答え」のヒントまで開いたか(どのセッションでも。やり直しで消えない)。 */
+async function openedAnswerHintToday(
+  db: Database,
+  childId: string,
+  problemId: string,
+  hintLevelUsed: number,
+): Promise<boolean> {
+  if (hintLevelUsed >= ANSWER_HINT_LEVEL) return true;
+  const { start, end } = jstDayRange();
+  const row = await db
+    .select({ level: max(schema.problemHintViews.maxLevel) })
+    .from(schema.problemHintViews)
+    .where(
+      and(
+        eq(schema.problemHintViews.childId, childId),
+        eq(schema.problemHintViews.problemId, problemId),
+        gte(schema.problemHintViews.updatedAt, start),
+        lt(schema.problemHintViews.updatedAt, end),
+      ),
+    )
+    .get();
+  return Number(row?.level ?? 0) >= ANSWER_HINT_LEVEL;
+}
+
+/**
+ * 元問題の正解をごほうびとして数える。
+ * - 答えのヒント(最終段階)を見たあとの正解は対象外
+ * - 同じ問題は1日(JST)に1回だけ。別の日の復習はあらためて対象になる
+ * 対象外・すでに数えたときは null。
+ */
+export async function recordProblemReward(
+  db: Database,
+  childId: string,
+  problemId: string,
+  hintLevelUsed: number,
+): Promise<RewardState | null> {
+  if (await openedAnswerHintToday(db, childId, problemId, hintLevelUsed)) return null;
+  return claimOnceThenRecord(db, childId, "problem", problemId);
 }
 
 export async function saveEquippedAccessories(

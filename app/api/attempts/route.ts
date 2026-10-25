@@ -18,7 +18,7 @@ import { uuid } from "@/lib/utils/schemas";
 import { answersMatch } from "@/lib/utils/answers";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { nowJstIso } from "@/lib/utils/date";
-import { recordCorrectReward } from "@/lib/rewards/serverRewards";
+import { recordProblemReward } from "@/lib/rewards/serverRewards";
 
 /**
  * hint_level_used はクライアントから受け取らず problem_hint_views(サーバー記録)から読む(A2)。
@@ -123,10 +123,11 @@ export async function POST(request: Request) {
       : { action: "none" as const };
     if (review.action === "error") return internalError();
 
-    // ごほうびは元問題の正解だけで増える。記録はもう保存ずみなので、失敗しても回答は失敗扱いにしない。
+    // ごほうびは対象の元問題の正解だけで増える(答えを見たあと・同じ日の同じ問題は対象外)。
+    // 記録はもう保存ずみなので、失敗しても回答は失敗扱いにしない。
     const reward =
       isCorrect && input.problemId
-        ? await recordCorrectReward(auth.db, input.childId).catch(() => null)
+        ? await recordProblemReward(auth.db, input.childId, input.problemId, hintLevel).catch(() => null)
         : null;
 
     return apiSuccess(

@@ -5,7 +5,7 @@ import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { getCurriculumProblemById } from "@/lib/curriculum/curriculumBank";
 import { ensureCurriculumProblem } from "@/lib/curriculum/materialize";
-import { recordCorrectReward } from "@/lib/rewards/serverRewards";
+import { recordCorrectReward, recordProblemReward } from "@/lib/rewards/serverRewards";
 import { nowJstIso } from "@/lib/utils/date";
 
 const USER = "user-rewards-1";
@@ -125,6 +125,95 @@ describe("child rewards are stored per child in the DB", () => {
 
     const right = await (await send(bank.correctAnswer)).json();
     expect(right.data.reward).toMatchObject({ currentCycleCount: 1, totalCorrectCount: 1, totalRewardYen: 0 });
+  });
+
+  describe("reward rules for the original problem", () => {
+    const bank = getCurriculumProblemById("english-animals-1")!;
+
+    const answer = async (problemId: string, childAnswer = bank.correctAnswer) => {
+      const { POST: attempt } = await import("@/app/api/attempts/route");
+      const response = await attempt(
+        new Request("http://localhost/api/attempts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ childId: CHILD, sessionId: SESSION, problemId, childAnswer, answerType: "text" }),
+        }),
+      );
+      return (await response.json()).data as { is_correct: boolean; reward: unknown };
+    };
+
+    const storedCorrect = async () =>
+      (await db.select().from(schema.childRewards).where(eq(schema.childRewards.childId, CHILD)).get())
+        ?.totalCorrectCount ?? 0;
+
+    const openHints = (problemId: string, maxLevel: number) =>
+      db
+        .insert(schema.problemHintViews)
+        .values({ childId: CHILD, problemId, sessionId: SESSION, maxLevel, updatedAt: nowJstIso() })
+        .run();
+
+    it("pays only once per problem per day, but still records every attempt", async () => {
+      const problemId = await ensureCurriculumProblem(db, CHILD, bank);
+      expect((await answer(problemId)).reward).not.toBeNull();
+
+      const again = await answer(problemId);
+      expect(again.is_correct).toBe(true);
+      expect(again.reward).toBeNull();
+      expect(await storedCorrect()).toBe(1);
+      expect(await db.select().from(schema.attempts).all()).toHaveLength(2);
+    });
+
+    it("pays again for the same problem on another day (reviews are rewarded)", async () => {
+      const problemId = await ensureCurriculumProblem(db, CHILD, bank);
+      await answer(problemId);
+      await db.update(schema.rewardClaims).set({ claimDate: "2000-01-01" }).run();
+
+      expect((await answer(problemId)).reward).not.toBeNull();
+      expect(await storedCorrect()).toBe(2);
+    });
+
+    it("a wrong answer does not use up the day's reward", async () => {
+      const problemId = await ensureCurriculumProblem(db, CHILD, bank);
+      await answer(problemId, "not-the-answer");
+      expect((await answer(problemId)).reward).not.toBeNull();
+    });
+
+    it("does not pay when the answer hint (level 4) was opened, but does after the solution hint (level 3)", async () => {
+      const problemId = await ensureCurriculumProblem(db, CHILD, bank);
+      await openHints(problemId, 4);
+      const peeked = await answer(problemId);
+      expect(peeked.is_correct).toBe(true);
+      expect(peeked.reward).toBeNull();
+      expect(await storedCorrect()).toBe(0);
+
+      // 解き方(level 3)までなら、覗いた回答はごほうびを使っていないのでそのまま対象になる
+      await db.update(schema.problemHintViews).set({ maxLevel: 3 }).run();
+      expect((await answer(problemId)).reward).not.toBeNull();
+    });
+
+    it("also counts hints opened in an earlier session today (starting over does not reset the peek)", async () => {
+      const problemId = await ensureCurriculumProblem(db, CHILD, bank);
+      const earlier = "bbbbbbbb-aaaa-4aaa-8aaa-bbbbbbbbbbbb";
+      const now = nowJstIso();
+      await db.insert(schema.learningSessions).values({ id: earlier, childId: CHILD, startedAt: now, createdAt: now, updatedAt: now }).run();
+      await db
+        .insert(schema.problemHintViews)
+        .values({ childId: CHILD, problemId, sessionId: earlier, maxLevel: 4, updatedAt: now })
+        .run();
+
+      const result = await answer(problemId); // 今回のセッションではヒントを開いていない
+      expect(result.is_correct).toBe(true);
+      expect(result.reward).toBeNull();
+    });
+
+    it("pays exactly once when identical correct answers arrive in parallel", async () => {
+      const problemId = await ensureCurriculumProblem(db, CHILD, bank);
+      const results = await Promise.all(
+        Array.from({ length: 4 }, () => recordProblemReward(db, CHILD, problemId, 0)),
+      );
+      expect(results.filter((reward) => reward !== null)).toHaveLength(1);
+      expect(await storedCorrect()).toBe(1);
+    });
   });
 
   it("saves only unlocked accessories", async () => {

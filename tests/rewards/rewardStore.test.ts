@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getRewardState, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
+import { applyServerReward, getRewardState, notifyProblemSolved, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 
 describe("rewardStore", () => {
   beforeEach(() => {
@@ -61,5 +61,31 @@ describe("rewardStore", () => {
     expect(state.totalCorrectCount).toBe(20);
     expect(state.totalRewardYen).toBe(10); // 10問ごとに5円 = 20問で10円
     expect(state.currentCycleCount).toBe(0);
+  });
+
+  describe("the character reacts to every correct answer, even when no reward was added", () => {
+    const solvedEvents = () => {
+      const listener = vi.fn();
+      window.addEventListener("kanoha-problem-solved", listener);
+      return { listener, stop: () => window.removeEventListener("kanoha-problem-solved", listener) };
+    };
+
+    it("notifyProblemSolved fires the event without touching the stored reward", () => {
+      const { listener, stop } = solvedEvents();
+      const before = getRewardState();
+      notifyProblemSolved();
+      stop();
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(getRewardState()).toEqual(before);
+    });
+
+    it("applyServerReward(null) (already paid today) still fires the event and changes nothing", () => {
+      const { listener, stop } = solvedEvents();
+      const before = getRewardState();
+      expect(applyServerReward(null)).toBeNull();
+      stop();
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(getRewardState()).toEqual(before);
+    });
   });
 });

@@ -79,6 +79,8 @@ export async function ownedSimilarProblemRecord(
 
 export const HINT_LEVELS = [1, 2, 3, 4] as const;
 export type HintLevel = (typeof HINT_LEVELS)[number];
+/** 答えそのものを見せるヒントの段階(ごほうびの対象から外す)。 */
+export const ANSWER_HINT_LEVEL: HintLevel = 4;
 export const HINT_LABELS: Record<HintLevel, string> = {
   1: "ヒント 1",
   2: "ヒント 2",

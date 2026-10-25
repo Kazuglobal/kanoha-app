@@ -10,7 +10,7 @@ import {
   type StoredSimilarProblem,
 } from "@/lib/sessions/progress";
 import { visualTemplateFor, visualTemplateUrl } from "@/lib/curriculum/visuals";
-import { applyServerReward, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
+import { applyServerReward, notifyProblemSolved, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import { soundManager } from "@/lib/audio/soundSystem";
 import {
   playPraiseVoice,
@@ -451,8 +451,10 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }
 
   async function completeSimilar(correct: boolean) {
+    // ごほうびは元問題の正解だけ(サーバーが数える)。端末だけで数えるのは未ログイン(デモ)のとき。
     if (correct) {
-      recordCorrectAnswer();
+      if (isDemo) recordCorrectAnswer();
+      else notifyProblemSolved();
     }
     setScore((currentScore) => currentScore + (correct ? 1 : 0));
     const nextIndex = (practiceIndex ?? 0) + 1;
