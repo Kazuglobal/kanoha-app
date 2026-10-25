@@ -243,15 +243,22 @@ export const appSettings = sqliteTable("app_settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const aiDailyUsage = sqliteTable("ai_daily_usage", {
-  id: text("id").primaryKey(),
-  usageDate: text("usage_date").notNull().unique(),
-  calls: integer("calls").notNull().default(0),
-  costUsd: real("cost_usd").notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
+/** AI 利用量はユーザー(家庭)ごと・日(JST)ごと。 */
+export const aiDailyUsage = sqliteTable(
+  "ai_daily_usage",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    usageDate: text("usage_date").notNull(),
+    calls: integer("calls").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("ai_daily_usage_user_date_unique").on(table.userId, table.usageDate)],
+);
 
+/** レート制限の窓。limiter_key ごとに1行(原子的な upsert で数える)。 */
 export const rateLimits = sqliteTable(
   "rate_limits",
   {
@@ -261,13 +268,7 @@ export const rateLimits = sqliteTable(
     windowStart: text("window_start").notNull(),
     callCount: integer("call_count").notNull().default(0),
   },
-  (table) => [
-    uniqueIndex("rate_limits_key_action_window_unique").on(
-      table.limiterKey,
-      table.action,
-      table.windowStart,
-    ),
-  ],
+  (table) => [uniqueIndex("rate_limits_limiter_key_unique").on(table.limiterKey)],
 );
 
 /**
