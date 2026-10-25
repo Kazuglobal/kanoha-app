@@ -29,16 +29,40 @@ interface CookieReader {
 export const isChildMode = (cookies: CookieReader): boolean =>
   cookies.get(CHILD_MODE_COOKIE)?.value === CHILD_MODE_VALUE;
 
+/**
+ * PARENT_ONLY_API の配下でも、子ども画面が使うため子どもモードで通す API。
+ * (ごほうび・着せかえの読み書き。所有確認は各ルートの requireOwnedChild が行う)
+ * `%` や `.` を含む ID は通さない(エンコード経由の迂回を許さない)。
+ */
+const CHILD_ALLOWED_API: readonly RegExp[] = [/^\/api\/children\/[A-Za-z0-9_-]+\/rewards$/];
+
 const hasPrefix = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(`${prefix}/`);
 
-export const isParentPage = (pathname: string): boolean => hasPrefix(pathname, "/parent");
+/** `/api/%63hildren` のようなエンコード済みの綴りも遮断対象にするため、生の値と復号後の両方を調べる。復号できないパスは調べられないので遮断側に倒す。 */
+const pathVariants = (pathname: string): string[] | null => {
+  try {
+    return [pathname, decodeURIComponent(pathname)];
+  } catch {
+    return null;
+  }
+};
 
-export const isParentOnlyApi = (pathname: string, method: string): boolean => {
-  if (PARENT_ONLY_API.some((prefix) => hasPrefix(pathname, prefix))) return true;
-  return PARENT_ONLY_EXACT.some(
+export const isParentPage = (pathname: string): boolean => {
+  const variants = pathVariants(pathname);
+  return variants === null || variants.some((path) => hasPrefix(path, "/parent"));
+};
+
+const isBlockedApi = (pathname: string, method: string): boolean =>
+  PARENT_ONLY_API.some((prefix) => hasPrefix(pathname, prefix)) ||
+  PARENT_ONLY_EXACT.some(
     (rule) => rule.path === pathname && (rule.methods === null || rule.methods.includes(method.toUpperCase())),
   );
+
+export const isParentOnlyApi = (pathname: string, method: string): boolean => {
+  if (CHILD_ALLOWED_API.some((pattern) => pattern.test(pathname))) return false;
+  const variants = pathVariants(pathname);
+  return variants === null || variants.some((path) => isBlockedApi(path, method));
 };
 
 export const childModeCookie = (secure: boolean) => ({

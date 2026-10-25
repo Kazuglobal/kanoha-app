@@ -42,6 +42,7 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+/** 静的ファイルだけ proxy を外す。/api/* は拡張子で終わるパス(例: /api/children/x.png)でも必ず通す。 */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|(?!api/).*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
