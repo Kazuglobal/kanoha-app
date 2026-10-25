@@ -79,31 +79,50 @@ describe("boostWavOrPcm", () => {
 });
 
 describe("generateGeminiSpeech model selection", () => {
-  it("uses gemini-3.8-flash-tts / gemini-3.8-flash and does not call retired gemini-2.0-flash", async () => {
-    const { generateGeminiSpeech } = await import("@/lib/ai/tts");
+  const withEnv = async (model: string | undefined, run: (calledUrls: string[]) => Promise<void>) => {
     const prevKey = process.env.GEMINI_API_KEY;
     const prevModel = process.env.GEMINI_TTS_MODEL;
     process.env.GEMINI_API_KEY = "test-api-key";
-    delete process.env.GEMINI_TTS_MODEL;
+    if (model === undefined) delete process.env.GEMINI_TTS_MODEL;
+    else process.env.GEMINI_TTS_MODEL = model;
 
     const calledUrls: string[] = [];
     const origFetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       calledUrls.push(String(input));
-      return new Response(JSON.stringify({ error: { code: 404, message: "not found" } }), { status: 404 });
+      return new Response(JSON.stringify({ error: { code: 404, message: "secret upstream detail" } }), {
+        status: 404,
+      });
     }) as typeof fetch;
 
     try {
-      const res = await generateGeminiSpeech({ text: "こんにちは", lang: "ja" });
-      expect(res.success).toBe(false);
-      expect(calledUrls.some((u) => u.includes("gemini-3.8-flash-tts"))).toBe(true);
-      expect(calledUrls.some((u) => u.includes("gemini-3.8-flash"))).toBe(true);
-      expect(calledUrls.some((u) => u.includes("gemini-2.0-flash"))).toBe(false);
+      await run(calledUrls);
     } finally {
       globalThis.fetch = origFetch;
       if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
       else process.env.GEMINI_API_KEY = prevKey;
-      if (prevModel !== undefined) process.env.GEMINI_TTS_MODEL = prevModel;
+      if (prevModel === undefined) delete process.env.GEMINI_TTS_MODEL;
+      else process.env.GEMINI_TTS_MODEL = prevModel;
     }
+  };
+
+  it("tries only the models named in GEMINI_TTS_MODEL (comma separated) and hides upstream details", async () => {
+    const { generateGeminiSpeech } = await import("@/lib/ai/tts");
+    await withEnv("model-a, model-b", async (calledUrls) => {
+      const res = await generateGeminiSpeech({ text: "こんにちは", lang: "ja" });
+      expect(res).toEqual({ success: false, fallback: true, error: "Speech synthesis unavailable" });
+      expect(calledUrls).toHaveLength(2);
+      expect(calledUrls[0]).toContain("model-a");
+      expect(calledUrls[1]).toContain("model-b");
+    });
+  });
+
+  it("does not call Gemini with a hard-coded model when GEMINI_TTS_MODEL is unset", async () => {
+    const { generateGeminiSpeech } = await import("@/lib/ai/tts");
+    await withEnv(undefined, async (calledUrls) => {
+      const res = await generateGeminiSpeech({ text: "こんにちは", lang: "ja" });
+      expect(res.success).toBe(false);
+      expect(calledUrls).toHaveLength(0);
+    });
   });
 });

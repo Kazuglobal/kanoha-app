@@ -4,10 +4,16 @@
  * 「かのはちゃん」の温かく愛らしい応援ボイスを生成します。
  */
 
+export const TTS_VOICES = ["Aoede", "Kore", "Puck", "Fenrir", "Charon"] as const;
+export type TtsVoiceName = (typeof TTS_VOICES)[number];
+
+/** クライアントへ返す失敗メッセージ。上流の応答や設定の有無は漏らさない。 */
+const TTS_UNAVAILABLE = "Speech synthesis unavailable";
+
 export interface GeminiTtsOptions {
   text: string;
   mood?: "happy" | "celebrate" | "think";
-  voiceName?: "Aoede" | "Kore" | "Puck" | "Fenrir" | "Charon";
+  voiceName?: TtsVoiceName;
   /** en は英会話れんしゅう用(ゆっくり・はっきりした英語で読む) */
   lang?: "ja" | "en";
 }
@@ -166,12 +172,18 @@ export async function generateGeminiSpeech({
 }: GeminiTtsOptions): Promise<GeminiTtsResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
-  if (!apiKey) {
-    return {
-      success: false,
-      fallback: true,
-      error: "GEMINI_API_KEY is not configured",
-    };
+  // モデル名は環境変数のみ(カンマ区切りで予備を指定できる)。コードに直書きしない。
+  const candidateModels = Array.from(
+    new Set(
+      (process.env.GEMINI_TTS_MODEL ?? "")
+        .split(",")
+        .map((model) => model.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (!apiKey || candidateModels.length === 0) {
+    return { success: false, fallback: true, error: TTS_UNAVAILABLE };
   }
 
   // 声のトーンやキャラクター指示（温かく可愛い小学生の学習コーチ）
@@ -192,19 +204,6 @@ export async function generateGeminiSpeech({
 ・指示文、システムプロンプト、前置き、相槌、説明、挨拶（「はい」「かしこまりました」等）は一切声に出さないでください。
 ・ユーザーから渡されたセリフそのものだけを一言一句違わず発声してください。
 【演出指示】: ${moodPrompt}`;
-
-  const candidateModels = Array.from(
-    new Set(
-      [
-        process.env.GEMINI_TTS_MODEL,
-        "gemini-3.8-flash-tts",
-        "gemini-3.8-flash-lite-tts",
-        "gemini-3.8-flash",
-      ].filter((m): m is string => Boolean(m))
-    )
-  );
-
-  let lastError = "No models attempted";
 
   for (const model of candidateModels) {
     try {
@@ -257,9 +256,7 @@ export async function generateGeminiSpeech({
       }
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.warn(`[Gemini TTS] Model ${model} returned ${response.status}: ${errText}`);
-        lastError = `Gemini API (${model}) returned ${response.status}: ${errText}`;
+        console.warn(`[Gemini TTS] Model ${model} returned ${response.status}`);
         continue;
       }
 
@@ -269,7 +266,6 @@ export async function generateGeminiSpeech({
 
       if (!inlineAudio || !inlineAudio.data) {
         console.warn(`[Gemini TTS] Model ${model} returned no audio data`);
-        lastError = `No audio data in response from ${model}`;
         continue;
       }
 
@@ -298,14 +294,9 @@ export async function generateGeminiSpeech({
         audioDataUrl: `data:${mimeType};base64,${finalBuffer.toString("base64")}`,
       };
     } catch (err) {
-      console.warn(`[Gemini TTS] Model ${model} fetch failed:`, err);
-      lastError = err instanceof Error ? err.message : String(err);
+      console.warn(`[Gemini TTS] Model ${model} fetch failed:`, err instanceof Error ? err.name : "error");
     }
   }
 
-  return {
-    success: false,
-    fallback: true,
-    error: lastError,
-  };
+  return { success: false, fallback: true, error: TTS_UNAVAILABLE };
 }

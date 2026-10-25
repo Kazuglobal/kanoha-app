@@ -1,11 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/ai/stt/route";
+
+vi.mock("@/lib/utils/api", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/utils/api")>();
+  return { ...original, requireUser: vi.fn(async () => ({ db: {}, user: { id: "user-stt-1" } })) };
+});
+
+vi.mock("@/lib/utils/rateLimit", () => ({
+  checkRateLimit: () => true,
+  checkRateLimitDb: async () => true,
+}));
 
 describe("STT API validation", () => {
   it("rejects request when audioBase64 is missing or empty", async () => {
     const req = new Request("http://localhost/api/ai/stt", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-forwarded-for": crypto.randomUUID() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         audioBase64: "",
         sceneId: "park",
@@ -23,7 +33,7 @@ describe("STT API validation", () => {
   it("rejects request when audioBase64 is too short to contain audio", async () => {
     const req = new Request("http://localhost/api/ai/stt", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-forwarded-for": crypto.randomUUID() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         audioBase64: "AAAA",
         sceneId: "park",
@@ -40,7 +50,7 @@ describe("STT API validation", () => {
   it("rejects oversized audioBase64 payloads with 413", async () => {
     const req = new Request("http://localhost/api/ai/stt", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-forwarded-for": crypto.randomUUID() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         audioBase64: "A".repeat(2_000_001),
         sceneId: "park",

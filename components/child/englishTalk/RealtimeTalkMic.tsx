@@ -73,6 +73,13 @@ function isIncompleteUtterance(rawText: string): boolean {
   return INCOMPLETE_PREFIXES.has(norm);
 }
 
+/** 録音をサーバーで文字にできないときの案内(ボタンや文字入力は使える) */
+const SERVER_STT_UNAVAILABLE_HINT = "ボタンか もじで こたえてね";
+
+/** 録音(VAD)の時間の上限: 誰も話さない待ち時間 / 1回の発話の長さ(ミリ秒) */
+const MAX_SILENT_WAIT_MS = 10_000;
+const MAX_UTTERANCE_MS = 15_000;
+
 export interface RealtimeTalkMicProps {
   /** キャラクターが発話中・判定中など、自動聞き取りを待機するとき true */
   disabled?: boolean;
@@ -135,6 +142,8 @@ export function RealtimeTalkMic({
   const vadFrameRef = useRef<number | null>(null);
   const vadActiveRef = useRef(false);
   const finalizeVadRef = useRef<(() => Promise<void>) | null>(null);
+  /** サーバーの音声認識が使えない間(未ログイン・上限)は録音して送ることをやめる時刻 */
+  const serverSttBlockedUntilRef = useRef(0);
 
   const propsRef = useRef({
     disabled,
@@ -296,6 +305,11 @@ export function RealtimeTalkMic({
       // Web Audio VAD + MediaRecorder + /api/ai/stt フォールバック起動関数
       const startVadFallback = () => {
         if (vadActiveRef.current || !hasGetUserMedia) return;
+        if (Date.now() < serverSttBlockedUntilRef.current) {
+          setMicHint(SERVER_STT_UNAVAILABLE_HINT);
+          setListeningBoth(false);
+          return;
+        }
         vadActiveRef.current = true;
         setListeningBoth(true);
         void (async () => {
@@ -425,6 +439,15 @@ export function RealtimeTalkMic({
 
               if (sessionTokenRef.current !== myToken || committedInSessionRef.current) return;
 
+              // 未ログイン(401)や上限(429)のときは同じ失敗をくり返さず、ボタンや文字で答えられるようにする
+              if (res && (res.status === 401 || res.status === 429)) {
+                serverSttBlockedUntilRef.current = Date.now() + (res.status === 401 ? 300_000 : 60_000);
+                setLiveTranscript("");
+                setMicHint(SERVER_STT_UNAVAILABLE_HINT);
+                setListeningBoth(false);
+                return;
+              }
+
               const json = await res?.json().catch(() => null);
               if (json?.success && typeof json.transcript === "string" && json.transcript.trim()) {
                 commitText(json.transcript.trim());
@@ -452,6 +475,26 @@ export function RealtimeTalkMic({
               }
               const rms = Math.sqrt(sumSq / dataArray.length);
               const now = Date.now();
+
+              // 誰も話さないまま長く待ったら、無音を貯め続けないよう録音を捨ててやり直す
+              if (spokeAt === 0 && now - streamStartedAt >= MAX_SILENT_WAIT_MS) {
+                vadActiveRef.current = false;
+                stopVadStream();
+                setLiveTranscript("");
+                if (shouldKeepListening()) {
+                  restartTimerRef.current = window.setTimeout(() => {
+                    if (sessionTokenRef.current === myToken) startRecognition(targetLang);
+                  }, 150);
+                } else {
+                  setListeningBoth(false);
+                }
+                return;
+              }
+              // 雑音などで「話し終わり(無音)」が来なくても、長くなりすぎる前に確定して送る
+              if (spokeAt > 0 && now - spokeAt >= MAX_UTTERANCE_MS) {
+                void finalizeVadUtterance();
+                return;
+              }
 
               if (now - streamStartedAt >= 120) {
                 if (rms > 0.025) {
@@ -572,8 +615,10 @@ export function RealtimeTalkMic({
             activeRef.current = null;
             const err = event?.error ?? "";
 
-            // Web Speech がエラーになった場合、getUserMedia が使えれば即座に VAD フォールバックへ引き継いでマイク ON を維持
-            if (vadActiveRef.current || hasGetUserMedia) {
+            // Web Speech がエラーになった場合、getUserMedia が使えれば即座に VAD フォールバックへ引き継いでマイク ON を維持。
+            // ただしサーバーが録音を受け付けない間(未ログイン・上限)は、録音へ切り替えず Web Speech のやり直しに任せる。
+            const serverSttBlocked = Date.now() < serverSttBlockedUntilRef.current;
+            if (!serverSttBlocked && (vadActiveRef.current || hasGetUserMedia)) {
               startVadFallback();
               return;
             }
