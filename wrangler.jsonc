@@ -34,13 +34,16 @@
     "DAILY_LEARNING_LIMIT_MINUTES": "15",
     "AI_DAILY_COST_LIMIT_USD": "2",
     "AI_DAILY_CALL_LIMIT": "100",
+    "AI_GLOBAL_DAILY_CALL_LIMIT": "1000",
+    "AI_GLOBAL_DAILY_COST_LIMIT_USD": "10",
     "AI_ANALYZE_COST_USD": "0.01",
     "AI_RECOGNIZE_COST_USD": "0.005",
     "AI_SIMILAR_COST_USD": "0.005",
     "AI_HINTS_COST_USD": "0.002",
     "AI_ENGLISH_TALK_COST_USD": "0.0005",
     "AI_IMAGE_COST_USD": "0.01",
-    "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts"
+    "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts,gemini-3.8-flash-lite-tts",
+    "TTS_ANON_DAILY_LIMIT": "600"
   },
   "previews": {
     "vars": {
@@ -55,13 +58,16 @@
       "DAILY_LEARNING_LIMIT_MINUTES": "15",
       "AI_DAILY_COST_LIMIT_USD": "2",
       "AI_DAILY_CALL_LIMIT": "100",
+      "AI_GLOBAL_DAILY_CALL_LIMIT": "1000",
+      "AI_GLOBAL_DAILY_COST_LIMIT_USD": "10",
       "AI_ANALYZE_COST_USD": "0.01",
       "AI_RECOGNIZE_COST_USD": "0.005",
       "AI_SIMILAR_COST_USD": "0.005",
       "AI_HINTS_COST_USD": "0.002",
       "AI_ENGLISH_TALK_COST_USD": "0.0005",
       "AI_IMAGE_COST_USD": "0.01",
-      "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts"
+      "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts,gemini-3.8-flash-lite-tts",
+      "TTS_ANON_DAILY_LIMIT": "600"
     },
     "d1_databases": [
       {

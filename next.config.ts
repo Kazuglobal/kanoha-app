@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 /**
  * 全ルート共通のセキュリティヘッダー(B15)。
  * script/style の 'unsafe-inline' は Next のインライン初期化スクリプトに必要。
- * connect-src は Supabase(API/Storage)のみ許可。
+ * connect-src は自分のオリジンのみ(AI・DB・ストレージへはすべてサーバー経由)。
  */
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
   "media-src 'self' data: blob:",
-  "connect-src 'self' https://*.supabase.co",
+  "connect-src 'self'",
   "frame-ancestors 'none'",
 ].join("; ");
 

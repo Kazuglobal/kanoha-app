@@ -1,11 +1,15 @@
-import { eq, and } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "./index";
 import * as schema from "./schema";
 import { todayKeyJst, nowJstIso } from "@/lib/utils/date";
 import { type MasteryLevel } from "@/lib/review/weakness";
 
+const COST_DECIMALS = 4;
+
 /**
- * AI利用量のアトミック予約 (旧 increment_ai_usage RPC)
+ * AI利用量のアトミック予約(ユーザーごと・日(JST)ごと)。
+ * 「枠内なら加算」を1文の upsert で行うので、同時に来ても上限を超えて通さない。
+ * 枠を超えるときは何も記録せず、そのときの利用量を返す。
  */
 export const incrementAiUsage = async (
   userId: string,
@@ -15,60 +19,73 @@ export const incrementAiUsage = async (
   db = getDb(),
 ): Promise<{ allowed: boolean; calls: number; costUsd: number }> => {
   const today = todayKeyJst();
-  const existing = await db
-    .select()
-    .from(schema.aiDailyUsage)
-    .where(eq(schema.aiDailyUsage.usageDate, today))
-    .get();
+  const usage = schema.aiDailyUsage;
+  const current = async () => {
+    const row = await db
+      .select({ calls: usage.calls, costUsd: usage.costUsd })
+      .from(usage)
+      .where(and(eq(usage.userId, userId), eq(usage.usageDate, today)))
+      .get();
+    return { calls: row?.calls ?? 0, costUsd: row?.costUsd ?? 0 };
+  };
 
-  const currentCalls = existing?.calls ?? 0;
-  const currentCost = existing?.costUsd ?? 0;
-
-  const nextCalls = currentCalls + 1;
-  const nextCost = Math.round((currentCost + costUsd) * 10_000) / 10_000;
-
-  if (nextCalls > callLimit || nextCost > costLimit) {
-    return {
-      allowed: false,
-      calls: currentCalls,
-      costUsd: currentCost,
-    };
-  }
+  // 1回目から枠を超える(上限が0・1回の費用が上限より大きい)ときは、行も作らない
+  if (callLimit < 1 || costUsd > costLimit) return { allowed: false, ...(await current()) };
 
   const now = nowJstIso();
-  if (existing) {
-    await db
-      .update(schema.aiDailyUsage)
-      .set({
-        calls: nextCalls,
-        costUsd: nextCost,
-        updatedAt: now,
-      })
-      .where(eq(schema.aiDailyUsage.id, existing.id))
-      .run();
-  } else {
-    await db
-      .insert(schema.aiDailyUsage)
-      .values({
-        id: crypto.randomUUID(),
-        usageDate: today,
-        calls: nextCalls,
-        costUsd: nextCost,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-  }
+  const nextCost = sql`round(${usage.costUsd} + ${costUsd}, ${sql.raw(String(COST_DECIMALS))})`;
+  const row = await db
+    .insert(usage)
+    .values({ id: crypto.randomUUID(), userId, usageDate: today, calls: 1, costUsd, createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [usage.userId, usage.usageDate],
+      set: { calls: sql`${usage.calls} + 1`, costUsd: nextCost, updatedAt: now },
+      setWhere: sql`${usage.calls} + 1 <= ${callLimit} AND ${nextCost} <= ${costLimit}`,
+    })
+    .returning({ calls: usage.calls, costUsd: usage.costUsd })
+    .get();
 
-  return {
-    allowed: true,
-    calls: nextCalls,
-    costUsd: nextCost,
-  };
+  return row ? { allowed: true, calls: row.calls, costUsd: row.costUsd } : { allowed: false, ...(await current()) };
 };
 
 /**
- * DBベースのレート制限 (旧 check_rate_limit RPC)
+ * 1日分の「予算」(整数の単位)を原子的に予約する。key ごとに合計を持ち、合計が limit に収まるときだけ加算する。
+ * 呼び出し側が key に日付を含めて、日ごとに新しい予算にする。収まらないときは何も記録せず false。
+ */
+export const reserveDailyBudget = async (
+  key: string,
+  amount: number,
+  limit: number,
+  db = getDb(),
+): Promise<boolean> => {
+  if (!Number.isInteger(amount) || amount < 0 || amount > limit) return false;
+  const budget = schema.rateLimits;
+  const row = await db
+    .insert(budget)
+    .values({ id: crypto.randomUUID(), limiterKey: key, action: "budget", windowStart: new Date().toISOString(), callCount: amount })
+    .onConflictDoUpdate({
+      target: budget.limiterKey,
+      set: { callCount: sql`${budget.callCount} + ${amount}` },
+      setWhere: sql`${budget.callCount} + ${amount} <= ${limit}`,
+    })
+    .returning({ total: budget.callCount })
+    .get();
+  return row !== undefined;
+};
+
+/** 窓が終わってからこの時間(ミリ秒)を過ぎたレート制限の行は消してよい。 */
+const STALE_RATE_LIMIT_MS = 2 * 86_400_000;
+/** 掃除は毎回やらず、おおよそこの回数に1回だけ行う。 */
+const PURGE_EVERY = 100;
+
+export const purgeStaleRateLimits = async (db = getDb(), olderThanMs = STALE_RATE_LIMIT_MS): Promise<void> => {
+  const boundary = new Date(Date.now() - olderThanMs).toISOString();
+  await db.delete(schema.rateLimits).where(lt(schema.rateLimits.windowStart, boundary)).run();
+};
+
+/**
+ * DBベースのレート制限。limiter_key ごとに1行を原子的に upsert して数える
+ * (窓が終わっていれば 1 から数え直す)ので、同時に来ても上限を超えて通さない。
  */
 export const checkDbRateLimit = async (
   key: string,
@@ -76,53 +93,27 @@ export const checkDbRateLimit = async (
   windowSeconds: number,
   db = getDb(),
 ): Promise<boolean> => {
+  const limits = schema.rateLimits;
   const now = Date.now();
-  const windowBoundary = new Date(now - windowSeconds * 1000).toISOString();
+  const nowIso = new Date(now).toISOString();
+  const boundary = new Date(now - windowSeconds * 1000).toISOString();
+  const expired = sql`${limits.windowStart} <= ${boundary}`;
 
-  const existing = await db
-    .select()
-    .from(schema.rateLimits)
-    .where(eq(schema.rateLimits.limiterKey, key))
+  const row = await db
+    .insert(limits)
+    .values({ id: crypto.randomUUID(), limiterKey: key, action: "api", windowStart: nowIso, callCount: 1 })
+    .onConflictDoUpdate({
+      target: limits.limiterKey,
+      set: {
+        callCount: sql`CASE WHEN ${expired} THEN 1 ELSE ${limits.callCount} + 1 END`,
+        windowStart: sql`CASE WHEN ${expired} THEN ${nowIso} ELSE ${limits.windowStart} END`,
+      },
+    })
+    .returning({ callCount: limits.callCount })
     .get();
 
-  const nowIso = new Date(now).toISOString();
-
-  if (!existing || existing.windowStart <= windowBoundary) {
-    // リセットまたは初回
-    if (existing) {
-      await db
-        .update(schema.rateLimits)
-        .set({
-          callCount: 1,
-          windowStart: nowIso,
-        })
-        .where(eq(schema.rateLimits.id, existing.id))
-        .run();
-    } else {
-      await db
-        .insert(schema.rateLimits)
-        .values({
-          id: crypto.randomUUID(),
-          limiterKey: key,
-          action: "api",
-          windowStart: nowIso,
-          callCount: 1,
-        })
-        .run();
-    }
-    return 1 <= limit;
-  }
-
-  const nextCount = existing.callCount + 1;
-  await db
-    .update(schema.rateLimits)
-    .set({
-      callCount: nextCount,
-    })
-    .where(eq(schema.rateLimits.id, existing.id))
-    .run();
-
-  return nextCount <= limit;
+  if (Math.random() * PURGE_EVERY < 1) await purgeStaleRateLimits(db).catch(() => undefined);
+  return row.callCount <= limit;
 };
 
 /**

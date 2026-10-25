@@ -313,3 +313,50 @@ describe("EnglishTalkStage", () => {
     expect(screen.getByText("🍌🍌🍌")).toBeInTheDocument();
   });
 });
+
+describe("EnglishTalkStage rewards for a signed-in child", () => {
+  const CHILD_ID = "cccccccc-3333-4333-8333-cccccccccccc";
+
+  /** ログイン中のサーバー応答。reward があれば「サーバーが数えた」。 */
+  const mockServerCheck = (reward?: Record<string, unknown>) =>
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const { answer } = JSON.parse(String(init?.body ?? "{}"));
+      const correct = judgeTalkAnswer(turn, answer);
+      return new Response(JSON.stringify({ success: true, data: { correct, ...(reward ? { reward } : {}) } }), {
+        status: 200,
+      });
+    });
+
+  const answerCorrectly = async () => {
+    await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
+    await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
+    await userEvent.click(screen.getByRole("button", { name: /こたえの ヒント（えらんで こたえる）/ }));
+    await userEvent.click(screen.getByRole("button", { name: "It's a dog." }));
+    expect(await screen.findByText(/ばっちり つたわったよ/)).toBeInTheDocument();
+  };
+
+  it("claims the reward from the server (firstTry) and shows the server's count instead of adding on the device", async () => {
+    const fetchSpy = mockServerCheck({ currentCycleCount: 7, totalCorrectCount: 57, totalRewardYen: 25 });
+    const { getRewardState } = await import("@/lib/rewards/rewardStore");
+    const before = getRewardState().totalCorrectCount;
+
+    render(<EnglishTalkStage scene={scene} childId={CHILD_ID} />);
+    await answerCorrectly();
+
+    const body = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+    expect(body).toMatchObject({ childId: CHILD_ID, firstTry: true });
+    expect(getRewardState()).toMatchObject({ totalCorrectCount: 57, totalRewardYen: 25 });
+    expect(before).not.toBe(57);
+  });
+
+  it("does not add anything on the device when the server did not count it (already cleared today)", async () => {
+    mockServerCheck();
+    const { getRewardState } = await import("@/lib/rewards/rewardStore");
+    const before = getRewardState();
+
+    render(<EnglishTalkStage scene={scene} childId={CHILD_ID} />);
+    await answerCorrectly();
+
+    expect(getRewardState()).toEqual(before);
+  });
+});

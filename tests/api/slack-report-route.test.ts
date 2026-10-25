@@ -54,7 +54,6 @@ describe("POST /api/reports/slack (real daily report)", () => {
     state.sendError = false;
 
     const now = nowJstIso();
-    const today = todayKeyJst();
 
     // 関連テーブル初期化
     await db.delete(schema.parentReports).where(eq(schema.parentReports.childId, CHILD)).run();

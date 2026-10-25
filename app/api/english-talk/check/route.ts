@@ -5,7 +5,10 @@ import { englishTalkJudgeSchema, TEXT_LIMITS } from "@/lib/ai/schemas";
 import { reserveAiUsage } from "@/lib/ai/usage";
 import { getTalkTurn, type TalkTurn } from "@/lib/curriculum/englishTalkScenes";
 import { buildCorrectiveFeedbackEn, isDontKnowAnswer, judgeTalkAnswer } from "@/lib/englishTalk/judge";
+import type { RewardState } from "@/lib/rewards/rewardLogic";
+import { recordEnglishTalkClear } from "@/lib/rewards/serverRewards";
 import { apiError, apiSuccess, parseJson, requireOwnedChild } from "@/lib/utils/api";
+import { clientIpFrom } from "@/lib/utils/clientIp";
 import { checkRateLimit } from "@/lib/utils/rateLimit";
 import { uuid } from "@/lib/utils/schemas";
 
@@ -16,6 +19,8 @@ const schema = z.object({
   /** choice: 4択 / voice: 声のこたえ / repeat: 正しい言い方のまね */
   mode: z.enum(["choice", "voice", "repeat"]),
   childId: uuid.optional().nullable(),
+  /** そのターンを1回目でできたという端末の申告。信頼はせず、実際の上限は サーバーの 子ども×ターン×日 に1回(reward_claims) */
+  firstTry: z.boolean().optional(),
 });
 
 const JUDGE_COST_USD = Number(process.env.AI_ENGLISH_TALK_COST_USD ?? 0.0005);
@@ -30,6 +35,8 @@ export interface EnglishTalkCheckResult {
   /** まちがえたときだけ返す(正しい言い方を教える) */
   modelAnswer?: string;
   modelAnswerJa?: string;
+  /** ごほうびが増えたときだけ、増えたあとの状態(ログイン中の1日1回まで) */
+  reward?: RewardState;
 }
 
 /**
@@ -40,10 +47,10 @@ export interface EnglishTalkCheckResult {
 export async function POST(request: Request) {
   const parsed = await parseJson(request, schema);
   if (!parsed.success) return apiError("Invalid check request");
-  const { sceneId, turnId, answer, mode, childId } = parsed.data;
+  const { sceneId, turnId, answer, mode, childId, firstTry } = parsed.data;
 
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
-  if (!checkRateLimit(`english-talk:${childId ?? forwarded}`, 120)) {
+  // 端末が送る childId や x-forwarded-for は偽装できるので、制限のキーには使わない
+  if (!checkRateLimit(`english-talk:${clientIpFrom(request)}`, 120)) {
     return apiError("Too many requests", 429);
   }
 
@@ -54,10 +61,14 @@ export async function POST(request: Request) {
     return apiSuccess<EnglishTalkCheckResult>({ correct: false, isDontKnow: true });
   }
 
-  if (judgeTalkAnswer(turn, answer)) return apiSuccess<EnglishTalkCheckResult>({ correct: true });
+  const claim = { childId, sceneId, turnId, rewardable: firstTry === true && mode !== "repeat" };
+
+  if (judgeTalkAnswer(turn, answer)) {
+    return apiSuccess<EnglishTalkCheckResult>(await withReward({ correct: true }, claim));
+  }
 
   const aiCorrect = mode === "voice" && childId ? await judgeWithAi(childId, turn, answer) : null;
-  if (aiCorrect) return apiSuccess<EnglishTalkCheckResult>(aiCorrect);
+  if (aiCorrect) return apiSuccess<EnglishTalkCheckResult>(await withReward(aiCorrect, claim));
 
   return apiSuccess<EnglishTalkCheckResult>({
     correct: false,
@@ -65,6 +76,25 @@ export async function POST(request: Request) {
     modelAnswer: turn.modelAnswer,
     modelAnswerJa: turn.modelAnswerJa,
   });
+}
+
+/**
+ * ログイン中(子どもの所有確認つき)で、1回目の正解のときだけ、1日1ターン1回まで ごほうびを数える。
+ * 数えられなくても答え合わせは失敗させない。
+ */
+async function withReward(
+  result: EnglishTalkCheckResult,
+  claim: { childId?: string | null; sceneId: string; turnId: string; rewardable: boolean },
+): Promise<EnglishTalkCheckResult> {
+  if (!claim.childId || !claim.rewardable) return result;
+  const auth = await requireOwnedChild(claim.childId);
+  if (auth.response) return result;
+  try {
+    const reward = await recordEnglishTalkClear(auth.db, claim.childId, claim.sceneId, claim.turnId);
+    return reward ? { ...result, reward } : result;
+  } catch {
+    return result;
+  }
 }
 
 /** AI で正解と判定できたときだけ結果を返す(上限・失敗・不正な出力は null = キーワード判定のまま)。 */

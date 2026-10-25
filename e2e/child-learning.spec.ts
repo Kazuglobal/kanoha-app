@@ -94,7 +94,7 @@ test("もういちど やる resets the practice flow (doc §6.1)", async ({ pag
   await page.goto("/child/problem/volume-1");
   // れんしゅうは、元の問題に正解してから(または答えのヒントまで見てから)出る
   await expect(page.getByRole("button", { name: "れんしゅう 5もんへ" })).toHaveCount(0);
-  await page.getByLabel("こたえ").fill("1000");
+  await page.getByRole("textbox", { name: "こたえ" }).fill("1000");
   await page.getByRole("button", { name: "こたえる", exact: true }).click();
   await page.getByRole("button", { name: "れんしゅう 5もんへ" }).click();
   for (const answer of ["2000mL", "3L", "1500mL", "4000mL", "5L"]) {

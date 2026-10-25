@@ -18,6 +18,9 @@ type SpeechRecognitionConstructor = new () => {
   stop?: () => void;
 };
 
+/** 1回の発話の長さの上限(ミリ秒)。これを超えたら無音を待たずに確定して送る */
+const MAX_UTTERANCE_MS = 15_000;
+
 export function VoiceAnswer({
   onAnswer,
   onSubmitAnswer,
@@ -250,6 +253,12 @@ export function VoiceAnswer({
         }
         const rms = Math.sqrt(sumSq / dataArray.length);
         const now = Date.now();
+
+        // 雑音などで「話し終わり(無音)」が来なくても、長くなりすぎる前に確定して送る
+        if (spokeAt > 0 && now - spokeAt >= MAX_UTTERANCE_MS) {
+          void finishVad();
+          return;
+        }
 
         if (now - startedWaitAt >= 120) {
           if (rms > 0.03) {

@@ -22,7 +22,7 @@ import {
 import { recordEnglishTalkSceneClear } from "@/lib/englishTalk/progressStore";
 import * as talkSpeech from "@/lib/audio/englishTalkSpeech";
 import { soundManager } from "@/lib/audio/soundSystem";
-import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
+import { applyServerReward, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import type { TalkMood } from "./TalkCharacter";
 
 export interface TalkTeach {
@@ -40,6 +40,8 @@ interface CheckResult {
   feedbackEn?: string;
   modelAnswer?: string;
   modelAnswerJa?: string;
+  /** ログイン中、サーバーがごほうびを数えたときだけ付く(増えたあとの状態) */
+  reward?: unknown;
 }
 
 const PRAISE = ["Great job!", "Good!", "Nice!", "Perfect!", "Wonderful!"] as const;
@@ -213,7 +215,16 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
 
       checkingRef.current = true;
       setChecking(true);
-      const result = await postCheck({ sceneId: scene.id, turnId: turn.id, answer: trimmed, mode, childId });
+      // 1回目でできたかは、答え合わせの前の状態で決める(ごほうびの対象かどうかをサーバーへ申告する)
+      const wasFirstTry = !stateRef.current.isRetry && !stateRef.current.missed.includes(turn.id);
+      const result = await postCheck({
+        sceneId: scene.id,
+        turnId: turn.id,
+        answer: trimmed,
+        mode,
+        childId,
+        firstTry: wasFirstTry,
+      });
       checkingRef.current = false;
       setChecking(false);
       if (!result) {
@@ -226,7 +237,6 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
         return;
       }
 
-      const wasFirstTry = !stateRef.current.isRetry && !stateRef.current.missed.includes(turn.id);
       setState((current) => answerTalk(current, result.correct));
 
       if (result.correct) {
@@ -238,7 +248,9 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
           }
         }
         if (wasFirstTry) {
-          recordCorrectAnswer();
+          // ログイン中はサーバーが数えた分だけを表示へ反映する。端末だけで数えるのは未ログイン(デモ)のとき。
+          if (childId) applyServerReward(result.reward);
+          else recordCorrectAnswer();
         }
         const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
         setMood("celebrate");

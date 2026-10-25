@@ -9,10 +9,13 @@
  */
 
 import { getSharedAudioContext, installAudioUnlock } from "./audioUnlock";
+import { createBoundedCache } from "./ttsCache";
 
 installAudioUnlock();
 
-const ttsAudioCache = new Map<string, string>();
+/** 音声1件は数百KBあるので、直近の30件だけ覚える */
+const MAX_CACHED_VOICES = 30;
+const ttsAudioCache = createBoundedCache<string>(MAX_CACHED_VOICES);
 
 let activeAudio: HTMLAudioElement | null = null;
 let activeSource: AudioBufferSourceNode | null = null;

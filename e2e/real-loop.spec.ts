@@ -44,7 +44,7 @@ const answerPracticeSet = async (page: Page) => {
     if (await choice.isVisible().catch(() => false)) {
       await choice.click();
     } else {
-      await page.getByLabel("こたえ").fill("1");
+      await page.getByRole("textbox", { name: "こたえ" }).fill("1");
       await page.getByRole("button", { name: "こたえる", exact: true }).click();
     }
     await page.getByRole("button", { name: /つぎの もんだい|けっかを みる/ }).click();

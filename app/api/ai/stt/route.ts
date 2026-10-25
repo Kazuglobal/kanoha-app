@@ -1,144 +1,74 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { buildTranscribePrompt } from "@/lib/ai/prompts";
+import { transcribeAudio } from "@/lib/ai/stt";
 import { getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { bodyTooLarge, parseJsonText, readBodyText, requireUser } from "@/lib/utils/api";
+import { todayKeyJst } from "@/lib/utils/date";
+import { envNumber } from "@/lib/utils/envNumber";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 
 /** 音声 Base64 の最大文字数（約 1.5MB 相当の音声データまで許容） */
 const MAX_AUDIO_BASE64_LENGTH = 2_000_000;
+const MIN_AUDIO_BASE64_LENGTH = 50;
+const DEFAULT_MIME_TYPE = "audio/webm";
+const DAY_SECONDS = 86_400;
+/** 本文の上限(バイト)。音声(base64 2,000,000文字)に JSON の枠ぶんの余裕を足した値 */
+const MAX_BODY_BYTES = MAX_AUDIO_BASE64_LENGTH + 4_096;
+/** signedInSharedPerDay: ログイン中の全員でまとめた1日の上限(アカウントを増やしても総量は増えない) */
+const LIMITS = { perMinute: 30, perDay: 300, signedInSharedPerDay: 2_000 } as const;
+/** ログイン中の全員でまとめた1日の上限。STT_SIGNED_IN_DAILY_LIMIT で調整する。 */
+const signedInSharedDailyLimit = (): number => envNumber("STT_SIGNED_IN_DAILY_LIMIT", LIMITS.signedInSharedPerDay);
+
+const schema = z.object({
+  audioBase64: z.string().catch(""),
+  /** コーデックなどの指定(; 以降)は落とし、基本の型だけを使う */
+  mimeType: z
+    .string()
+    .max(100)
+    .transform((value) => value.split(";")[0].trim().toLowerCase())
+    .pipe(z.string().regex(/^audio\/[a-z0-9.+-]+$/))
+    .catch(DEFAULT_MIME_TYPE),
+  lang: z.enum(["en-US", "ja-JP"]).catch("en-US"),
+  sceneId: z.string().max(50).catch(""),
+  turnId: z.string().max(80).catch(""),
+});
+
+const failure = (error: string, status?: number) =>
+  NextResponse.json({ success: false, error }, status ? { status } : undefined);
 
 /**
- * リアルタイム英会話 音声認識 (STT) エンドポイント
- * - ブラウザの Web Speech API がネットワーク制限等で利用できない場合や、
- *   音声ストリームから直接テキスト化するフォールバックとして使用します。
- * - Gemini Multimodal (AUDIO 入力) が利用可能な場合は高精度に英語・日本語（「わからない」等）を書き起こします。
+ * リアルタイム英会話 音声認識 (STT) エンドポイント。ログイン中の親セッションだけが使える
+ * (子どもの声を未ログインで外部 AI へ送らない・利用量を守るため)。
+ * - ブラウザの Web Speech API が使えない環境でのフォールバックとして、録音を Gemini で書き起こす。
  */
 export async function POST(request: Request) {
   try {
-    const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
-    if (!checkRateLimit(`stt:${forwarded}`, 60)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Too many requests",
-        },
-        { status: 429 },
-      );
-    }
+    const { user } = await requireUser();
+    if (!user) return failure("Authentication required", 401);
+    if (bodyTooLarge(request, MAX_BODY_BYTES)) return failure("Audio data is too large", 413);
+    const text = await readBodyText(request, MAX_BODY_BYTES);
+    if (text === null) return failure("Audio data is too large", 413);
+    const parsed = parseJsonText(text, schema);
+    if (!parsed.success) return failure("Audio data is required", 400);
+    const { audioBase64, mimeType, lang, sceneId, turnId } = parsed.data;
 
-    const body = await request.json().catch(() => ({}));
-    const audioBase64 = typeof body.audioBase64 === "string" ? body.audioBase64 : "";
-    const mimeType = typeof body.mimeType === "string" && body.mimeType ? body.mimeType : "audio/webm";
-    const lang = body.lang === "ja-JP" ? "ja-JP" : "en-US";
-    const sceneId = typeof body.sceneId === "string" ? body.sceneId : "";
-    const turnId = typeof body.turnId === "string" ? body.turnId : "";
+    if (audioBase64.length < MIN_AUDIO_BASE64_LENGTH) return failure("Audio data is required", 400);
+    if (audioBase64.length > MAX_AUDIO_BASE64_LENGTH) return failure("Audio data is too large", 413);
+
+    // 不正な音声で枠を減らされないよう、検証してから枠を使う
+    if (
+      !(await checkRateLimitDb(user.id, "stt", LIMITS.perMinute)) ||
+      !(await checkRateLimitDb(user.id, "stt-daily", LIMITS.perDay, DAY_SECONDS)) ||
+      !(await checkRateLimitDb(`signed-in:${todayKeyJst()}`, "stt-daily-global", signedInSharedDailyLimit(), DAY_SECONDS))
+    ) {
+      return failure("Too many requests", 429);
+    }
 
     const turn = sceneId && turnId ? getTalkTurn(sceneId, turnId) : undefined;
-    if (!audioBase64 || audioBase64.length < 50) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Audio data is required",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (audioBase64.length > MAX_AUDIO_BASE64_LENGTH) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Audio data is too large",
-        },
-        { status: 413 },
-      );
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-
-    if (apiKey) {
-      const candidateModels = Array.from(
-        new Set(
-          [
-            process.env.GEMINI_STT_MODEL,
-            process.env.GEMINI_TEXT_MODEL,
-            "gemini-3.8-flash",
-          ].filter((m): m is string => Boolean(m)),
-        ),
-      );
-      const contextHint = turn
-        ? `Question asked to the child: "${turn.prompt}" (Expected example answer: "${turn.modelAnswer}").`
-        : "";
-
-      const prompt = [
-        "Transcribe the short voice recording from a Japanese child practicing English conversation.",
-        contextHint,
-        "If the child says an English phrase (even with a Japanese accent), output the English words only.",
-        "If the child says 'わからない', 'わかんない', 'ヒント', or asks for Japanese, output 'わからない'.",
-        "Return ONLY the transcribed phrase as plain text, with no quotes or explanation.",
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      for (const model of candidateModels) {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  { inlineData: { data: audioBase64, mimeType } },
-                  { text: prompt },
-                ],
-              },
-            ],
-          }),
-        }).catch(() => null);
-
-        if (response?.ok) {
-          const data = await response.json().catch(() => null);
-          const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (transcript) {
-            return NextResponse.json({ success: true, transcript });
-          }
-        }
-      }
-    }
-
-    // テスト環境で Gemini API モック用のフォールバック
-    if (process.env.NODE_ENV === "test") {
-      if (lang === "ja-JP") {
-        return NextResponse.json({
-          success: true,
-          transcript: "わからない",
-          fallback: true,
-        });
-      }
-
-      if (turn) {
-        return NextResponse.json({
-          success: true,
-          transcript: turn.modelAnswer,
-          fallback: true,
-        });
-      }
-    }
-
-    return NextResponse.json({
-      success: false,
-      error: "Speech recognition unavailable",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Internal error",
-      },
-      { status: 500 },
-    );
+    const transcript = await transcribeAudio({ audioBase64, mimeType, prompt: buildTranscribePrompt(turn, lang) });
+    return transcript ? NextResponse.json({ success: true, transcript }) : failure("Speech recognition unavailable");
+  } catch {
+    return failure("Speech recognition unavailable", 500);
   }
 }

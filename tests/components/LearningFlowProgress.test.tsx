@@ -77,3 +77,59 @@ describe("LearningFlow progress persistence (W6)", () => {
     });
   });
 });
+
+describe("LearningFlow rewards on similar problems", () => {
+  const similar = Array.from({ length: 5 }, (_, index) => ({
+    id: `sp-${index}`,
+    question: `もんだい ${index + 1}`,
+    choices: ["1", "2", "3", "4"],
+  }));
+
+  const restoreAt = (practiceIndex: number) =>
+    writeProgress({
+      sessionId: "33333333-3333-4333-8333-333333333333",
+      problemId: persisted.problemId,
+      practiceIndex,
+      score: 0,
+      revealedCount: 0,
+      similar,
+    });
+
+  it("does not add a device-only reward for a signed-in child (the server counts original problems only)", async () => {
+    restoreAt(0);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).includes("/api/attempts")
+        ? json({ is_correct: true, reward: null }, 201)
+        : json({ limitReached: false }),
+    );
+    const { getRewardState } = await import("@/lib/rewards/rewardStore");
+    const before = getRewardState();
+
+    render(<LearningFlow persisted={persisted} />);
+    await userEvent.click(await screen.findByRole("button", { name: "1" }));
+    await userEvent.click(await screen.findByRole("button", { name: /つぎの もんだい/ }));
+
+    await screen.findByText("れんしゅう 2 / 5");
+    expect(getRewardState()).toEqual(before);
+  });
+
+  it("still makes the character react to a correct similar answer for a signed-in child", async () => {
+    restoreAt(0);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).includes("/api/attempts")
+        ? json({ is_correct: true, reward: null }, 201)
+        : json({ limitReached: false }),
+    );
+    const solved = vi.fn();
+    window.addEventListener("kanoha-problem-solved", solved);
+    try {
+      render(<LearningFlow persisted={persisted} />);
+      await userEvent.click(await screen.findByRole("button", { name: "1" }));
+      await userEvent.click(await screen.findByRole("button", { name: /つぎの もんだい/ }));
+      await screen.findByText("れんしゅう 2 / 5");
+      expect(solved).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener("kanoha-problem-solved", solved);
+    }
+  });
+});

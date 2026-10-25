@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCESSORY_CATALOG,
-  DEFAULT_EQUIPPED,
   type AccessoryCategory,
 } from "@/lib/rewards/catalog";
 import {

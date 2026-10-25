@@ -48,9 +48,15 @@ export interface RecordCorrectResult {
   newLevel: GrowthLevelInfo;
 }
 
+/** 正解したことをキャラクターに伝える(ごほうびが増えなくても、正解のたびに喜ぶ)。 */
+export function notifyProblemSolved(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("kanoha-problem-solved", { detail: { correct: true } }));
+}
+
 function announce(change: RewardChange): RecordCorrectResult {
   saveRewardState(change.newState);
-  window.dispatchEvent(new CustomEvent("kanoha-problem-solved", { detail: { correct: true } }));
+  notifyProblemSolved();
   if (change.earnedFiveYen) {
     window.dispatchEvent(new CustomEvent("kanoha-five-yen-earned", { detail: change.newState }));
   }
@@ -86,7 +92,11 @@ export function recordCorrectAnswer(): RecordCorrectResult {
 
 /** ログイン中: /api/attempts がサーバーで記録した正解後の値を表示に反映する。 */
 export function applyServerReward(raw: unknown): RecordCorrectResult | null {
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw || typeof raw !== "object") {
+    // サーバーが数えなかった(今日はもう数えた等)正解でも、キャラクターは喜ぶ
+    notifyProblemSolved();
+    return null;
+  }
   const next = normalizeRewardState(raw as Partial<Record<keyof RewardState, unknown>>);
   return announce(describeRewardChange(previousOfCorrectAnswer(next), next));
 }

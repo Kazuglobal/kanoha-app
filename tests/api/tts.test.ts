@@ -1,25 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateGeminiSpeech } from "@/lib/ai/tts";
 
+interface TtsRequestBody {
+  systemInstruction: { parts: Array<{ text: string }> };
+  contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+}
+
 describe("generateGeminiSpeech payload format", () => {
   const originalKey = process.env.GEMINI_API_KEY;
+  const originalModel = process.env.GEMINI_TTS_MODEL;
 
   beforeEach(() => {
     process.env.GEMINI_API_KEY = "test-api-key";
+    process.env.GEMINI_TTS_MODEL = "test-tts-model";
   });
 
   afterEach(() => {
     process.env.GEMINI_API_KEY = originalKey;
+    if (originalModel === undefined) delete process.env.GEMINI_TTS_MODEL;
+    else process.env.GEMINI_TTS_MODEL = originalModel;
     vi.restoreAllMocks();
   });
 
   it("sends systemInstruction at top level and keeps user text free of prompt instructions (ja)", async () => {
-    let capturedBody: any = null;
+    const captured: { body: TtsRequestBody | null } = { body: null };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
         if (init?.body) {
-          capturedBody = JSON.parse(init.body as string);
+          captured.body = JSON.parse(init.body as string) as TtsRequestBody;
         }
         return {
           ok: true,
@@ -50,7 +59,8 @@ describe("generateGeminiSpeech payload format", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(capturedBody).not.toBeNull();
+    expect(captured.body).not.toBeNull();
+    const capturedBody = captured.body as TtsRequestBody;
 
     // Verify systemInstruction is at top level
     expect(capturedBody.systemInstruction).toBeDefined();
@@ -66,12 +76,12 @@ describe("generateGeminiSpeech payload format", () => {
   });
 
   it("sends systemInstruction at top level and keeps user text free of prompt instructions (en)", async () => {
-    let capturedBody: any = null;
+    const captured: { body: TtsRequestBody | null } = { body: null };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
         if (init?.body) {
-          capturedBody = JSON.parse(init.body as string);
+          captured.body = JSON.parse(init.body as string) as TtsRequestBody;
         }
         return {
           ok: true,
@@ -102,7 +112,8 @@ describe("generateGeminiSpeech payload format", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(capturedBody).not.toBeNull();
+    expect(captured.body).not.toBeNull();
+    const capturedBody = captured.body as TtsRequestBody;
 
     // Verify systemInstruction is at top level
     expect(capturedBody.systemInstruction).toBeDefined();
