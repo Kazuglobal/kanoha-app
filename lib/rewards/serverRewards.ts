@@ -2,6 +2,7 @@ import { and, eq, gte, lt, max, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { jstDayRange, nowJstIso, todayKeyJst } from "@/lib/utils/date";
+import { talkDailyRewardCap } from "@/lib/utils/flags";
 import { ANSWER_HINT_LEVEL } from "@/lib/utils/resources";
 import type { EquippedAccessories } from "./catalog";
 import {
@@ -77,24 +78,51 @@ export async function recordCorrectReward(db: Database, childId: string): Promis
 type ClaimKind = "english_talk" | "problem";
 
 /**
- * 同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ数える。
- * 請求の記録は主キーで原子的に取る(同時に来ても1回だけ)。数えられなかったときは記録を戻し、あとで数え直せるようにする。
- * すでに今日数えていれば null。
+ * 請求の記録を取る。取れたら true(同じ 子ども×種類×対象×日 が既にあれば false)。
+ * dailyCap があるときは、その日のその種類の請求が上限に届いていなければ、の条件つき。
+ * 数えて足す処理を 1 文にまとめているので、同時に来ても上限を超えない。
+ */
+async function insertClaim(
+  db: Database,
+  { childId, kind, refId, claimDate }: { childId: string; kind: ClaimKind; refId: string; claimDate: string },
+  dailyCap: number | undefined,
+): Promise<boolean> {
+  const createdAt = nowJstIso();
+  const claims = schema.rewardClaims;
+  if (dailyCap === undefined) {
+    const rows = await db
+      .insert(claims)
+      .values({ childId, kind, refId, claimDate, createdAt })
+      .onConflictDoNothing()
+      .returning({ childId: claims.childId })
+      .all();
+    return rows.length > 0;
+  }
+  // INSERT … SELECT … ON CONFLICT は、SELECT に WHERE が要る(SQLite の構文の決まり)
+  const rows = await db.all(sql`
+    INSERT INTO ${claims} (child_id, kind, ref_id, claim_date, created_at)
+    SELECT ${childId}, ${kind}, ${refId}, ${claimDate}, ${createdAt}
+    WHERE (SELECT COUNT(*) FROM ${claims} WHERE child_id = ${childId} AND kind = ${kind} AND claim_date = ${claimDate}) < ${dailyCap}
+    ON CONFLICT DO NOTHING
+    RETURNING child_id
+  `);
+  return rows.length > 0;
+}
+
+/**
+ * 同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ数える。dailyCap があれば、その日のその種類の合計の上限も守る。
+ * 請求の記録は 1 文で原子的に取る(同時に来ても1回だけ・上限も超えない)。数えられなかったときは記録を戻し、あとで数え直せるようにする。
+ * すでに今日数えていた・上限に届いていたときは null。
  */
 async function claimOnceThenRecord(
   db: Database,
   childId: string,
   kind: ClaimKind,
   refId: string,
+  dailyCap?: number,
 ): Promise<RewardState | null> {
   const claimDate = todayKeyJst();
-  const claimed = await db
-    .insert(schema.rewardClaims)
-    .values({ childId, kind, refId, claimDate, createdAt: nowJstIso() })
-    .onConflictDoNothing()
-    .returning({ childId: schema.rewardClaims.childId })
-    .all();
-  if (claimed.length === 0) return null;
+  if (!(await insertClaim(db, { childId, kind, refId, claimDate }, dailyCap))) return null;
 
   try {
     return await recordCorrectReward(db, childId);
@@ -115,13 +143,14 @@ async function claimOnceThenRecord(
   }
 }
 
-/** 英会話れんしゅうの1ターン正解(子ども×場面×ターン×日に1回)。 */
+/** 英会話れんしゅうの1ターン正解(子ども×場面×ターン×日に1回。1日の合計は TALK_DAILY_REWARD_CAP まで)。 */
 export const recordEnglishTalkClear = (
   db: Database,
   childId: string,
   sceneId: string,
   turnId: string,
-): Promise<RewardState | null> => claimOnceThenRecord(db, childId, "english_talk", `${sceneId}:${turnId}`);
+): Promise<RewardState | null> =>
+  claimOnceThenRecord(db, childId, "english_talk", `${sceneId}:${turnId}`, talkDailyRewardCap());
 
 /** 今日(JST)、この子がこの問題で「答え」のヒントまで開いたか(どのセッションでも。やり直しで消えない)。 */
 async function openedAnswerHintToday(

@@ -1,29 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { soundManager } from "@/lib/audio/soundSystem";
+import { postCheck, type CheckOutcome, type CheckResult } from "@/lib/englishTalk/checkClient";
+import { adaptTurn, type ChosenFruit, type FruitId } from "@/lib/englishTalk/context";
 import {
   answerTalk,
   currentTurnId,
+  markHelp,
   nextTalk,
   repeatTalk,
-  REPEAT_TARGET,
   startTalk,
-  talkScore,
+  talkStarsOf,
   type TalkState,
 } from "@/lib/englishTalk/flow";
 import {
   buildCorrectiveFeedbackEn,
   detectChosenFruit,
   isDontKnowAnswer,
-  type ChosenFruit,
   type PublicTalkScene,
   type PublicTalkTurn,
 } from "@/lib/englishTalk/judge";
 import { recordEnglishTalkSceneClear } from "@/lib/englishTalk/progressStore";
-import * as talkSpeech from "@/lib/audio/englishTalkSpeech";
-import { soundManager } from "@/lib/audio/soundSystem";
 import { applyServerReward, recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 import type { TalkMood } from "./TalkCharacter";
+import { TALK_FAILURE_MESSAGES, TALK_MESSAGES, TALK_PRAISE } from "./talkMessages";
+import { useTalkSpeech } from "./useTalkSpeech";
 
 export interface TalkTeach {
   feedbackEn: string;
@@ -31,99 +33,93 @@ export interface TalkTeach {
   modelAnswerJa: string;
 }
 
-type CheckMode = "choice" | "voice" | "repeat";
-
-interface CheckResult {
-  correct: boolean;
-  isDontKnow?: boolean;
-  feedback?: string;
-  feedbackEn?: string;
-  modelAnswer?: string;
-  modelAnswerJa?: string;
-  /** ログイン中、サーバーがごほうびを数えたときだけ付く(増えたあとの状態) */
-  reward?: unknown;
+/** 終わったあとに見直す、おてほんを見たターンのフレーズ。 */
+export interface TaughtPhrase extends TalkTeach {
+  turnId: string;
 }
 
-const PRAISE = ["Great job!", "Good!", "Nice!", "Perfect!", "Wonderful!"] as const;
-
-async function postCheck(body: Record<string, unknown>): Promise<CheckResult | null> {
-  const response = await fetch("/api/english-talk/check", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  }).catch(() => null);
-  const json = await response?.json().catch(() => null);
-  return response?.ok && json?.success ? (json.data as CheckResult) : null;
+export interface UseEnglishTalkOptions {
+  /** 親の設定。false なら読み上げの音声 API を呼ばない */
+  enableAudio?: boolean;
+  /** 親の設定。false なら声では答えられず、4択だけで答える(4択で答えてもヘルプにしない) */
+  enableVoiceAnswer?: boolean;
 }
 
-function adaptTurnWithContext(
-  rawTurn: PublicTalkTurn | undefined,
-  chosenFruit: ChosenFruit | null,
-): PublicTalkTurn | undefined {
-  if (!rawTurn) return undefined;
-  if (rawTurn.id === "shop-how-many" && chosenFruit && chosenFruit.singular !== "apple") {
-    return {
-      ...rawTurn,
-      prompt: `How many ${chosenFruit.plural}?`,
-      promptJa: `${chosenFruit.labelJa}は いくつ ほしいですか？`,
-      visual: `${chosenFruit.emoji}${chosenFruit.emoji}${chosenFruit.emoji}`,
-    };
-  }
-  return rawTurn;
-}
+const praiseWord = () => TALK_PRAISE[Math.floor(Math.random() * TALK_PRAISE.length)];
+
+/** 「いえたよ！」を続けて(ダブルタップで)押しても、1回ぶんだけ数える間隔(ミリ秒)。 */
+const SELF_REPORT_GAP_MS = 350;
 
 /**
  * 英会話れんしゅうの状態と操作。
- * - 声(en-US)でキャラクターと対話する
- * - 「I don't know」「わからない」と言ったら日本語にして教える
- * - まちがえたらすぐ英語で正しいフィードバックを返す
- * - 初回正解でごほうびメーターを進め、シーン完了時に獲得スターを記録する
+ * - 声(en-US)で対話する。ログイン中の子はマイクが自動、デモはタップした1回だけ聞く
+ * - 「I don't know」「わからない」と言ったら日本語にして教える(ヘルプ)
+ * - まちがえたらすぐ英語で正しいフィードバックを返し、まねして言ってもらう
+ * - 次の問いは「つぎへ」をタップしたときだけ読む(CLAUDE.md: 音声は手動再生)。ほめ・おしえは答えへの返事なので自動
+ * - 1回目の正解でごほうびメーターを進め、終わったら ★(ヘルプ・おてほんで下がる)を記録する
  */
-export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
+export function useEnglishTalk(scene: PublicTalkScene, childId?: string, options: UseEnglishTalkOptions = {}) {
+  const speech = useTalkSpeech(options.enableAudio !== false);
   const turnIds = useMemo(() => scene.turns.map(({ id }) => id), [scene]);
   const [state, setState] = useState<TalkState>(() => startTalk(turnIds));
   const [started, setStarted] = useState(false);
   const [teach, setTeach] = useState<TalkTeach | null>(null);
+  const [taught, setTaught] = useState<readonly TaughtPhrase[]>([]);
   const [showJapanese, setShowJapanese] = useState(false);
   const [lastHeard, setLastHeard] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [mood, setMood] = useState<TalkMood>("happy");
   const [checking, setChecking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [directVoiceMode, setDirectVoiceMode] = useState(true);
+  const [voiceUnavailable, setVoiceUnavailable] = useState(false);
   const [chosenFruit, setChosenFruit] = useState<ChosenFruit | null>(null);
+  // ログイン中は自動で聞く(今までどおり)。デモは、ボタンを押した1回の発話だけ聞く。
+  const listenMode = childId ? "auto" : "tap";
+  const [autoMic, setAutoMic] = useState(listenMode === "auto");
+  /** このまねして言うで、合わなかった回数(2回で「いえたよ！」でも進められる。使えるようになったら、終わるまで出したまま) */
+  const [repeatMisses, setRepeatMisses] = useState(0);
+  /** 変わるとマイクを入れなおす(自動モードで、答えのあとに もう一度聞き始めるため) */
+  const [micKey, setMicKey] = useState(0);
+  const restartMic = useCallback(() => setMicKey((key) => key + 1), []);
+  // 声のこたえが親の設定でオフ・マイクが使えないときは、4択が「ふつうの答え方」なのでヘルプにしない
+  const choicesForced = options.enableVoiceAnswer === false || voiceUnavailable;
 
-  // 遅れて届いた声のこたえ(古い描画のコールバック)でも、いまの状態で判断する
+  // 遅れて届いた声や、続けて押されたボタンでも、いまの状態で判断するための参照(commit で即座に合わせる)
   const stateRef = useRef(state);
   const checkingRef = useRef(false);
-  const directVoiceRef = useRef(true);
+  const repeatingRef = useRef(false);
+  const lastSelfReportRef = useRef(0);
+  /** 「もういちど」でやり直す・画面を離れるたびに増やす。待っているあいだに変わったら、古い答え合わせの結果は捨てる。 */
+  const runRef = useRef(0);
   const chosenFruitRef = useRef<ChosenFruit | null>(null);
-  const autoNextTimerRef = useRef<number | null>(null);
+  const choicesForcedRef = useRef(choicesForced);
   stateRef.current = state;
-  directVoiceRef.current = directVoiceMode;
   chosenFruitRef.current = chosenFruit;
+  choicesForcedRef.current = choicesForced;
+
+  const commit = useCallback((next: TalkState) => {
+    stateRef.current = next;
+    setState(next);
+  }, []);
 
   const activeTurnId = currentTurnId(state);
   const rawTurn: PublicTalkTurn | undefined = scene.turns.find(({ id }) => id === activeTurnId);
-  const turn = useMemo(() => adaptTurnWithContext(rawTurn, chosenFruit), [rawTurn, chosenFruit]);
+  const fruitId = (chosenFruit?.singular ?? null) as FruitId | null;
+  const turn = useMemo(() => (rawTurn ? adaptTurn(rawTurn, { fruit: fruitId }) : undefined), [rawTurn, fruitId]);
+  const turnRef = useRef(turn);
+  turnRef.current = turn;
   const turnIndex = useMemo(() => {
-    const idx = scene.turns.findIndex(({ id }) => id === activeTurnId);
-    return idx >= 0 ? idx : 0;
+    const index = scene.turns.findIndex(({ id }) => id === activeTurnId);
+    return index >= 0 ? index : 0;
   }, [activeTurnId, scene.turns]);
 
-  const clearAutoNextTimer = useCallback(() => {
-    if (autoNextTimerRef.current !== null && typeof window !== "undefined") {
-      window.clearTimeout(autoNextTimerRef.current);
-      autoNextTimerRef.current = null;
-    }
-  }, []);
-
+  // 画面を離れたら、読み上げを止め、待っている答え合わせの結果(音・読み上げ)も出さない
   useEffect(
     () => () => {
-      clearAutoNextTimer();
-      talkSpeech.stopTalkSpeech();
+      runRef.current += 1;
+      speech.stop();
     },
-    [clearAutoNextTimer],
+    [speech],
   );
 
   useEffect(() => {
@@ -137,203 +133,229 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     };
   }, []);
 
-  // シーン完了時に獲得した星（★1〜3）を記録する
+  // 最後のターンに答えた時点で ★ が決まる(「つぎへ」を押さずに離れても記録が残るよう、ここで記録する)
+  const isLastStep = state.phase === "correct" && nextTalk(state).phase === "done";
   useEffect(() => {
-    if (state.phase !== "done") return;
-    const score = talkScore(state);
-    const stars: 1 | 2 | 3 =
-      score.firstTry === score.total ? 3 : score.firstTry * 2 >= score.total ? 2 : 1;
-    recordEnglishTalkSceneClear(scene.id, stars, childId);
-  }, [childId, scene.id, state]);
+    if (state.phase === "done" || isLastStep) recordEnglishTalkSceneClear(scene.id, talkStarsOf(state), childId);
+  }, [childId, isLastStep, scene.id, state]);
 
-  const sayPrompt = useCallback((target?: PublicTalkTurn) => {
-    if (target) void talkSpeech.speakTalkEnglish(target.prompt);
-  }, []);
+  const sayPrompt = useCallback(
+    (target: PublicTalkTurn | undefined = turnRef.current) => {
+      if (target) void speech.speakEnglish(target.prompt);
+    },
+    [speech],
+  );
 
   const begin = useCallback(() => {
-    clearAutoNextTimer();
     setStarted(true);
     setLastHeard(null);
-    talkSpeech.preloadTalkSceneSpeech?.(scene.turns.map((t) => t.prompt));
-    sayPrompt(turn);
-  }, [clearAutoNextTimer, sayPrompt, scene.turns, turn]);
+    speech.preload(scene.turns.map(({ prompt }) => prompt));
+    sayPrompt();
+  }, [sayPrompt, scene.turns, speech]);
 
-  const askInJapanese = useCallback(() => {
-    if (!turn) return;
-    setShowJapanese(true);
-    setMood("think");
-    setMessage("にほんごに したよ！ きいてから えいごで はなしてみよう");
-    void talkSpeech.speakTalkJapanese(`${turn.promptJa} ${turn.answerHintJa}`);
-  }, [turn]);
-
+  /** 「つぎへ」: 次の問いへ進み、その問いを読む(タップが読み上げのきっかけ)。連打しても1回だけ進む。 */
   const next = useCallback(() => {
-    clearAutoNextTimer();
-    setState((current) => {
-      const following = nextTalk(current);
-      const nextRaw = scene.turns.find(({ id }) => id === currentTurnId(following));
-      const nextTurn = adaptTurnWithContext(nextRaw, chosenFruitRef.current);
-      if (following.phase === "ask" && nextTurn) {
-        sayPrompt(nextTurn);
-      }
-      return following;
-    });
+    const following = nextTalk(stateRef.current);
+    if (following === stateRef.current) return;
+    commit(following);
+    const nextRaw = scene.turns.find(({ id }) => id === currentTurnId(following));
+    const nextFruit = (chosenFruitRef.current?.singular ?? null) as FruitId | null;
     setTeach(null);
+    setRepeatMisses(0);
     setShowJapanese(false);
     setLastHeard(null);
     setMood("happy");
     setMessage(null);
-  }, [clearAutoNextTimer, sayPrompt, scene.turns]);
+    if (following.phase === "ask" && nextRaw) sayPrompt(adaptTurn(nextRaw, { fruit: nextFruit }));
+  }, [commit, sayPrompt, scene.turns]);
 
-  const scheduleAutoNext = useCallback(
-    (delayMs: number) => {
-      clearAutoNextTimer();
-      if (typeof window === "undefined") return;
-      autoNextTimerRef.current = window.setTimeout(() => {
-        autoNextTimerRef.current = null;
-        if (directVoiceRef.current && stateRef.current.phase === "correct") {
-          next();
-        }
-      }, delayMs);
+  /** 4択を開いた・4択で答えた = ヘルプ(★が少し下がる)。4択しか使えないときは、ふつうの答え方なので数えない。 */
+  const noteHelp = useCallback(() => {
+    if (!choicesForcedRef.current) commit(markHelp(stateRef.current));
+  }, [commit]);
+
+  /** ヘルプ: 日本語で問いとヒントを出して読む。不正解にはしない(★が少し下がる)。 */
+  const askInJapanese = useCallback(() => {
+    const target = turnRef.current;
+    if (!target) return;
+    commit(markHelp(stateRef.current));
+    setShowJapanese(true);
+    setMood("think");
+    setMessage(TALK_MESSAGES.japaneseHelp);
+    void speech.speakJapanese(`${target.promptJa} ${target.answerHintJa}`);
+  }, [commit, speech]);
+
+  const showFailure = useCallback(
+    (outcome: Extract<CheckOutcome, { ok: false }>) => {
+      setMessage(TALK_FAILURE_MESSAGES[outcome.reason]);
+      restartMic();
     },
-    [clearAutoNextTimer, next],
+    [restartMic],
   );
 
-  const answer = useCallback(
-    async (text: string, mode: Exclude<CheckMode, "repeat"> = "voice") => {
-      const currentId = currentTurnId(stateRef.current);
-      if (!turn || turn.id !== currentId || checkingRef.current || stateRef.current.phase !== "ask") return;
-      const trimmed = text.trim();
-      if (!trimmed) return;
-
-      setLastHeard(trimmed);
-
-      // 「I don't know」「わからない」と言ったら日本語にして教える(不正解にはしない)
-      if (isDontKnowAnswer(trimmed)) {
-        askInJapanese();
-        return;
-      }
-
-      checkingRef.current = true;
-      setChecking(true);
-      // 1回目でできたかは、答え合わせの前の状態で決める(ごほうびの対象かどうかをサーバーへ申告する)
-      const wasFirstTry = !stateRef.current.isRetry && !stateRef.current.missed.includes(turn.id);
-      const result = await postCheck({
-        sceneId: scene.id,
-        turnId: turn.id,
-        answer: trimmed,
-        mode,
-        childId,
-        firstTry: wasFirstTry,
-      });
-      checkingRef.current = false;
-      setChecking(false);
-      if (!result) {
-        setMessage("うまく きこえなかったよ。もういちど おしえてね");
-        return;
-      }
-
-      if (result.isDontKnow) {
-        askInJapanese();
-        return;
-      }
-
-      setState((current) => answerTalk(current, result.correct));
-
-      if (result.correct) {
-        if (turn.id === "shop-want") {
-          const detected = detectChosenFruit(trimmed);
-          if (detected) {
-            chosenFruitRef.current = detected;
-            setChosenFruit(detected);
-          }
+  const handleCorrect = useCallback(
+    async (target: PublicTalkTurn, spoken: string, result: CheckResult, wasFirstTry: boolean) => {
+      if (target.id === "shop-want") {
+        const detected = detectChosenFruit(spoken);
+        if (detected) {
+          chosenFruitRef.current = detected;
+          setChosenFruit(detected);
         }
-        if (wasFirstTry) {
-          // ログイン中はサーバーが数えた分だけを表示へ反映する。端末だけで数えるのは未ログイン(デモ)のとき。
-          if (childId) applyServerReward(result.reward);
-          else recordCorrectAnswer();
-        }
-        const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
-        setMood("celebrate");
-        setMessage(result.feedback ?? `${praise} ばっちり つたわったよ！`);
-        soundManager.playCorrect();
-        await talkSpeech.speakTalkEnglish(praise, "celebrate");
-
-        // 直接対話モードのときは、褒め言葉のあと自動で次のターンへ
-        if (directVoiceRef.current) {
-          scheduleAutoNext(700);
-        }
-        return;
       }
+      if (wasFirstTry) {
+        // ログイン中はサーバーが数えた分だけを表示へ反映する。端末だけで数えるのは未ログイン(デモ)のとき。
+        if (childId) applyServerReward(result.reward);
+        else recordCorrectAnswer();
+      }
+      setMood("celebrate");
+      setMessage(result.feedback ?? `${praiseWord()} ${TALK_MESSAGES.praise}`);
+      soundManager.playCorrect();
+      await speech.speakEnglish(praiseWord(), "celebrate");
+    },
+    [childId, speech],
+  );
 
-      // まちがえたらすぐ英語で正しいフィードバックをしてくれる
+  const handleWrong = useCallback(
+    (target: PublicTalkTurn, result: CheckResult) => {
       soundManager.playWrong();
       setMood("think");
       const modelAnswer = result.modelAnswer ?? "";
       const feedbackEn = buildCorrectiveFeedbackEn(modelAnswer, result.feedbackEn);
-      setTeach({
-        feedbackEn,
-        modelAnswer,
-        modelAnswerJa: result.modelAnswerJa ?? "",
-      });
+      const info: TalkTeach = { feedbackEn, modelAnswer, modelAnswerJa: result.modelAnswerJa ?? "" };
+      setTeach(info);
+      setRepeatMisses(0);
+      setTaught((list) => (list.some(({ turnId }) => turnId === target.id) ? list : [...list, { turnId: target.id, ...info }]));
       setMessage(feedbackEn);
-      void talkSpeech.speakTalkEnglish(feedbackEn, "think");
+      void speech.speakEnglish(feedbackEn, "think");
     },
-    [askInJapanese, childId, scene.id, scheduleAutoNext, turn],
+    [speech],
   );
 
+  /** 声・文字・4択のこたえを答え合わせする。 */
+  const answer = useCallback(
+    async (text: string, mode: "voice" | "choice" = "voice") => {
+      const target = turnRef.current;
+      const before = stateRef.current;
+      if (!target || checkingRef.current || before.phase !== "ask" || target.id !== currentTurnId(before)) return;
+      const spoken = text.trim();
+      if (!spoken) return;
+
+      setLastHeard(spoken);
+      // 「I don't know」「わからない」と言ったら日本語にして教える(不正解にはしない)
+      if (mode === "voice" && isDontKnowAnswer(spoken)) {
+        askInJapanese();
+        return;
+      }
+      if (mode === "choice") noteHelp();
+
+      // 1回目でできたかは、答え合わせの前の状態で決める(ごほうびの対象かどうかをサーバーへ申告する。ヘルプを使っても1回目)
+      const wasFirstTry = !before.isRetry && !before.missed.includes(target.id);
+      const run = runRef.current;
+      checkingRef.current = true;
+      setChecking(true);
+      const outcome = await postCheck({
+        sceneId: scene.id,
+        turnId: target.id,
+        answer: spoken,
+        mode,
+        ...(childId ? { childId } : {}),
+        firstTry: wasFirstTry,
+        ...(chosenFruitRef.current ? { context: { fruit: chosenFruitRef.current.singular } } : {}),
+      });
+      if (runRef.current !== run) return; // やり直したあとに届いた古い結果(フラグは restart が戻している)
+      checkingRef.current = false;
+      setChecking(false);
+
+      // 待っているあいだに次の問いへ移っていたら、古い結果は使わない
+      const now = stateRef.current;
+      if (now.phase !== "ask" || currentTurnId(now) !== target.id) return;
+      if (!outcome.ok) return showFailure(outcome);
+      if (outcome.data.isDontKnow) return askInJapanese();
+      if (outcome.data.needsEnglish || outcome.data.unclear) {
+        // まちがいにはしない。もう一度言えるように、マイクを入れなおす
+        setMood("think");
+        setMessage(outcome.data.unclear ? TALK_MESSAGES.unclear : TALK_MESSAGES.needsEnglish);
+        restartMic();
+        return;
+      }
+
+      commit(answerTalk(now, outcome.data.correct));
+      if (outcome.data.correct) await handleCorrect(target, spoken, outcome.data, wasFirstTry);
+      else handleWrong(target, outcome.data);
+    },
+    [askInJapanese, childId, commit, handleCorrect, handleWrong, noteHelp, restartMic, scene.id, showFailure],
+  );
+
+  /** まねして言う。text=null は「いえたよ！」(声が使えないときの自己申告)。処理中の2回目は無視する。 */
   const repeat = useCallback(
     async (text: string | null) => {
-      if (!turn || stateRef.current.phase !== "teach") return;
-      if (text !== null) {
-        const trimmed = text.trim();
-        setLastHeard(trimmed);
-        if (isDontKnowAnswer(trimmed)) {
+      const target = turnRef.current;
+      if (!target || stateRef.current.phase !== "teach" || repeatingRef.current) return;
+      if (text === null) {
+        // 判定をとおらない自己申告は、続けて2回押されても1回ぶんだけ数える
+        const now = Date.now();
+        if (now - lastSelfReportRef.current < SELF_REPORT_GAP_MS) return;
+        lastSelfReportRef.current = now;
+      } else {
+        const spoken = text.trim();
+        setLastHeard(spoken);
+        if (isDontKnowAnswer(spoken)) {
           if (teach?.modelAnswerJa) {
-            void talkSpeech.speakTalkJapanese(`${teach.modelAnswerJa} 「${teach.modelAnswer}」って まねして いってみよう`);
+            void speech.speakJapanese(`${teach.modelAnswerJa} 「${teach.modelAnswer}」って まねして いってみよう`);
           }
           return;
         }
       }
-      // 「いえたよ」ボタン(text=null)は自己申告でかぞえる。声のときはサーバーで判定する。
-      const ok =
-        text === null
-          ? true
-          : Boolean((await postCheck({ sceneId: scene.id, turnId: turn.id, answer: text, mode: "repeat" }))?.correct);
-      if (!ok) {
-        const retryFeedbackEn = teach?.modelAnswer
-          ? `Almost! Try saying: ${teach.modelAnswer}`
-          : "Almost! Try saying it again.";
-        setMessage(retryFeedbackEn);
-        void talkSpeech.speakTalkEnglish(retryFeedbackEn, "think");
-        return;
-      }
-      soundManager.playCorrect();
-      const nextCount = stateRef.current.repeatCount + 1;
-      setState((current) => repeatTalk(current, true));
-      setMood("celebrate");
-      setMessage("Great! じょうず！");
 
-      // リピート目標達成時、直接対話モードなら自動で次へ
-      if (nextCount >= REPEAT_TARGET && directVoiceRef.current) {
-        scheduleAutoNext(800);
+      const run = runRef.current;
+      repeatingRef.current = true;
+      try {
+        const outcome =
+          text === null
+            ? null
+            : await postCheck({ sceneId: scene.id, turnId: target.id, answer: text.trim(), mode: "repeat" });
+        if (runRef.current !== run || stateRef.current.phase !== "teach") return;
+        if (outcome && !outcome.ok) return showFailure(outcome);
+        if (outcome && !outcome.data.correct) {
+          const retry = teach?.modelAnswer
+            ? `Almost! Try saying: ${teach.modelAnswer}`
+            : "Almost! Try saying it again.";
+          setMessage(retry);
+          setRepeatMisses((count) => count + 1);
+          restartMic();
+          void speech.speakEnglish(retry, "think");
+          return;
+        }
+        soundManager.playCorrect();
+        commit(repeatTalk(stateRef.current, true));
+        restartMic();
+        setMood("celebrate");
+        setMessage(TALK_MESSAGES.repeatDone);
+      } finally {
+        if (runRef.current === run) repeatingRef.current = false;
       }
     },
-    [scene.id, scheduleAutoNext, teach, turn],
+    [commit, restartMic, scene.id, showFailure, speech, teach],
   );
 
   const restart = useCallback(() => {
-    clearAutoNextTimer();
-    talkSpeech.stopTalkSpeech();
+    speech.stop();
+    runRef.current += 1;
+    checkingRef.current = false;
+    repeatingRef.current = false;
+    setChecking(false);
     chosenFruitRef.current = null;
     setChosenFruit(null);
-    setState(startTalk(turnIds));
+    commit(startTalk(turnIds));
     setTeach(null);
+    setTaught([]);
+    setRepeatMisses(0);
     setShowJapanese(false);
     setLastHeard(null);
     setMood("happy");
     setMessage(null);
     setStarted(false);
-  }, [clearAutoNextTimer, turnIds]);
+  }, [commit, speech, turnIds]);
 
   return {
     state,
@@ -342,17 +364,34 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string) {
     totalTurns: scene.turns.length,
     started,
     teach,
+    taught,
     showJapanese,
     lastHeard,
     message,
     mood,
     checking,
     speaking,
-    directVoiceMode,
-    setDirectVoiceMode,
+    audioEnabled: speech.enabled,
+    speakEnglish: speech.speakEnglish,
+    stopSpeech: speech.stop,
+    listenMode,
+    /** マイクを自動で入れるか(デモは常に false) */
+    autoMic,
+    setAutoMic: (enabled: boolean) => setAutoMic(listenMode === "auto" && enabled),
+    voiceUnavailable,
+    markVoiceUnavailable: () => setVoiceUnavailable(true),
+    /** 4択しか使えない(親の設定でオフ・マイクが使えない) */
+    choicesForced,
+    /** マイク部品の key。変わると入れなおす(答えのあとに もう一度聞き始める) */
+    micKey,
+    repeatMisses,
+    /** いまの答えが最後。つぎへ のかわりに「おわる」を出す */
+    isLastStep,
+    fruitId,
     begin,
-    sayPrompt: () => sayPrompt(turn),
+    sayPrompt: () => sayPrompt(),
     askInJapanese,
+    noteHelp,
     answer,
     repeat,
     next,

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
@@ -140,6 +140,80 @@ describe("POST /api/english-talk/check awards the reward on the server", () => {
     await expect(recordEnglishTalkClear(failing, CHILD, "park", "park-dog")).rejects.toThrow("boom");
     expect(await db.select().from(schema.rewardClaims).all()).toHaveLength(0);
     expect(await recordEnglishTalkClear(db, CHILD, "park", "park-dog")).not.toBeNull();
+  });
+
+  describe("the daily cap on English talk rewards", () => {
+    const original = process.env.TALK_DAILY_REWARD_CAP;
+    const setCap = (value: string | undefined) => {
+      if (value === undefined) delete process.env.TALK_DAILY_REWARD_CAP;
+      else process.env.TALK_DAILY_REWARD_CAP = value;
+    };
+    afterEach(() => setCap(original));
+
+    const TURNS = [
+      ["park", "park-soccer"],
+      ["park", "park-dog"],
+      ["park", "park-ball-color"],
+      ["park", "park-see-you"],
+      ["shop", "shop-want"],
+      ["shop", "shop-how-many"],
+    ] as const;
+
+    it("stops paying after the cap, and a repeated turn does not use up the cap", async () => {
+      setCap("2");
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-dog")).not.toBeNull();
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-dog")).toBeNull();
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-soccer")).not.toBeNull();
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-ball-color")).toBeNull();
+      expect(await storedCorrect()).toBe(2);
+      expect(await db.select().from(schema.rewardClaims).all()).toHaveLength(2);
+    });
+
+    it("defaults to 5 a day", async () => {
+      setCap(undefined);
+      const paid = [];
+      for (const [scene, turn] of TURNS) paid.push(await recordEnglishTalkClear(db, CHILD, scene, turn));
+      expect(paid.filter((reward) => reward !== null)).toHaveLength(5);
+      expect(await storedCorrect()).toBe(5);
+    });
+
+    it("a cap of 0 pays nothing", async () => {
+      setCap("0");
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-dog")).toBeNull();
+      expect(await storedCorrect()).toBe(0);
+    });
+
+    it("counts each child separately", async () => {
+      setCap("1");
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-dog")).not.toBeNull();
+      expect(await recordEnglishTalkClear(db, OTHER_CHILD, "park", "park-dog")).not.toBeNull();
+      expect(await recordEnglishTalkClear(db, CHILD, "park", "park-soccer")).toBeNull();
+    });
+
+    it("starts a new cap at midnight JST", async () => {
+      setCap("1");
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(new Date("2026-10-25T14:00:00Z"));
+        expect(await recordEnglishTalkClear(db, CHILD, "park", "park-dog")).not.toBeNull();
+        expect(await recordEnglishTalkClear(db, CHILD, "park", "park-soccer")).toBeNull();
+        vi.setSystemTime(new Date("2026-10-25T15:00:01Z"));
+        expect(await recordEnglishTalkClear(db, CHILD, "park", "park-soccer")).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps judging correct answers after the cap, just without a reward", async () => {
+      setCap("1");
+      const first = await check({ ...DOG, childId: CHILD });
+      expect(first.data.reward).toMatchObject({ totalCorrectCount: 1 });
+      const second = await check({
+        sceneId: "shop", turnId: "shop-want", answer: "Apples, please.", mode: "choice", firstTry: true, childId: CHILD,
+      });
+      expect(second.data.correct).toBe(true);
+      expect(second.data.reward).toBeUndefined();
+    });
   });
 
   it("starts a new day at midnight JST, not midnight UTC", async () => {

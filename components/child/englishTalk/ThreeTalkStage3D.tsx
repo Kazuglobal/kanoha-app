@@ -15,7 +15,24 @@ export interface ThreeTalkStage3DProps {
   mood: TalkMood;
   isListening?: boolean;
   visual?: string;
+  /** WebGL が使えないときに背景として出す場面の絵(scene.background) */
+  fallbackBackground?: string;
   onCharacterTap?: () => void;
+}
+
+/** 3D のオブジェクトを片づける(ジオメトリ・マテリアル・テクスチャ)。使い捨てのプロップや、画面を離れるときに呼ぶ。 */
+function disposeObject3D(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    mesh.geometry?.dispose();
+    const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    for (const material of materials) {
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) value.dispose();
+      }
+      material.dispose();
+    }
+  });
 }
 
 const CAMERA_TURN_OFFSETS: readonly { x: number; y: number; z: number; lookX: number; lookY: number }[] = [
@@ -422,10 +439,13 @@ export function ThreeTalkStage3D({
   mood,
   isListening = false,
   visual,
+  fallbackBackground,
   onCharacterTap,
 }: ThreeTalkStage3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [speaking, setSpeaking] = useState(false);
+  // WebGL が使えない端末や、描画の準備ができるまでは、場面の絵(SVG)を背景に出す
+  const [canvasReady, setCanvasReady] = useState(false);
 
   const stateRef = useRef({
     started,
@@ -471,6 +491,7 @@ export function ThreeTalkStage3D({
     if (!holder.scene) return;
     if (holder.currentProp) {
       holder.scene.remove(holder.currentProp);
+      disposeObject3D(holder.currentProp);
       holder.currentProp = null;
     }
     if (started && (turnId || visual)) {
@@ -563,10 +584,14 @@ export function ThreeTalkStage3D({
     let frameId = 0;
     const clock = new THREE.Clock();
     let walkPhase = 0;
-    const reducedMotion =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 「動きを減らす」の設定は、あとから変えられても追いかける
+    const motionQuery =
+      typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+    let reducedMotion = motionQuery?.matches ?? false;
+    const onMotionChange = (event: MediaQueryListEvent) => {
+      reducedMotion = event.matches;
+    };
+    motionQuery?.addEventListener?.("change", onMotionChange);
 
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
@@ -674,6 +699,19 @@ export function ThreeTalkStage3D({
     };
 
     animate();
+    setCanvasReady(true);
+
+    // タブが隠れているあいだは描画を止める(バッテリーとCPUを使わない)
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        window.cancelAnimationFrame(frameId);
+        frameId = 0;
+      } else if (frameId === 0) {
+        clock.getDelta();
+        animate();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const handleResize = () => {
       if (!container || !renderer) return;
@@ -687,13 +725,18 @@ export function ThreeTalkStage3D({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      setCanvasReady(false);
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      motionQuery?.removeEventListener?.("change", onMotionChange);
       window.cancelAnimationFrame(frameId);
       propHolder.scene = null;
       propHolder.currentProp = null;
+      disposeObject3D(scene);
       skyTex.dispose();
       shadowTex.dispose();
       renderer?.dispose();
+      renderer?.forceContextLoss();
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
       }
@@ -705,6 +748,11 @@ export function ThreeTalkStage3D({
       ref={containerRef}
       className={styles.threeViewport}
       data-testid="three-talk-stage"
+      style={
+        !canvasReady && fallbackBackground
+          ? { backgroundImage: `url(${fallbackBackground})`, backgroundSize: "cover", backgroundPosition: "center bottom" }
+          : undefined
+      }
       onPointerMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {

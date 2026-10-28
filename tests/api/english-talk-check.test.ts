@@ -115,7 +115,7 @@ describe("POST /api/english-talk/check", () => {
     const { json } = await check({
       sceneId: "zoo",
       turnId: "zoo-like",
-      answer: "I love koalas",
+      answer: "I love axolotls",
       mode: "voice",
       childId: CHILD,
     });
@@ -128,15 +128,15 @@ describe("POST /api/english-talk/check", () => {
     providerName.value = "gemini";
     requireOwnedChild.mockResolvedValue({ response: null, user: { id: "parent" }, db: {} });
     reserveAiUsage.mockResolvedValue({ outcome: "allowed", calls: 1, costUsd: 0.001 });
-    judgeEnglishTalk.mockResolvedValue({ correct: true, feedback: "コアラ、いいね！" });
+    judgeEnglishTalk.mockResolvedValue({ correct: true, feedback: "ウーパールーパー、いいね！" });
     const { json } = await check({
       sceneId: "zoo",
       turnId: "zoo-like",
-      answer: "I love koalas",
+      answer: "I love axolotls",
       mode: "voice",
       childId: CHILD,
     });
-    expect(json.data).toEqual({ correct: true, feedback: "コアラ、いいね！" });
+    expect(json.data).toEqual({ correct: true, feedback: "ウーパールーパー、いいね！" });
   });
 
   it("falls back to the keyword result when the AI budget is used up or output is invalid", async () => {
@@ -144,7 +144,7 @@ describe("POST /api/english-talk/check", () => {
     requireOwnedChild.mockResolvedValue({ response: null, user: { id: "parent" }, db: {} });
     reserveAiUsage.mockResolvedValue({ outcome: "denied", calls: 100, costUsd: 2 });
     const denied = await check({
-      sceneId: "zoo", turnId: "zoo-like", answer: "koala", mode: "voice", childId: CHILD,
+      sceneId: "zoo", turnId: "zoo-like", answer: "axolotl", mode: "voice", childId: CHILD,
     });
     expect(judgeEnglishTalk).not.toHaveBeenCalled();
     expect(denied.json.data.correct).toBe(false);
@@ -152,14 +152,111 @@ describe("POST /api/english-talk/check", () => {
     reserveAiUsage.mockResolvedValue({ outcome: "allowed", calls: 1, costUsd: 0.001 });
     judgeEnglishTalk.mockResolvedValue({ correct: true });
     const invalid = await check({
-      sceneId: "zoo", turnId: "zoo-like", answer: "koala", mode: "voice", childId: CHILD,
+      sceneId: "zoo", turnId: "zoo-like", answer: "axolotl", mode: "voice", childId: CHILD,
     });
     expect(invalid.json.data.correct).toBe(false);
   });
 
   it("never uses the AI for the 4-choice or repeat modes", async () => {
     providerName.value = "gemini";
-    await check({ sceneId: "zoo", turnId: "zoo-like", answer: "koala", mode: "repeat", childId: CHILD });
+    await check({ sceneId: "zoo", turnId: "zoo-like", answer: "axolotl", mode: "repeat", childId: CHILD });
     expect(requireOwnedChild).not.toHaveBeenCalled();
+    // 4択は、選択肢にない文字なら 400、選択肢のまちがいなら まちがい。どちらも AI は呼ばない
+    const notAChoice = await check({ sceneId: "zoo", turnId: "zoo-like", answer: "axolotl", mode: "choice", childId: CHILD });
+    expect(notAChoice.status).toBe(400);
+    const wrongChoice = await check({
+      sceneId: "zoo", turnId: "zoo-like", answer: "I'm fine.", mode: "choice", childId: CHILD,
+    });
+    expect(wrongChoice.json.data.correct).toBe(false);
+    expect(requireOwnedChild).not.toHaveBeenCalled();
+    expect(judgeEnglishTalk).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/english-talk/check: stricter judging", () => {
+  beforeEach(() => {
+    providerName.value = "mock";
+    judgeEnglishTalk.mockReset();
+    requireOwnedChild.mockReset();
+    reserveAiUsage.mockReset();
+  });
+
+  const allowAi = () => {
+    providerName.value = "gemini";
+    requireOwnedChild.mockResolvedValue({ response: null, user: { id: "parent" }, db: {} });
+    reserveAiUsage.mockResolvedValue({ outcome: "allowed", calls: 1, costUsd: 0.001 });
+    judgeEnglishTalk.mockResolvedValue({ correct: true, feedback: "いいね！" });
+  };
+
+  it("rejects a 4-choice answer that is not one of the choices (it cannot pass for a keyword match)", async () => {
+    const { status } = await check({ sceneId: "park", turnId: "park-dog", answer: "dog", mode: "choice" });
+    expect(status).toBe(400);
+  });
+
+  it.each(["?", "(inaudible)", "[no speech]"])(
+    "聞き取れなかった印(%s)は、まちがいにも ごほうびにもせず もう一度言ってもらう",
+    async (answer) => {
+      const { json } = await check({ sceneId: "park", turnId: "park-dog", answer, mode: "voice", firstTry: true });
+      expect(json.data).toEqual({ correct: false, unclear: true });
+    },
+  );
+
+  it("asks for English when the voice answer is only Japanese, without teaching or marking it wrong", async () => {
+    const { json } = await check({ sceneId: "park", turnId: "park-dog", answer: "いぬ", mode: "voice" });
+    expect(json.data).toEqual({ correct: false, needsEnglish: true });
+  });
+
+  it("does not accept a sound-alike word inside an unrelated sentence", async () => {
+    const { json } = await check({ sceneId: "greeting", turnId: "greeting-age", answer: "Nice to meet you", mode: "voice" });
+    expect(json.data.correct).toBe(false);
+    expect(json.data.modelAnswer).toBe("I'm seven.");
+  });
+
+  it("accepts a fruit context and rejects one that is not a known fruit", async () => {
+    const ok = await check({
+      sceneId: "shop", turnId: "shop-how-many", answer: "Three, please.", mode: "voice", context: { fruit: "banana" },
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.json.data.correct).toBe(true);
+    const bad = await check({
+      sceneId: "shop", turnId: "shop-how-many", answer: "Three", mode: "voice", context: { fruit: "<script>" },
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it("uses the AI judge only for turns marked open, never for the name question", async () => {
+    allowAi();
+    const name = await check({
+      sceneId: "greeting", turnId: "greeting-name", answer: "my friend is Taro", mode: "voice", childId: CHILD,
+    });
+    expect(name.json.data.correct).toBe(false);
+    const dog = await check({
+      sceneId: "park", turnId: "park-dog", answer: "it is an axolotl", mode: "voice", childId: CHILD,
+    });
+    expect(dog.json.data.correct).toBe(false);
+    expect(judgeEnglishTalk).not.toHaveBeenCalled();
+    expect(reserveAiUsage).not.toHaveBeenCalled();
+  });
+
+  it("does not send a Japanese-only or empty-of-English answer to the AI judge", async () => {
+    allowAi();
+    const { json } = await check({
+      sceneId: "zoo", turnId: "zoo-like", answer: "コアラがすき", mode: "voice", childId: CHILD,
+    });
+    expect(json.data).toEqual({ correct: false, needsEnglish: true });
+    expect(judgeEnglishTalk).not.toHaveBeenCalled();
+  });
+
+  it("reads the AI cost from the environment on every request", async () => {
+    allowAi();
+    const original = process.env.AI_ENGLISH_TALK_COST_USD;
+    process.env.AI_ENGLISH_TALK_COST_USD = "0.002";
+    try {
+      await check({ sceneId: "zoo", turnId: "zoo-like", answer: "I love axolotls", mode: "voice", childId: CHILD });
+      expect(reserveAiUsage.mock.calls[0][1]).toBe(0.002);
+    } finally {
+      if (original === undefined) delete process.env.AI_ENGLISH_TALK_COST_USD;
+      else process.env.AI_ENGLISH_TALK_COST_USD = original;
+    }
   });
 });

@@ -1,44 +1,59 @@
 "use client";
 
-import { Headphones, HelpCircle, Languages, RotateCcw, Send, Star, Volume2 } from "lucide-react";
 import type { Route } from "next";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { REPEAT_TARGET, talkScore } from "@/lib/englishTalk/flow";
+import { talkScore, talkStarsOf } from "@/lib/englishTalk/flow";
 import type { PublicTalkScene } from "@/lib/englishTalk/judge";
-import { speakTalkEnglish, stopTalkSpeech } from "@/lib/audio/englishTalkSpeech";
 import { getSceneFriendName } from "@/lib/englishTalk/sceneThemes";
-import { RealtimeTalkMic } from "./RealtimeTalkMic";
+import type { TalkSettings } from "@/lib/englishTalk/talkSettings";
+import { AnswerPanel } from "./panels/AnswerPanel";
+import { DonePanel } from "./panels/DonePanel";
+import { SpeechBubble } from "./panels/SpeechBubble";
+import { StartPanel } from "./panels/StartPanel";
+import { TeachPanel } from "./panels/TeachPanel";
 import { ThreeTalkStage3D } from "./ThreeTalkStage3D";
-import { useEnglishTalk, type TalkTeach } from "./useEnglishTalk";
+import { useEnglishTalk } from "./useEnglishTalk";
 import styles from "./englishTalk.module.css";
 
 /**
  * Three.js 3D 英会話ステージ:
- * - 各ステージ・各場面が繊細で可愛らしい 3D 空間として現れ、キャラクターと対面してやり取りをする
- * - 4択で選ぶのではなく、リアルタイムの「声」で直接お話しする（困ったときはヒント選択肢も開ける）
+ * - 各場面が 3D 空間として現れ、キャラクターと対面してやり取りをする
+ * - 4択で選ぶのではなく、声で直接お話しする(困ったときはヒントの選択肢・日本語も使える)
  * - 「I don't know」や「わからない」と言ったら日本語にして教えてくれる
- * - 間違っていたらすぐ英語で正しいフィードバックをしてくれる
+ * - 間違っていたらすぐ英語で正しい言い方を教えてくれる
+ * - 次の問いは「つぎへ」をタップしたときだけ読む
  */
-export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; childId?: string }) {
-  const talk = useEnglishTalk(scene, childId);
+export function EnglishTalkStage({
+  scene,
+  childId,
+  settings,
+}: {
+  scene: PublicTalkScene;
+  childId?: string;
+  settings?: TalkSettings;
+}) {
+  const talk = useEnglishTalk(scene, childId, {
+    enableAudio: settings?.enableAudio,
+    enableVoiceAnswer: settings?.enableVoiceAnswer,
+  });
   const { state, turn } = talk;
   const [isListening, setIsListening] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const friendName = getSceneFriendName(scene.id);
+  const micEnabled = settings?.enableVoiceAnswer !== false;
+  const buttonsOnly = !micEnabled || talk.voiceUnavailable;
+  const onAutoMicChange = talk.listenMode === "auto" ? talk.setAutoMic : undefined;
 
   useEffect(() => {
     if (talk.started) panelRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [talk.started, state.phase, talk.showJapanese]);
 
   const listHref = (childId ? `/child/english-talk?childId=${childId}` : "/child/english-talk") as Route;
+  const running = talk.started && state.phase !== "done";
 
   return (
     <div className={styles.stageWrap}>
-      <section
-        className={styles.scene}
-        aria-label={`${scene.title}の3Dシーン`}
-      >
+      <section className={styles.scene} aria-label={`${scene.title}の 3Dシーン`}>
         <ThreeTalkStage3D
           sceneId={scene.id}
           turnId={turn?.id}
@@ -48,6 +63,7 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
           mood={talk.mood}
           isListening={isListening}
           visual={turn?.visual}
+          fallbackBackground={scene.background}
           onCharacterTap={talk.started ? talk.sayPrompt : talk.begin}
         />
 
@@ -61,7 +77,7 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
               🤝 おともだち: {friendName}
             </span>
           </div>
-          {talk.started && state.phase !== "done" && (
+          {running && (
             <div className={styles.turnStepBadge}>
               ばめん {talk.turnIndex + 1} / {talk.totalTurns}
             </div>
@@ -69,17 +85,17 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
         </div>
 
         <div className={styles.sceneRight}>
-          {talk.started && turn && state.phase !== "done" && (
+          {running && turn && (
             <SpeechBubble
               prompt={turn.prompt}
               promptJa={talk.showJapanese ? turn.promptJa : null}
               hintJa={talk.showJapanese ? turn.answerHintJa : null}
               feedbackEn={state.phase === "teach" && talk.teach ? talk.teach.feedbackEn : null}
               isRetry={state.isRetry}
-              onListen={talk.sayPrompt}
+              onListen={talk.audioEnabled ? talk.sayPrompt : undefined}
             />
           )}
-          {turn?.visual && talk.started && state.phase !== "done" && (
+          {turn?.visual && running && (
             <div className={styles.visual} aria-hidden="true" key={turn.id}>
               {turn.visual}
             </div>
@@ -87,11 +103,25 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
         </div>
       </section>
 
-      <section className={styles.panel} aria-live="polite" ref={panelRef}>
+      <section className={styles.panel} ref={panelRef}>
         {!talk.started ? (
-          <StartPanel description={scene.description} friendName={friendName} onStart={talk.begin} />
+          <StartPanel
+            description={scene.description}
+            friendName={friendName}
+            micEnabled={micEnabled}
+            autoListen={talk.listenMode === "auto"}
+            onStart={talk.begin}
+          />
         ) : state.phase === "done" ? (
-          <DonePanel score={talkScore(state)} onRestart={talk.restart} listHref={listHref} />
+          <DonePanel
+            stars={talkStarsOf(state)}
+            score={talkScore(state)}
+            taught={talk.taught}
+            audioEnabled={talk.audioEnabled}
+            onListen={(text) => void talk.speakEnglish(text)}
+            onRestart={talk.restart}
+            listHref={listHref}
+          />
         ) : (
           <>
             <div className={styles.answerTools} style={{ justifyContent: "space-between", marginBottom: "0.25rem" }}>
@@ -101,40 +131,52 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
                 </span>
               ) : (
                 <span className={styles.voiceGuideHint}>
-                  🎤 こえで おはなしちゅう（「I don&apos;t know」「わからない」も声でOK）
+                  {buttonsOnly
+                    ? "👆 ボタンを えらんで こたえてね"
+                    : talk.listenMode === "auto"
+                      ? "🎤 こえで おはなしちゅう（「I don't know」「わからない」も こえでOK）"
+                      : "🎤 マイクを おして はなしてね（「I don't know」「わからない」も こえでOK）"}
                 </span>
               )}
-              <button
-                className={styles.japaneseButton}
-                type="button"
-                style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
-                onClick={() => talk.setDirectVoiceMode(!talk.directVoiceMode)}
-                aria-pressed={talk.directVoiceMode}
-              >
-                {talk.directVoiceMode ? "🎤 じどうマイク: ON" : "✋ じどうマイク: OFF"}
-              </button>
+              {!buttonsOnly && talk.listenMode === "auto" && (
+                <button
+                  className={styles.japaneseButton}
+                  type="button"
+                  style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
+                  onClick={() => talk.setAutoMic(!talk.autoMic)}
+                  aria-pressed={talk.autoMic}
+                >
+                  {talk.autoMic ? "🎤 じどうマイク: ON" : "✋ じどうマイク: OFF"}
+                </button>
+              )}
             </div>
 
             {talk.message && (
-              <p className={styles.message} data-testid="talk-feedback-message">
+              <p className={styles.message} role="status" data-testid="talk-feedback-message">
                 {talk.message}
               </p>
             )}
 
             {state.phase === "ask" && turn && (
-              <VoiceAnswerPanel
+              <AnswerPanel
                 key={turn.id}
                 sceneId={scene.id}
                 turnId={turn.id}
+                fruit={talk.fruitId}
                 choices={turn.choices}
                 hintJa={talk.showJapanese ? turn.answerHintJa : null}
                 disabled={talk.checking}
                 characterSpeaking={talk.speaking}
-                autoStartVoice={talk.directVoiceMode}
-                onAutoListenChange={talk.setDirectVoiceMode}
+                micEnabled={micEnabled}
+                voiceFailed={talk.voiceUnavailable}
+                autoMic={talk.autoMic}
+                micKey={talk.micKey}
+                onAutoMicChange={onAutoMicChange}
+                onChoicesOpen={talk.noteHelp}
+                onVoiceUnavailable={talk.markVoiceUnavailable}
                 onListeningChange={setIsListening}
-                onInterruptSpeech={stopTalkSpeech}
-                onAnswer={(text, mode = "voice") => void talk.answer(text, mode)}
+                onInterruptSpeech={talk.stopSpeech}
+                onAnswer={(text, mode) => void talk.answer(text, mode)}
                 onJapanese={talk.askInJapanese}
               />
             )}
@@ -143,314 +185,33 @@ export function EnglishTalkStage({ scene, childId }: { scene: PublicTalkScene; c
               <TeachPanel
                 sceneId={scene.id}
                 turnId={turn?.id}
+                fruit={talk.fruitId}
                 teach={talk.teach}
                 repeatCount={state.repeatCount}
                 characterSpeaking={talk.speaking}
-                autoStartVoice={talk.directVoiceMode}
-                onAutoListenChange={talk.setDirectVoiceMode}
+                micEnabled={micEnabled}
+                voiceFailed={talk.voiceUnavailable}
+                repeatMisses={talk.repeatMisses}
+                micKey={talk.micKey}
+                audioEnabled={talk.audioEnabled}
+                autoMic={talk.autoMic}
+                onAutoMicChange={onAutoMicChange}
+                onVoiceUnavailable={talk.markVoiceUnavailable}
                 onListeningChange={setIsListening}
-                onInterruptSpeech={stopTalkSpeech}
+                onInterruptSpeech={talk.stopSpeech}
+                onListenModel={() => void talk.speakEnglish(talk.teach?.modelAnswer ?? "", "think")}
                 onRepeat={(text) => void talk.repeat(text)}
               />
             )}
 
             {state.phase === "correct" && (
               <button className={styles.nextButton} type="button" onClick={talk.next}>
-                つぎの場面へ ▶
+                {talk.isLastStep ? "おわる ▶" : "つぎへ ▶"}
               </button>
             )}
           </>
         )}
       </section>
-    </div>
-  );
-}
-
-function SpeechBubble({
-  prompt,
-  promptJa,
-  hintJa,
-  feedbackEn,
-  isRetry,
-  onListen,
-}: {
-  prompt: string;
-  promptJa: string | null;
-  hintJa: string | null;
-  feedbackEn: string | null;
-  isRetry: boolean;
-  onListen: () => void;
-}) {
-  return (
-    <div className={styles.bubble}>
-      {isRetry && <span className={styles.retryBadge}>もういちど チャレンジ！</span>}
-      <p className={styles.bubbleEnglish} lang="en">
-        {prompt}
-      </p>
-      {promptJa && <p className={styles.bubbleJapanese}>{promptJa}</p>}
-      {hintJa && <p className={styles.bubbleHint}>💡 {hintJa}</p>}
-      {feedbackEn && (
-        <p className={styles.bubbleFeedbackEn} lang="en" data-testid="english-feedback-bubble">
-          💬 {feedbackEn}
-        </p>
-      )}
-      <button className={styles.listenButton} type="button" onClick={onListen}>
-        <Headphones size={20} aria-hidden="true" /> もういちど きく
-      </button>
-    </div>
-  );
-}
-
-function StartPanel({
-  description,
-  friendName,
-  onStart,
-}: {
-  description: string;
-  friendName: string;
-  onStart: () => void;
-}) {
-  return (
-    <div className={styles.startPanel}>
-      <p className={styles.message}>{description}</p>
-      <p className={styles.voiceGuideSub}>
-        3Dのステージで かのはちゃんと {friendName}に こえで はなしかけよう！ わからないときは「I don&apos;t know」や「わからない」と いってね。
-      </p>
-      <button className={styles.nextButton} type="button" onClick={onStart}>
-        おはなしを はじめる ▶
-      </button>
-    </div>
-  );
-}
-
-function VoiceAnswerPanel({
-  sceneId,
-  turnId,
-  choices,
-  hintJa,
-  disabled,
-  characterSpeaking,
-  autoStartVoice = true,
-  onAutoListenChange,
-  onListeningChange,
-  onInterruptSpeech,
-  onAnswer,
-  onJapanese,
-}: {
-  sceneId: string;
-  turnId: string;
-  choices: readonly string[];
-  hintJa: string | null;
-  disabled: boolean;
-  characterSpeaking: boolean;
-  autoStartVoice?: boolean;
-  onAutoListenChange?: (enabled: boolean) => void;
-  onListeningChange?: (listening: boolean) => void;
-  onInterruptSpeech?: () => void;
-  onAnswer: (text: string, mode?: "voice" | "choice") => void;
-  onJapanese: () => void;
-}) {
-  const [spokenInput, setSpokenInput] = useState("");
-  const [showChoices, setShowChoices] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = spokenInput.trim();
-    if (!trimmed || disabled) return;
-    setSpokenInput("");
-    onAnswer(trimmed, "voice");
-  };
-
-  return (
-    <div className={styles.answerPanel}>
-      <RealtimeTalkMic
-        sceneId={sceneId}
-        turnId={turnId}
-        disabled={disabled}
-        characterSpeaking={characterSpeaking}
-        autoListen={autoStartVoice}
-        onAutoListenChange={onAutoListenChange}
-        onListeningChange={onListeningChange}
-        onInterruptSpeech={onInterruptSpeech}
-        onUtterance={(text) => onAnswer(text, "voice")}
-      />
-
-      <div className={styles.answerTools}>
-        <button className={styles.japaneseButton} type="button" onClick={onJapanese} disabled={disabled}>
-          <Languages size={20} aria-hidden="true" /> えいごが わからない（日本語にして）
-        </button>
-        <button
-          className={styles.listenButton}
-          type="button"
-          onClick={() => setShowChoices((v) => !v)}
-          disabled={disabled}
-          aria-expanded={showChoices}
-        >
-          <HelpCircle size={20} aria-hidden="true" />{" "}
-          {showChoices ? "こたえの ヒントを とじる" : "こたえの ヒント（えらんで こたえる）"}
-        </button>
-      </div>
-
-      {hintJa && <p className={styles.bubbleHint}>💡 {hintJa}</p>}
-
-      {showChoices && (
-        <div className={styles.choices} role="group" aria-label="こたえのヒント選択肢">
-          {choices.map((choice) => (
-            <button
-              key={choice}
-              type="button"
-              className={styles.choice}
-              disabled={disabled}
-              lang="en"
-              onClick={() => onAnswer(choice, "choice")}
-            >
-              {choice}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <form className={styles.voiceInputForm} onSubmit={handleSubmit}>
-        <input
-          type="text"
-          className={styles.voiceTextInput}
-          value={spokenInput}
-          disabled={disabled}
-          onChange={(e) => setSpokenInput(e.target.value)}
-          placeholder="こえで はなすか、ここに えいごや「I don't know」「わからない」を いれてね..."
-          aria-label="声でつたえることば"
-        />
-        <button
-          type="submit"
-          className={styles.voiceSubmitButton}
-          disabled={disabled || !spokenInput.trim()}
-        >
-          <Send size={18} aria-hidden="true" /> はなす
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function TeachPanel({
-  sceneId,
-  turnId,
-  teach,
-  repeatCount,
-  characterSpeaking,
-  autoStartVoice = true,
-  onAutoListenChange,
-  onListeningChange,
-  onInterruptSpeech,
-  onRepeat,
-}: {
-  sceneId: string;
-  turnId?: string;
-  teach: TalkTeach;
-  repeatCount: number;
-  characterSpeaking: boolean;
-  autoStartVoice?: boolean;
-  onAutoListenChange?: (enabled: boolean) => void;
-  onListeningChange?: (listening: boolean) => void;
-  onInterruptSpeech?: () => void;
-  onRepeat: (text: string | null) => void;
-}) {
-  const [repeatInput, setRepeatInput] = useState("");
-
-  const handleRepeatSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = repeatInput.trim();
-    if (!trimmed) return;
-    setRepeatInput("");
-    onRepeat(trimmed);
-  };
-
-  return (
-    <div className={styles.teachPanel}>
-      <div className={styles.englishFeedbackBox} lang="en">
-        <Volume2 size={20} aria-hidden="true" />
-        <span>{teach.feedbackEn}</span>
-      </div>
-      <p className={styles.teachLabel}>ただしい いいかた</p>
-      <p className={styles.teachAnswer} lang="en">
-        {teach.modelAnswer}
-      </p>
-      <p className={styles.teachJapanese}>{teach.modelAnswerJa}</p>
-      <div className={styles.answerTools}>
-        <button
-          className={styles.listenButton}
-          type="button"
-          onClick={() => void speakTalkEnglish(teach.modelAnswer, "think")}
-        >
-          <Headphones size={20} aria-hidden="true" /> おてほんを きく
-        </button>
-        <span className={styles.repeatProgress}>
-          まねして いおう {repeatCount} / {REPEAT_TARGET}
-        </span>
-      </div>
-
-      <RealtimeTalkMic
-        sceneId={sceneId}
-        turnId={turnId}
-        characterSpeaking={characterSpeaking}
-        autoListen={autoStartVoice}
-        onAutoListenChange={onAutoListenChange}
-        onListeningChange={onListeningChange}
-        onInterruptSpeech={onInterruptSpeech}
-        onUtterance={(text) => onRepeat(text)}
-      />
-
-      <div className={styles.answerTools}>
-        <button className={styles.saidButton} type="button" onClick={() => onRepeat(null)}>
-          いえたよ！
-        </button>
-      </div>
-      <form className={styles.voiceInputForm} onSubmit={handleRepeatSubmit}>
-        <input
-          type="text"
-          className={styles.voiceTextInput}
-          value={repeatInput}
-          onChange={(e) => setRepeatInput(e.target.value)}
-          placeholder={`「${teach.modelAnswer}」とこえに だすか いれてね...`}
-          aria-label="まねして言うことば"
-        />
-        <button type="submit" className={styles.voiceSubmitButton} disabled={!repeatInput.trim()}>
-          <Send size={18} aria-hidden="true" /> まねして言う
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function DonePanel({
-  score,
-  onRestart,
-  listHref,
-}: {
-  score: { firstTry: number; total: number };
-  onRestart: () => void;
-  listHref: Route;
-}) {
-  const stars = score.firstTry === score.total ? 3 : score.firstTry * 2 >= score.total ? 2 : 1;
-  return (
-    <div className={styles.donePanel}>
-      <p className={styles.doneTitle}>おはなし できたね！</p>
-      <div className={styles.stars} aria-label={`ほし ${stars}こ`}>
-        {Array.from({ length: 3 }, (_, index) => (
-          <Star key={index} size={40} fill={index < stars ? "#ffc83d" : "none"} color="#f0a500" />
-        ))}
-      </div>
-      <p className={styles.message}>
-        さいしょで つたわった しつもん: {score.firstTry} / {score.total}
-      </p>
-      <div className={styles.answerTools}>
-        <button className={styles.saidButton} type="button" onClick={onRestart}>
-          <RotateCcw size={20} aria-hidden="true" /> もういちど
-        </button>
-        <Link className={styles.nextButton} href={listHref}>
-          ほかの シーンへ ▶
-        </Link>
-      </div>
     </div>
   );
 }
