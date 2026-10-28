@@ -88,7 +88,9 @@ npm run lint         # ESLint
 - 単元・間違え方分類の正は `lib/curriculum/*`、日付は `lib/utils/date.ts`(Asia/Tokyo)のみを使う。`AI_PROVIDER_TEXT` は本番で必須
 - 2026-10-05: 英語教科を追加(7単元・4択23問)。ステージマップ問題の学習記録を結線し、デモの答え合わせをサーバー化
 - 2026-10-07: 「えいごで おはなし」(`/child/english-talk`)を追加。シーン(背景 `public/scenes/*.svg`)の中でかのはちゃんと英会話。シーン定義は `lib/curriculum/englishTalkScenes.ts`、判定・進行は `lib/englishTalk/*`(判定キーはクライアントへ渡さない)。音声は Gemini TTS(`lang: "en"`)、声のこたえの AI 判定はログイン中のみ costGuard 経由
-- 2026-10-05: ごほうび(5円メーター・正解数)と着せかえを `child_rewards` に保存。正解数を増やすのは `/api/attempts` だけ、端末の localStorage は表示キャッシュ(`lib/rewards/rewardSync.ts`)
+- 2026-10-05: ごほうび(5円メーター・正解数)と着せかえを `child_rewards` に保存。正解数を増やすのは `/api/attempts` と `/api/english-talk/check` だけ、端末の localStorage は表示キャッシュ(`lib/rewards/rewardSync.ts`)
+- 2026-10-28: 英会話は Three.js の3Dステージ(WebGL が無い端末は場面のSVGを背景に出す)。次の問いは「つぎへ」をタップしたときだけ読む(ほめ・おしえは答えへの返事なので自動)。判定は `lib/englishTalk/{normalize,match,judge}.ts`: 日本語だけの答えは正解にせず、似た音の別名は短い答えのときだけ使う。英会話の5円は1日 `TALK_DAILY_REWARD_CAP`(既定5)回まで。マイクは、ログイン中は自動・デモはタップした1回だけ。文字を打ち込む欄はない(英語は書かせない)
+- 2026-10-28: サーバーから `"use client"` のファイルの関数を呼ばない(英会話の一覧が開けなくなった)。答えを持つモジュールは `import "server-only"` を付け、ブラウザの JS に答えが入っていないかは `npm run check:leaks`(`npm run deploy` の前に自動で走る)で確かめる
 
 <!-- BEGIN:nextjs-agent-rules -->
 
