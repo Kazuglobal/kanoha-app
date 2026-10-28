@@ -13,8 +13,9 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
+    "check:leaks": "node scripts/check-client-leaks.mjs",
     "build:worker": "opennextjs-cloudflare build",
-    "deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "deploy": "opennextjs-cloudflare build && npm run check:leaks && wrangler deploy",
     "drizzle:generate": "drizzle-kit generate",
     "drizzle:migrate": "wrangler d1 migrations apply kanoha-db --local",
     "drizzle:migrate:prod": "wrangler d1 migrations apply kanoha-db --remote"

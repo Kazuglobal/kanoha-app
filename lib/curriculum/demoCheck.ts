@@ -1,3 +1,4 @@
+import "server-only";
 import { answersMatch } from "@/lib/utils/answers";
 import { getCurriculumProblemById } from "./curriculumBank";
 import { buildCurriculumPractice } from "./practice";

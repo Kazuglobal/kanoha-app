@@ -1,3 +1,4 @@
+import "server-only";
 import type { CurriculumProblem } from "./curriculumBank";
 import { MATH_PROBLEMS_PART_2 } from "./curriculumBankMathMore";
 

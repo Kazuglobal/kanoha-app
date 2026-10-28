@@ -1,3 +1,4 @@
+import "server-only";
 import { SUBJECT_CONFIG, type Grade2Unit, type Subject } from "./subjects";
 import { GRADE_2_MATH_CURRICULUM } from "./grade2Math";
 import { GRADE_2_JAPANESE_CURRICULUM } from "./grade2Japanese";
