@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ChildHeader } from "@/components/child/ChildHeader";
 import { SceneProgressBadge } from "@/components/child/englishTalk/SceneProgressBadge";
-import { getSceneFriendName } from "@/components/child/englishTalk/ThreeTalkStage3D";
 import styles from "@/components/kanoha.module.css";
 import talkStyles from "@/components/child/englishTalk/englishTalk.module.css";
 import { TALK_SCENES } from "@/lib/curriculum/englishTalkScenes";
+import { getSceneFriendName } from "@/lib/englishTalk/sceneThemes";
 import { resolveOwnedChildId } from "./ownedChild";
 
 /** えいごで おはなし: シーンをえらぶ画面。 */

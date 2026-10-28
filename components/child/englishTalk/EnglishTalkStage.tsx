@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { REPEAT_TARGET, talkScore } from "@/lib/englishTalk/flow";
 import type { PublicTalkScene } from "@/lib/englishTalk/judge";
 import { speakTalkEnglish, stopTalkSpeech } from "@/lib/audio/englishTalkSpeech";
+import { getSceneFriendName } from "@/lib/englishTalk/sceneThemes";
 import { RealtimeTalkMic } from "./RealtimeTalkMic";
-import { getSceneFriendName, ThreeTalkStage3D } from "./ThreeTalkStage3D";
+import { ThreeTalkStage3D } from "./ThreeTalkStage3D";
 import { useEnglishTalk, type TalkTeach } from "./useEnglishTalk";
 import styles from "./englishTalk.module.css";
 
