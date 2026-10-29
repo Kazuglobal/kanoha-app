@@ -3,6 +3,8 @@
  * 「<数字><たんい>」の答え(例: 1000mL, 12こ, 43)から、同じたんいの誤答 3 つを決定的に選ぶ。
  * 数字で解釈できない答え(例: 3L50mL, 1/2)は null を返し、クライアントは文字入力にフォールバックする。
  */
+import { createRandom, shuffle } from "@/lib/utils/random";
+
 export const CHOICE_COUNT = 4;
 
 const ANSWER_PATTERN = /^(\d+)([^\d]*)$/;
@@ -18,31 +20,6 @@ export const parseNumericAnswer = (answer: string): ParsedAnswer | null => {
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isSafeInteger(value) ? { value, suffix: match[2] } : null;
-};
-
-/** 文字列シードから 32bit の整数を作る(FNV-1a)。 */
-const hashSeed = (seed: string): number =>
-  [...seed].reduce((hash, char) => Math.imul(hash ^ char.codePointAt(0)!, 16_777_619) >>> 0, 2_166_136_261);
-
-/** mulberry32: 決定的な擬似乱数(0 <= x < 1)。 */
-const createRandom = (seed: string): (() => number) => {
-  let state = hashSeed(seed);
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
-  };
-};
-
-/** Fisher-Yates(入力は変更せず、複製をシャッフルする)。 */
-const shuffle = <T>(items: readonly T[], random: () => number): T[] => {
-  const result = [...items];
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const swap = Math.floor(random() * (index + 1));
-    [result[index], result[swap]] = [result[swap], result[index]];
-  }
-  return result;
 };
 
 /** 小2が間違えやすい候補: ±1, ±2, ±10, ×10, ÷10, ±100, ×2 など(同じたんい、0 以上、答えと異なる)。 */
