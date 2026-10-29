@@ -110,6 +110,7 @@ describe("parent-only routing", () => {
     ["/api/ai/tts", "POST"],
     ["/api/ai/stt", "POST"],
     ["/api/english-talk/check", "POST"],
+    ["/api/practice/new-set", "POST"],
   ])("allows %s %s in child mode", (path, method) => {
     expect(isParentOnlyApi(path, method)).toBe(false);
   });

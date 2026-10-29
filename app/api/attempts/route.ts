@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
+import { ALL_MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 import * as schema from "@/lib/db/schema";
 import { readStoredChoices } from "@/lib/review/choices";
 import {
@@ -32,7 +32,7 @@ const schemaValidation = z
     similarProblemId: uuid.optional(),
     childAnswer: z.string().trim().min(1).max(500),
     answerType: z.enum(["tap", "text", "voice", "handwriting"]),
-    mistakeType: z.enum(MISTAKE_TYPE_IDS).nullable().optional(),
+    mistakeType: z.enum(ALL_MISTAKE_TYPE_IDS).nullable().optional(),
     aiFeedback: z.string().trim().max(1000).nullable().optional(),
   })
   .refine((value) => Boolean(value.problemId) !== Boolean(value.similarProblemId), {
@@ -50,6 +50,8 @@ interface AttemptTarget {
   explanation: unknown;
   choices: readonly string[] | null;
   similarExplanation: string | null;
+  /** 自動で作った問題(5円は種類を分けて 1 日の上限がある) */
+  generated: boolean;
 }
 
 export async function POST(request: Request) {
@@ -128,7 +130,7 @@ export async function POST(request: Request) {
     // 記録はもう保存ずみなので、失敗しても回答は失敗扱いにしない。
     const reward =
       isCorrect && input.problemId
-        ? await recordProblemReward(auth.db, input.childId, input.problemId, hintLevel).catch(() => null)
+        ? await recordProblemReward(auth.db, input.childId, input.problemId, hintLevel, { generated: target.generated }).catch(() => null)
         : null;
 
     return apiSuccess(
@@ -177,8 +179,10 @@ async function loadTarget(auth: Auth, input: Input): Promise<AttemptTarget | nul
           subUnit: problem.subUnit,
           unit: problem.unit,
           explanation: problem.explanationJson,
-          choices: null,
+          // 自動で作った問題は 保存した 4 択の中の答えだけ受け付ける(問題バンク・アップロードの問題は選択肢を持たない)
+          choices: readStoredChoices(problem.choices),
           similarExplanation: null,
+          generated: problem.generatorRef !== null,
         }
       : null;
   }
@@ -193,6 +197,7 @@ async function loadTarget(auth: Auth, input: Input): Promise<AttemptTarget | nul
     explanation: source?.explanationJson ?? null,
     choices: readStoredChoices(similar.choices),
     similarExplanation: typeof similar.explanation === "string" ? similar.explanation : null,
+    generated: false,
   };
 }
 

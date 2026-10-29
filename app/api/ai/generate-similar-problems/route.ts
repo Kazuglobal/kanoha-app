@@ -9,11 +9,14 @@ import { ALL_MISTAKE_TYPE_IDS } from "@/lib/curriculum/mistakeTypes";
 import { buildCurriculumPractice } from "@/lib/curriculum/practice";
 import { resolveSubject } from "@/lib/curriculum/subjects";
 import * as schema from "@/lib/db/schema";
+import { generateSimilarSet } from "@/lib/generation/similar";
+import { difficultyFromLevel } from "@/lib/learning/level";
 import { recentUnitAttempts } from "@/lib/review/loop";
 import { buildChoices } from "@/lib/review/choices";
 import { difficultyForNextSimilarSet } from "@/lib/review/recommend";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
-import { checkRateLimit } from "@/lib/utils/rateLimit";
+import { envNumber } from "@/lib/utils/envNumber";
+import { checkRateLimitDb } from "@/lib/utils/rateLimit";
 import { ownedProblem } from "@/lib/utils/resources";
 import { difficulty, uuid } from "@/lib/utils/schemas";
 import { nowJstIso } from "@/lib/utils/date";
@@ -25,7 +28,8 @@ const schemaValidation = z.object({
   mistakeType: z.enum(ALL_MISTAKE_TYPE_IDS).optional(),
 });
 
-const SIMILAR_COST_USD = Number(process.env.AI_SIMILAR_COST_USD ?? 0.005);
+/** Workers では環境変数がリクエスト時にしか確定しないので、呼ぶたびに読む。 */
+const similarCostUsd = () => envNumber("AI_SIMILAR_COST_USD", 0.005);
 const MISTAKE_HISTORY_SIZE = 5;
 
 type Auth = Awaited<ReturnType<typeof requireOwnedChild>>;
@@ -36,13 +40,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError("Invalid similar problem request");
   const auth = await requireOwnedChild(parsed.data.childId);
   if (auth.response) return auth.response;
-  if (!checkRateLimit(`similar:${auth.user!.id}`, 10)) return apiError("Too many requests", 429);
+  if (!(await checkRateLimitDb(auth.user!.id, "similar", 10))) return apiError("Too many requests", 429);
   const problem = await ownedProblem(parsed.data.childId, parsed.data.problemId, auth.db);
   if (!problem) return apiError("Problem not found", 404);
 
   const unit = allUnitSchema.safeParse(problem.unit);
   if (!unit.success) return internalError();
   if (problem.curriculumProblemId) return persistCurriculumPractice(auth, problem, problem.curriculumProblemId);
+  if (problem.generatorRef) return persistGeneratedPractice(auth, problem, problem.generatorRef);
   const history = await recentUnitAttempts(parsed.data.childId, unit.data, MISTAKE_HISTORY_SIZE, auth.db);
   const { difficulty: adjusted, streak } = difficultyForNextSimilarSet(
     parsed.data.difficulty ?? difficulty.safeParse(problem.difficulty).data ?? "standard",
@@ -73,7 +78,7 @@ async function generateWithGemini(
 ) {
   const reservation = await reserveAiUsage(
     auth.user!.id,
-    SIMILAR_COST_USD,
+    similarCostUsd(),
     costLimitsFromEnv(),
     auth.db,
   );
@@ -110,6 +115,26 @@ async function persistCurriculumPractice(auth: Auth, problem: Problem, curriculu
     problem,
     drafts,
     items.map(({ choices, listenText }) => ({ choices, listenText })),
+  );
+}
+
+/** 自動で作った問題は、同じ生成器で類題を組む(AI を使わず、答えは計算で決まる)。 */
+async function persistGeneratedPractice(auth: Auth, problem: Problem, ref: string) {
+  const set = generateSimilarSet({ id: problem.id, ref });
+  if (!set) return internalError();
+  const drafts: SimilarProblemDraft[] = set.map((item) => ({
+    answer: item.correctAnswer,
+    difficulty: difficultyFromLevel(item.level),
+    explanation: item.hints.solution,
+    problemText: item.problemText,
+    subUnit: item.subUnit,
+    unit: item.unit,
+  }));
+  return persistDrafts(
+    auth,
+    problem,
+    drafts,
+    set.map((item) => ({ choices: item.choices ?? null, listenText: item.listenText ?? null })),
   );
 }
 

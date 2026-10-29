@@ -2,7 +2,7 @@ import { and, eq, gte, lt, max, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { jstDayRange, nowJstIso, todayKeyJst } from "@/lib/utils/date";
-import { talkDailyRewardCap } from "@/lib/utils/flags";
+import { generatedDailyRewardCap, talkDailyRewardCap } from "@/lib/utils/flags";
 import { ANSWER_HINT_LEVEL } from "@/lib/utils/resources";
 import type { EquippedAccessories } from "./catalog";
 import {
@@ -75,7 +75,7 @@ export async function recordCorrectReward(db: Database, childId: string): Promis
   return normalizeRewardState(row);
 }
 
-type ClaimKind = "english_talk" | "problem";
+type ClaimKind = "english_talk" | "problem" | "generated";
 
 /**
  * 請求の記録を取る。取れたら true(同じ 子ども×種類×対象×日 が既にあれば false)。
@@ -180,16 +180,20 @@ async function openedAnswerHintToday(
  * 元問題の正解をごほうびとして数える。
  * - 答えのヒント(最終段階)を見たあとの正解は対象外
  * - 同じ問題は1日(JST)に1回だけ。別の日の復習はあらためて対象になる
- * 対象外・すでに数えたときは null。
+ * - 自動で作った問題(generated)は、種類を分けて 1日 GENERATED_DAILY_REWARD_CAP 回まで(問題バンクの問題は上限なし)
+ * 対象外・すでに数えた・上限に届いていたときは null。
  */
 export async function recordProblemReward(
   db: Database,
   childId: string,
   problemId: string,
   hintLevelUsed: number,
+  options: { generated?: boolean } = {},
 ): Promise<RewardState | null> {
   if (await openedAnswerHintToday(db, childId, problemId, hintLevelUsed)) return null;
-  return claimOnceThenRecord(db, childId, "problem", problemId);
+  return options.generated
+    ? claimOnceThenRecord(db, childId, "generated", problemId, generatedDailyRewardCap())
+    : claimOnceThenRecord(db, childId, "problem", problemId);
 }
 
 export async function saveEquippedAccessories(
