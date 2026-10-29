@@ -19,6 +19,9 @@ const OPTIONS: BoundaryOptions = {
     /^lib\/curriculum\/englishTalkScenes$/,
     /^lib\/curriculum\/demoCheck$/,
     /^lib\/curriculum\/practice$/,
+    // 自動生成: 生成器・検査・計画は答えを計算する。単語・漢字・ことばの表は答えの元データ
+    /^lib\/generation\/.+$/,
+    /^lib\/curriculum\/(englishWords|gradeKanji|japaneseWordBank)$/,
   ],
   serverEntry: new RegExp(
     "^app/(?:.*/)?(?:page|layout|template|loading|not-found|default|route|sitemap|robots|manifest|" +
