@@ -163,7 +163,7 @@ async function loadSources(childId: string, now: Date, db = getDb()) {
             // まだ解いていないものを入れると、セットを作るたびに新しい 100 件が自動の問題で埋まり、ほかの問題が押し出される
             or(
               isNull(schema.problems.generatorRef),
-              exists(db.select({ solved: schema.attempts.id }).from(schema.attempts).where(eq(schema.attempts.problemId, schema.problems.id))),
+              exists(db.select({ solved: schema.attempts.id }).from(schema.attempts).where(and(eq(schema.attempts.childId, childId), eq(schema.attempts.problemId, schema.problems.id)))),
             ),
           ),
         )

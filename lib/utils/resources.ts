@@ -81,6 +81,8 @@ export const HINT_LEVELS = [1, 2, 3, 4] as const;
 export type HintLevel = (typeof HINT_LEVELS)[number];
 /** 答えそのものを見せるヒントの段階(ごほうびの対象から外す)。 */
 export const ANSWER_HINT_LEVEL: HintLevel = 4;
+/** 「ときかた」の段階。しきや答えが書かれているので、ここまで見たら 答えを見たものとして数える(自動で作った問題の5円・レベルの判定)。 */
+export const SOLUTION_HINT_LEVEL: HintLevel = 3;
 export const HINT_LABELS: Record<HintLevel, string> = {
   1: "ヒント 1",
   2: "ヒント 2",

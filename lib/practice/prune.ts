@@ -16,8 +16,8 @@ const DAY_MS = 86_400_000;
  */
 export async function pruneUntouchedGenerated(db: Database, childId: string, now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - UNTOUCHED_RETENTION_DAYS * DAY_MS);
-  const unreferenced = (table: SQLiteTable, column: SQLiteColumn) =>
-    notExists(db.select({ one: sql`1` }).from(table).where(eq(column, schema.problems.id)));
+  const unreferenced = (table: SQLiteTable, childColumn: SQLiteColumn, problemColumn: SQLiteColumn) =>
+    notExists(db.select({ one: sql`1` }).from(table).where(and(eq(childColumn, childId), eq(problemColumn, schema.problems.id))));
 
   const deleted = await db
     .delete(schema.problems)
@@ -26,10 +26,10 @@ export async function pruneUntouchedGenerated(db: Database, childId: string, now
         eq(schema.problems.childId, childId),
         isNotNull(schema.problems.generatorRef),
         lt(schema.problems.createdAt, cutoff.toISOString()),
-        unreferenced(schema.attempts, schema.attempts.problemId),
-        unreferenced(schema.reviewSchedule, schema.reviewSchedule.problemId),
-        unreferenced(schema.problemHintViews, schema.problemHintViews.problemId),
-        unreferenced(schema.generatedSimilarProblems, schema.generatedSimilarProblems.sourceProblemId),
+        unreferenced(schema.attempts, schema.attempts.childId, schema.attempts.problemId),
+        unreferenced(schema.reviewSchedule, schema.reviewSchedule.childId, schema.reviewSchedule.problemId),
+        unreferenced(schema.problemHintViews, schema.problemHintViews.childId, schema.problemHintViews.problemId),
+        unreferenced(schema.generatedSimilarProblems, schema.generatedSimilarProblems.childId, schema.generatedSimilarProblems.sourceProblemId),
       ),
     )
     .returning({ id: schema.problems.id })

@@ -176,7 +176,11 @@ export const attempts = sqliteTable("attempts", {
   mistakeType: text("mistake_type"),
   aiFeedback: text("ai_feedback"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => [
+  // 子どもの記録を新しい順に読む(ホーム・おすすめ・レベルの計算)/ 問題ごとの記録を引く(整理・おすすめの除外)
+  index("attempts_child_created_idx").on(table.childId, table.createdAt),
+  index("attempts_child_problem_idx").on(table.childId, table.problemId),
+]);
 
 export const generatedSimilarProblems = sqliteTable("generated_similar_problems", {
   id: text("id").primaryKey(),
@@ -192,7 +196,10 @@ export const generatedSimilarProblems = sqliteTable("generated_similar_problems"
   /** 英語の聞き取り問題で en-US 読み上げする文(答えそのものは入れない) */
   listenText: text("listen_text"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => [
+  // 元の問題の類題を引く(同じ類題をもういちど頼まれたときの再利用・整理)
+  index("generated_similar_child_source_idx").on(table.childId, table.sourceProblemId),
+]);
 
 export const problemHintViews = sqliteTable(
   "problem_hint_views",

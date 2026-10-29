@@ -39,6 +39,16 @@ async function setOf(overrides: Partial<Parameters<typeof createOrGetPracticeSet
 
 const allBatches = () => db.select().from(schema.practiceBatches).orderBy(asc(schema.practiceBatches.seq)).all();
 
+/** セットの問題を ぜんぶ 正解したことにする(つぎのセットを作れるようにする)。 */
+async function finish(set: { readonly items: readonly { readonly problemId: string }[] }): Promise<void> {
+  for (const [index, item] of set.items.entries()) {
+    await db
+      .insert(schema.attempts)
+      .values({ id: `fin-${item.problemId}-${index}`, sessionId: SESSION, childId: CHILD, problemId: item.problemId, childAnswer: "1", answerType: "tap", isCorrect: 1, hintLevelUsed: 0, createdAt: nowJstIso() })
+      .run();
+  }
+}
+
 describe("createOrGetPracticeSet: 今日の「あたらしい もんだい」", () => {
   it("はじめての呼び出しで、5 問のセット(1 セット目)を作る", async () => {
     const set = await setOf();
@@ -79,7 +89,9 @@ describe("createOrGetPracticeSet: 今日の「あたらしい もんだい」", 
 
   it("more で 2 セット目・3 セット目を作る。セットごとに問題がちがい、のこりの数が減る", async () => {
     const first = await setOf();
+    await finish(first);
     const second = await setOf({ more: true });
+    await finish(second);
     const third = await setOf({ more: true });
     expect([second.seq, third.seq]).toEqual([2, 3]);
     expect([first.remainingSets, second.remainingSets, third.remainingSets]).toEqual([2, 1, 0]);
@@ -90,22 +102,38 @@ describe("createOrGetPracticeSet: 今日の「あたらしい もんだい」", 
   });
 
   it("1 日の上限(既定 3 セット)をこえては作らず、行も増えない。リロードは変わらず同じセットを返す", async () => {
-    await setOf();
-    await setOf({ more: true });
+    await finish(await setOf());
+    await finish(await setOf({ more: true }));
     const third = await setOf({ more: true });
+    await finish(third);
     const problemsBefore = (await db.select({ id: schema.problems.id }).from(schema.problems).all()).length;
     expect(await createOrGetPracticeSet(db, request({ more: true }))).toEqual({ ok: false, reason: "limit" });
     expect((await db.select({ id: schema.problems.id }).from(schema.problems).all()).length).toBe(problemsBefore);
     expect(await allBatches()).toHaveLength(3);
-    expect(await setOf()).toEqual(third);
+    const reloaded = await setOf();
+    expect(reloaded.batchId).toBe(third.batchId);
+    expect(reloaded.items.every((item) => item.done)).toBe(true);
+  });
+
+  it("more でも、いまのセットがまだ終わっていなければ そのセットを返す(古い画面から押されても、1日のセットを使いきらない)", async () => {
+    const first = await setOf();
+    const stale = await setOf({ more: true });
+    expect(stale.batchId).toBe(first.batchId);
+    expect(await allBatches()).toHaveLength(1);
+    // 1 問だけ解いても まだ終わっていない
+    await db.insert(schema.attempts).values({ id: "one", sessionId: SESSION, childId: CHILD, problemId: first.items[0].problemId, childAnswer: "1", answerType: "tap", isCorrect: 1, hintLevelUsed: 0, createdAt: nowJstIso() }).run();
+    expect((await setOf({ more: true })).batchId).toBe(first.batchId);
+    await finish({ items: first.items.slice(1) });
+    expect((await setOf({ more: true })).seq).toBe(2);
   });
 
   it("PRACTICE_MAX_SETS_PER_DAY で上限を変えられる。0 ならセットを作らない", async () => {
     vi.stubEnv("PRACTICE_MAX_SETS_PER_DAY", "1");
-    await setOf();
+    await finish(await setOf());
     expect(await createOrGetPracticeSet(db, request({ more: true }))).toEqual({ ok: false, reason: "limit" });
+    // 0 のときは 「ぜんぶ できたね」ではなく、カードを出さない(empty)
     vi.stubEnv("PRACTICE_MAX_SETS_PER_DAY", "0");
-    expect(await createOrGetPracticeSet(db, request({ subject: "english" }))).toEqual({ ok: false, reason: "limit" });
+    expect(await createOrGetPracticeSet(db, request({ subject: "english" }))).toEqual({ ok: false, reason: "empty" });
     expect(await allBatches()).toHaveLength(1);
   });
 

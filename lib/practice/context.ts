@@ -40,11 +40,12 @@ export async function loadSetContext(
     .where(eq(schema.practiceBatchItems.batchId, home.batchId))
     .orderBy(asc(schema.practiceBatchItems.position))
     .all();
+  // 整理などで途中の問題が消えても、残っている問題の並びで数える(「4 / 3」にならない)
   const index = siblings.findIndex((sibling) => sibling.position === home.position);
   return {
     batchId: home.batchId,
     subject: home.subject,
-    position: home.position + 1,
+    position: index + 1,
     total: siblings.length,
     nextProblemId: siblings[index + 1]?.problemId ?? null,
   };

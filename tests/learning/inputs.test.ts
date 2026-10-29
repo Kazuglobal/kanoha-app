@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getCurriculumProblemsBySubject, getCurriculumStages } from "@/lib/curriculum/curriculumBank";
+import { SUBJECT_CONFIG } from "@/lib/curriculum/subjects";
 import { computeStageStates } from "@/lib/curriculum/stageUnlock";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
@@ -99,6 +100,37 @@ describe("loadSkillEvents: 解いた記録を 小単元ごとの出来事に直�
     const events = await loadSkillEvents(db, CHILD);
     expect(events).toHaveLength(1);
     expect(events[0].at).toBe(T0 + 10 * 60_000);
+  });
+
+  it("教科の単元でしぼってから 新しい 300 件を読む(ほかの教科をたくさん解いても、この教科の記録は押し出されない)", async () => {
+    const math = await addProblem({ difficultyLevel: 5, unit: "たし算", subUnit: "くり上がり" });
+    await addAttempt(math, 1, true);
+    const english = await addProblem({ subject: "english", unit: "あいさつ", subUnit: "朝と昼のあいさつ", difficultyLevel: 2 });
+    for (let index = 0; index < 305; index += 1) await addAttempt(english, 10 + index, true);
+
+    const mathEvents = await loadSkillEvents(db, CHILD, SUBJECT_CONFIG.math.units);
+    expect(mathEvents.map((event) => [event.unit, event.level])).toEqual([["たし算", 5]]);
+    expect(await loadSkillEvents(db, CHILD)).toHaveLength(300);
+    const inputs = await loadPracticeInputs(db, CHILD, "math", new Date(T0 + 24 * 60 * 60_000));
+    expect(inputs.states.map((state) => `${state.unit}/${state.subUnit}`)).toEqual(["たし算/くり上がり"]);
+    expect(inputs.states[0].level).toBe(2);
+  });
+
+  it("自動で作った問題の類題は 元の問題のレベルで数える(3 段階の難易度に丸めると L3 が 2、L5 が 4 に読めてしまう)", async () => {
+    const source3 = await addProblem({ difficultyLevel: 3, generatorRef: "たし算/くり上がり/L3/x" });
+    const source5 = await addProblem({ difficultyLevel: 5, generatorRef: "ひき算/くり下がり/L5/x", unit: "ひき算", subUnit: "くり下がり" });
+    const bankSource = await addProblem({ curriculumProblemId: "math-bank-1", unit: "かけ算", subUnit: "九九" });
+    const similar = async (id: string, sourceProblemId: string, unit: string, subUnit: string, difficulty: string) =>
+      db.insert(schema.generatedSimilarProblems).values({ id, sourceProblemId, childId: CHILD, problemText: "s", answer: "1", explanation: "e", unit, subUnit, difficulty, createdAt: nowJstIso() }).run();
+    await similar("sim-3", source3, "たし算", "くり上がり", "standard");
+    await similar("sim-5", source5, "ひき算", "くり下がり", "advanced");
+    await similar("sim-bank", bankSource, "かけ算", "九九", "advanced");
+    await addAttempt(null, 1, true, 0, { similarProblemId: "sim-3" });
+    await addAttempt(null, 2, true, 0, { similarProblemId: "sim-5" });
+    await addAttempt(null, 3, true, 0, { similarProblemId: "sim-bank" });
+    const events = await loadSkillEvents(db, CHILD);
+    // 自動で作った問題の類題は元のレベル、バンクの問題の類題は これまでどおり難易度(advanced = 4)
+    expect(events.map((event) => event.level)).toEqual([3, 5, 4]);
   });
 
   it("新しい 300 件までを読む", async () => {

@@ -1,11 +1,13 @@
 import "server-only";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { getCurriculumProblemsBySubject, getCurriculumStages } from "@/lib/curriculum/curriculumBank";
 import { computeStageStates } from "@/lib/curriculum/stageUnlock";
 import { SUBJECT_CONFIG, type Subject } from "@/lib/curriculum/subjects";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import type { BankCandidate, SkillState } from "@/lib/generation/plan";
+import { SOLUTION_HINT_LEVEL } from "@/lib/utils/resources";
 import { BANK_LEVEL, clampLevel, levelFromDifficulty, summarizeSkill, type Difficulty, type LevelEvent } from "./level";
 
 /**
@@ -15,8 +17,6 @@ import { BANK_LEVEL, clampLevel, levelFromDifficulty, summarizeSkill, type Diffi
 
 /** 新しい記録をこの件数まで読む。 */
 const EVENT_LIMIT = 300;
-/** 「ときかた」(3)にも答えが書かれているので、ここまで見たら 答えを見たものとして数える。 */
-const ANSWER_SEEN_HINT_LEVEL = 3;
 
 export interface SkillEvent extends LevelEvent {
   readonly unit: string;
@@ -38,8 +38,15 @@ interface ProblemSide {
 const problemLevel = (problem: ProblemSide): number =>
   problem.level !== null ? clampLevel(problem.level) : problem.curriculumId !== null ? BANK_LEVEL : difficultyLevel(problem.difficulty);
 
-/** 解いた記録(新しい 300 件)を、小単元ごとの出来事にして 古い順で返す。 */
-export async function loadSkillEvents(db: Database, childId: string): Promise<SkillEvent[]> {
+/**
+ * 解いた記録(新しい 300 件)を、小単元ごとの出来事にして 古い順で返す。
+ * units を渡すと、その単元の記録だけを数えてから新しい 300 件を取る(ほかの教科をたくさん解いても、この教科の記録は押し出されない)。
+ */
+export async function loadSkillEvents(db: Database, childId: string, units?: readonly string[]): Promise<SkillEvent[]> {
+  const sourceProblems = alias(schema.problems, "source_problems");
+  const inUnits = units
+    ? or(inArray(schema.problems.unit, [...units]), inArray(schema.generatedSimilarProblems.unit, [...units]))
+    : undefined;
   const rows = await db
     .select({
       correct: schema.attempts.isCorrect,
@@ -53,25 +60,29 @@ export async function loadSkillEvents(db: Database, childId: string): Promise<Sk
       similarUnit: schema.generatedSimilarProblems.unit,
       similarSubUnit: schema.generatedSimilarProblems.subUnit,
       similarDifficulty: schema.generatedSimilarProblems.difficulty,
+      sourceLevel: sourceProblems.difficultyLevel,
     })
     .from(schema.attempts)
     .leftJoin(schema.problems, eq(schema.attempts.problemId, schema.problems.id))
     .leftJoin(schema.generatedSimilarProblems, eq(schema.attempts.similarProblemId, schema.generatedSimilarProblems.id))
-    .where(eq(schema.attempts.childId, childId))
+    .leftJoin(sourceProblems, eq(schema.generatedSimilarProblems.sourceProblemId, sourceProblems.id))
+    .where(and(eq(schema.attempts.childId, childId), inUnits))
     .orderBy(desc(schema.attempts.createdAt))
     .limit(EVENT_LIMIT)
     .all();
 
   const events = rows.flatMap((row): SkillEvent[] => {
     const at = Date.parse(row.at);
-    const base = { correct: row.correct === 1, usedAnswerHint: row.hint >= ANSWER_SEEN_HINT_LEVEL, at };
+    const base = { correct: row.correct === 1, usedAnswerHint: row.hint >= SOLUTION_HINT_LEVEL, at };
     if (Number.isNaN(at)) return [];
     if (row.problemUnit !== null && row.problemSubUnit !== null) {
       const level = problemLevel({ unit: row.problemUnit, subUnit: row.problemSubUnit, difficulty: row.problemDifficulty, level: row.problemLevel, curriculumId: row.curriculumId });
       return [{ ...base, unit: row.problemUnit, subUnit: row.problemSubUnit, level }];
     }
     if (row.similarUnit !== null && row.similarSubUnit !== null) {
-      return [{ ...base, unit: row.similarUnit, subUnit: row.similarSubUnit, level: difficultyLevel(row.similarDifficulty) }];
+      // 自動で作った問題の類題は、元の問題のレベルで数える(3 段階の難易度に丸めると L3 が 2、L5 が 4 に読めてしまう)
+      const level = row.sourceLevel !== null ? clampLevel(row.sourceLevel) : difficultyLevel(row.similarDifficulty);
+      return [{ ...base, unit: row.similarUnit, subUnit: row.similarSubUnit, level }];
     }
     return [];
   });
@@ -110,9 +121,11 @@ export interface PracticeInputs {
 
 /** 教科ひとつぶんの、出題計画に渡す材料。 */
 export async function loadPracticeInputs(db: Database, childId: string, subject: Subject, now: Date): Promise<PracticeInputs> {
-  const [events, solvedIds] = await Promise.all([loadSkillEvents(db, childId), loadSolvedCurriculumIds(db, childId)]);
-  const units = new Set<string>(SUBJECT_CONFIG[subject].units);
-  const states = groupSkillStates(events.filter((event) => units.has(event.unit)), now.getTime());
+  const [events, solvedIds] = await Promise.all([
+    loadSkillEvents(db, childId, SUBJECT_CONFIG[subject].units),
+    loadSolvedCurriculumIds(db, childId),
+  ]);
+  const states = groupSkillStates(events, now.getTime());
 
   const stageStates = computeStageStates(getCurriculumStages(subject), solvedIds).stages;
   const unlockedUnits = stageStates.filter((state) => state.unlocked).map((state) => state.stage.unit);

@@ -8,6 +8,7 @@ import { nowJstIso } from "@/lib/utils/date";
 const USER = "user-practice-route-1";
 const OTHER_USER = "user-practice-route-2";
 const CHILD = "abababab-1111-4111-8111-abababababab";
+const SESSION = "abababab-3333-4333-8333-abababababab";
 const OTHER_CHILD = "cdcdcdcd-2222-4222-8222-cdcdcdcdcdcd";
 
 const state = vi.hoisted(() => ({ userId: "user-practice-route-1" as string | null }));
@@ -47,6 +48,8 @@ describe("POST /api/practice/new-set", () => {
   beforeEach(async () => {
     state.userId = USER;
     const now = nowJstIso();
+    await db.delete(schema.attempts).run();
+    await db.delete(schema.learningSessions).run();
     await db.delete(schema.practiceBatches).run();
     await db.delete(schema.problems).run();
     await db.delete(schema.rateLimits).run();
@@ -55,7 +58,15 @@ describe("POST /api/practice/new-set", () => {
       await db.insert(schema.users).values({ id: userId, name: "parent", email: `${userId}@example.com`, createdAt: new Date(), updatedAt: new Date() }).onConflictDoNothing().run();
       await db.insert(schema.childProfiles).values({ id, userId, nickname: "子", grade: 2, createdAt: now, updatedAt: now }).run();
     }
+    await db.insert(schema.learningSessions).values({ id: SESSION, childId: CHILD, startedAt: now, createdAt: now, updatedAt: now }).run();
   });
+
+  /** セットの問題を ぜんぶ 正解したことにする。 */
+  const finish = async (items: readonly { problemId: string }[]) => {
+    for (const [index, item] of items.entries()) {
+      await db.insert(schema.attempts).values({ id: `fin-${item.problemId}-${index}`, sessionId: SESSION, childId: CHILD, problemId: item.problemId, childAnswer: "1", answerType: "tap", isCorrect: 1, hintLevelUsed: 0, createdAt: nowJstIso() }).run();
+    }
+  };
 
   afterEach(() => vi.unstubAllEnvs());
 
@@ -100,9 +111,11 @@ describe("POST /api/practice/new-set", () => {
     expect(items).toHaveLength(5);
     const text = JSON.stringify(body);
     expect(text).not.toMatch(/correctAnswer|correct_answer|hint1|hint2|solution|generatorRef|generator_ref|explanation|"answer"/);
-    for (const item of items) {
-      expect(Object.keys(item).sort()).toEqual(["choices", "done", "level", "listenText", "position", "problemId", "problemText", "reason", "subUnit", "unit"]);
-    }
+    // ホームのカードに要る分だけ返す。問題文・選択肢・聞く英語は 問題を開いたときに画面が受け取る
+    // (聞く英語は 答えそのものなので、5 問ぶんを先に渡さない)
+    expect(text).not.toMatch(/problemText|listenText|choices|"unit"|subUnit|"level"/);
+    expect(Object.keys(body.data!).sort()).toEqual(["batchId", "items", "remainingSets", "seq", "status"]);
+    for (const item of items) expect(Object.keys(item).sort()).toEqual(["done", "position", "problemId"]);
   });
 
   it("もういちど呼んでも(リロード)同じセット。more を付けると次のセットで、上限のあとは limit", async () => {
@@ -110,10 +123,13 @@ describe("POST /api/practice/new-set", () => {
     const again = await post({ childId: CHILD, subject: "math", more: false });
     expect(again.body.data).toEqual(first.body.data);
 
+    await finish(first.body.data!.items as { problemId: string }[]);
     const second = await post({ childId: CHILD, subject: "math", more: true });
+    await finish(second.body.data!.items as { problemId: string }[]);
     const third = await post({ childId: CHILD, subject: "math", more: true });
     expect([second.body.data!.seq, third.body.data!.seq]).toEqual([2, 3]);
     expect(third.body.data!.remainingSets).toBe(0);
+    await finish(third.body.data!.items as { problemId: string }[]);
 
     const fourth = await post({ childId: CHILD, subject: "math", more: true });
     expect(fourth.status).toBe(200);
@@ -121,7 +137,21 @@ describe("POST /api/practice/new-set", () => {
     expect(await batchCount()).toBe(3);
 
     const reload = await post({ childId: CHILD, subject: "math" });
-    expect(reload.body.data).toEqual(third.body.data);
+    expect(reload.body.data).toMatchObject({ batchId: third.body.data!.batchId, seq: 3 });
+  });
+
+  it("セットが終わっていないうちに more が来ても(古い画面)、いまのセットを返して新しく作らない", async () => {
+    const first = await post({ childId: CHILD, subject: "math" });
+    const stale = await post({ childId: CHILD, subject: "math", more: true });
+    expect(stale.body.data!.batchId).toBe(first.body.data!.batchId);
+    expect(await batchCount()).toBe(1);
+  });
+
+  it("PRACTICE_MAX_SETS_PER_DAY=0 のときは カードを出さない(empty)。「ぜんぶ できたね」とは言わない", async () => {
+    vi.stubEnv("PRACTICE_MAX_SETS_PER_DAY", "0");
+    const { status, body } = await post({ childId: CHILD, subject: "math" });
+    expect(status).toBe(200);
+    expect(body.data).toEqual({ status: "empty", remainingSets: 0 });
   });
 
   it("教科ごとに別のセット", async () => {
@@ -131,8 +161,14 @@ describe("POST /api/practice/new-set", () => {
     expect(english.body.data).toMatchObject({ status: "ready", seq: 1 });
   });
 
-  it("1 分に 10 回をこえると 429(DB で数える)", async () => {
-    for (let index = 0; index < 10; index += 1) expect((await post({ childId: CHILD, subject: "math" })).status).toBe(200);
+  it("セットを読むだけの呼び出し(ホームを開く・教科を切りかえる)は 1 分に 60 回まで。それをこえると 429", async () => {
+    for (let index = 0; index < 60; index += 1) expect((await post({ childId: CHILD, subject: "math" })).status).toBe(200);
     expect((await post({ childId: CHILD, subject: "math" })).status).toBe(429);
+  });
+
+  it("次のセットを作る呼び出し(more)は 1 分に 10 回まで。読むだけの呼び出しの枠は使わない", async () => {
+    for (let index = 0; index < 10; index += 1) expect((await post({ childId: CHILD, subject: "math", more: true })).status).toBe(200);
+    expect((await post({ childId: CHILD, subject: "math", more: true })).status).toBe(429);
+    expect((await post({ childId: CHILD, subject: "math" })).status).toBe(200);
   });
 });

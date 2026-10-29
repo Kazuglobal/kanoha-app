@@ -84,6 +84,15 @@ describe("loadSetContext: 問題画面に出す「セットの何問目か」と
     expect(await loadSetContext(db, CHILD, { id: idOf(1), generated: false }, "new")).toMatchObject({ batchId: "new", position: 2, nextProblemId: null });
   });
 
+  it("整理などで途中の問題が消えても、何問目か・全部で何問かは 残っている問題で数える(4 / 3 にならない)", async () => {
+    for (const n of [1, 2, 3, 4]) await addProblem(idOf(n));
+    await addBatch("b1", CHILD, [idOf(1), idOf(2), idOf(3), idOf(4)]);
+    await db.delete(schema.problems).where(eq(schema.problems.id, idOf(1))).run();
+    await db.delete(schema.problems).where(eq(schema.problems.id, idOf(2))).run();
+    expect(await loadSetContext(db, CHILD, { id: idOf(3), generated: true })).toMatchObject({ position: 1, total: 2, nextProblemId: idOf(4) });
+    expect(await loadSetContext(db, CHILD, { id: idOf(4), generated: true })).toMatchObject({ position: 2, total: 2, nextProblemId: null });
+  });
+
   it("セットに入っていない問題・知らない教科のセットは null", async () => {
     await addProblem(idOf(1));
     expect(await loadSetContext(db, CHILD, { id: idOf(1), generated: true })).toBeNull();

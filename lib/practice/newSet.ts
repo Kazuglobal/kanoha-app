@@ -45,9 +45,9 @@ export interface PracticeSetView {
 
 export type NewSetResult =
   | { readonly ok: true; readonly set: PracticeSetView }
-  /** 今日の上限まで作った(または上限が 0) */
+  /** 今日の上限まで作った */
   | { readonly ok: false; readonly reason: "limit" }
-  /** 出せる問題が 1 つもない */
+  /** 出せる問題が 1 つもない・セットを作らない設定(上限 0)。カードは出さない */
   | { readonly ok: false; readonly reason: "empty" };
 
 export interface NewSetRequest {
@@ -244,7 +244,8 @@ async function tidyUp(db: Database, childId: string, now: Date, prune: typeof pr
 /**
  * 今日の「あたらしい もんだい」のセットを返す。
  * - more=false: 今日のセットがあればそれを返す(リロードで増えない)。なければ 1 セット目を作る。
- * - more=true: 次のセットを作る。1 日(JST)の上限(既定 3)をこえたら limit。
+ * - more=true: 次のセットを作る。1 日(JST)の上限(既定 3)をこえたら limit。いまのセットが終わっていないうちは、新しく作らず そのセットを返す
+ *   (古い画面から押されても、1 日のセットを使いきらない)。
  * 同じセット番号を同時に作ろうとしたら、先に書いたほうが勝ち、負けたほうは勝ったセットを返す。
  */
 export async function createOrGetPracticeSet(db: Database, request: NewSetRequest, deps: NewSetDeps = {}): Promise<NewSetResult> {
@@ -254,9 +255,12 @@ export async function createOrGetPracticeSet(db: Database, request: NewSetReques
   const cap = practiceMaxSetsPerDay();
 
   const latest = await latestBatch(db, childId, subject, date);
-  if (latest && !more) return { ok: true, set: await readSet(db, latest, cap) };
+  if (latest) {
+    const current = await readSet(db, latest, cap);
+    if (!more || current.items.some((item) => !item.done)) return { ok: true, set: current };
+  }
   const seq = (latest?.seq ?? 0) + 1;
-  if (seq > cap) return { ok: false, reason: "limit" };
+  if (seq > cap) return { ok: false, reason: cap === 0 ? "empty" : "limit" };
 
   const inputs = await loadPracticeInputs(db, childId, subject, now);
   const plan = (deps.planBatch ?? defaultPlanBatch)({ subject, ...inputs, seed: `${childId}:${date}:${subject}`, seq: seq - 1 });

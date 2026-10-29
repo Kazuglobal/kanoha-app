@@ -101,6 +101,12 @@ describe("mistakeTypeFromExplanation", () => {
     expect(mistakeTypeFromExplanation(null)).toBeNull();
     expect(mistakeTypeFromExplanation("carry_error")).toBeNull();
   });
+
+  it("国語・英語のまちがい方の種類も受け付ける(算数だけの一覧で落とさない)", () => {
+    expect(mistakeTypeFromExplanation({ mistakeType: "alphabet_error" })).toBe("alphabet_error");
+    expect(mistakeTypeFromExplanation({ mistakeType: "english_listening_error" })).toBe("english_listening_error");
+    expect(mistakeTypeFromExplanation(JSON.stringify({ mistakeType: "alphabet_error" }))).toBe("alphabet_error");
+  });
 });
 
 describe("clampDurationSeconds", () => {
@@ -473,6 +479,23 @@ describe("recentUnitAttempts", () => {
     expect(history).toEqual([
       { isCorrect: true, mistakeType: null },
       { isCorrect: false, mistakeType: null },
+    ]);
+  });
+
+  it("英語・国語のまちがい方の種類も、連続ミスの判定に使えるよう そのまま返す", async () => {
+    const now = nowJstIso();
+    await db.insert(schema.problems).values({ id: "p-english", childId: CHILD, problemText: "q", subject: "english", unit: "アルファベット", subUnit: "大文字", correctAnswer: "A", explanationJson: "{}", createdAt: now, updatedAt: now }).run();
+    await db
+      .insert(schema.attempts)
+      .values([
+        { id: "e-1", sessionId: "sess-1", childId: CHILD, problemId: "p-english", childAnswer: "B", answerType: "tap", mistakeType: "alphabet_error", isCorrect: 0, createdAt: "2026-09-03T01:00:00.000Z" },
+        { id: "e-2", sessionId: "sess-1", childId: CHILD, problemId: "p-english", childAnswer: "C", answerType: "tap", mistakeType: "alphabet_error", isCorrect: 0, createdAt: "2026-09-03T02:00:00.000Z" },
+      ])
+      .run();
+    const history = await recentUnitAttempts(CHILD, "アルファベット", 5, db);
+    expect(history).toEqual([
+      { isCorrect: false, mistakeType: "alphabet_error" },
+      { isCorrect: false, mistakeType: "alphabet_error" },
     ]);
   });
 });

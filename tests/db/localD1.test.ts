@@ -64,6 +64,28 @@ describe("ローカル D1 エミュレータの batch(本物の D1 と同じく�
     expect(rows).toEqual([{ a: "x", b: "y" }]);
   });
 
+  it("setReturnArrays が無い古い Node では、同じ名前の列を黙って取りちがえず エラーにする", async () => {
+    const withoutSetReturnArrays = (target: DatabaseSync): DatabaseSync =>
+      new Proxy(target, {
+        get(source, property) {
+          if (property !== "prepare") {
+            const value = Reflect.get(source, property);
+            return typeof value === "function" ? value.bind(source) : value;
+          }
+          return (query: string) =>
+            new Proxy(source.prepare(query), {
+              get(statement, member) {
+                if (member === "setReturnArrays") return undefined;
+                const value = Reflect.get(statement, member);
+                return typeof value === "function" ? value.bind(statement) : value;
+              },
+            });
+        },
+      });
+    const old = createLocalD1(withoutSetReturnArrays(raw));
+    await expect(old.prepare("SELECT 1").bind().raw()).rejects.toThrow(/22\.16/);
+  });
+
   it("結果は文の順に返る", async () => {
     const [first, second] = await db.batch([
       db.insert(notes).values({ id: "a", body: "a" }).returning({ id: notes.id }),

@@ -3,7 +3,7 @@ import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { jstDayRange, nowJstIso, todayKeyJst } from "@/lib/utils/date";
 import { generatedDailyRewardCap, talkDailyRewardCap } from "@/lib/utils/flags";
-import { ANSWER_HINT_LEVEL } from "@/lib/utils/resources";
+import { ANSWER_HINT_LEVEL, SOLUTION_HINT_LEVEL } from "@/lib/utils/resources";
 import type { EquippedAccessories } from "./catalog";
 import {
   DEFAULT_REWARD_STATE,
@@ -152,14 +152,15 @@ export const recordEnglishTalkClear = (
 ): Promise<RewardState | null> =>
   claimOnceThenRecord(db, childId, "english_talk", `${sceneId}:${turnId}`, talkDailyRewardCap());
 
-/** 今日(JST)、この子がこの問題で「答え」のヒントまで開いたか(どのセッションでも。やり直しで消えない)。 */
+/** 今日(JST)、この子がこの問題で blockAt 段階以上のヒントまで開いたか(どのセッションでも。やり直しで消えない)。 */
 async function openedAnswerHintToday(
   db: Database,
   childId: string,
   problemId: string,
   hintLevelUsed: number,
+  blockAt: number,
 ): Promise<boolean> {
-  if (hintLevelUsed >= ANSWER_HINT_LEVEL) return true;
+  if (hintLevelUsed >= blockAt) return true;
   const { start, end } = jstDayRange();
   const row = await db
     .select({ level: max(schema.problemHintViews.maxLevel) })
@@ -173,12 +174,12 @@ async function openedAnswerHintToday(
       ),
     )
     .get();
-  return Number(row?.level ?? 0) >= ANSWER_HINT_LEVEL;
+  return Number(row?.level ?? 0) >= blockAt;
 }
 
 /**
  * 元問題の正解をごほうびとして数える。
- * - 答えのヒント(最終段階)を見たあとの正解は対象外
+ * - 答えのヒント(最終段階)を見たあとの正解は対象外。自動で作った問題(generated)は、答えが書かれた「ときかた」まで見たら対象外
  * - 同じ問題は1日(JST)に1回だけ。別の日の復習はあらためて対象になる
  * - 自動で作った問題(generated)は、種類を分けて 1日 GENERATED_DAILY_REWARD_CAP 回まで(問題バンクの問題は上限なし)
  * 対象外・すでに数えた・上限に届いていたときは null。
@@ -190,7 +191,8 @@ export async function recordProblemReward(
   hintLevelUsed: number,
   options: { generated?: boolean } = {},
 ): Promise<RewardState | null> {
-  if (await openedAnswerHintToday(db, childId, problemId, hintLevelUsed)) return null;
+  const blockAt = options.generated ? SOLUTION_HINT_LEVEL : ANSWER_HINT_LEVEL;
+  if (await openedAnswerHintToday(db, childId, problemId, hintLevelUsed, blockAt)) return null;
   return options.generated
     ? claimOnceThenRecord(db, childId, "generated", problemId, generatedDailyRewardCap())
     : claimOnceThenRecord(db, childId, "problem", problemId);

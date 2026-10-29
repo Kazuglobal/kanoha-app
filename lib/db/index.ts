@@ -57,8 +57,12 @@ const createStatement = (dbSync: DatabaseSync, query: string, params: unknown[])
       return col ? row[col] : row;
     },
     async raw() {
-      // 位置で返す(本物の D1 の raw と同じ)。オブジェクトで返すと、結合した表の同じ名前の列(unit など)が 1 つに潰れる
+      // 位置で返す(本物の D1 の raw と同じ)。オブジェクトで返すと、結合した表の同じ名前の列(unit など)が 1 つに潰れる。
+      // setReturnArrays は Node 22.16 / 24 から。無い Node で黙って列を取りちがえるより、止めて知らせる。
       const stmt = dbSync.prepare(query);
+      if (typeof stmt.setReturnArrays !== "function") {
+        throw new Error("ローカルの D1 エミュレータには Node 22.16 以上が必要です(node:sqlite の setReturnArrays)。");
+      }
       stmt.setReturnArrays(true);
       return stmt.all(...args) as unknown as unknown[][];
     },

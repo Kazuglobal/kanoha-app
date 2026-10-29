@@ -17,6 +17,7 @@ import { difficultyForNextSimilarSet } from "@/lib/review/recommend";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
 import { envNumber } from "@/lib/utils/envNumber";
 import { checkRateLimitDb } from "@/lib/utils/rateLimit";
+import { asc, and, eq, sql } from "drizzle-orm";
 import { ownedProblem } from "@/lib/utils/resources";
 import { difficulty, uuid } from "@/lib/utils/schemas";
 import { nowJstIso } from "@/lib/utils/date";
@@ -99,8 +100,55 @@ async function generateWithGemini(
   return persistDrafts(auth, problem, drafts);
 }
 
+const SIMILAR_COUNT = 5;
+
+type SimilarRow = {
+  id: string;
+  problem_text: string;
+  unit: string;
+  sub_unit: string;
+  difficulty: string;
+  choices: string | null;
+  listen_text: string | null;
+};
+
+const parseStoredChoices = (stored: string | null): unknown => {
+  try {
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+const similarResponse = (row: SimilarRow) => ({ ...row, choices: parseStoredChoices(row.choices) });
+
+/**
+ * すでに作ってある類題 5 問(同じ元の問題の)。バンク・自動で作った問題の類題は、中身が元の問題だけで決まるので
+ * 何度頼まれても作りなおさず 同じ 5 問を返す(行を増やさない)。5 問そろっていなければ null。
+ */
+async function existingSimilar(auth: Auth, problem: Problem) {
+  const rows = await auth.db
+    .select({
+      id: schema.generatedSimilarProblems.id,
+      problem_text: schema.generatedSimilarProblems.problemText,
+      unit: schema.generatedSimilarProblems.unit,
+      sub_unit: schema.generatedSimilarProblems.subUnit,
+      difficulty: schema.generatedSimilarProblems.difficulty,
+      choices: schema.generatedSimilarProblems.choices,
+      listen_text: schema.generatedSimilarProblems.listenText,
+    })
+    .from(schema.generatedSimilarProblems)
+    .where(and(eq(schema.generatedSimilarProblems.childId, problem.childId), eq(schema.generatedSimilarProblems.sourceProblemId, problem.id)))
+    .orderBy(asc(sql`rowid`))
+    .limit(SIMILAR_COUNT)
+    .all();
+  return rows.length === SIMILAR_COUNT ? rows.map(similarResponse) : null;
+}
+
 /** 問題バンク由来の問題は、同じバンクから決定的に類題を組む(AI を使わず、選択肢・聞き取り音声つき)。 */
 async function persistCurriculumPractice(auth: Auth, problem: Problem, curriculumProblemId: string) {
+  const existing = await existingSimilar(auth, problem);
+  if (existing) return apiSuccess(existing);
   const items = buildCurriculumPractice(curriculumProblemId);
   const drafts: SimilarProblemDraft[] = items.map((item) => ({
     answer: item.answer,
@@ -115,11 +163,14 @@ async function persistCurriculumPractice(auth: Auth, problem: Problem, curriculu
     problem,
     drafts,
     items.map(({ choices, listenText }) => ({ choices, listenText })),
+    false,
   );
 }
 
 /** 自動で作った問題は、同じ生成器で類題を組む(AI を使わず、答えは計算で決まる)。 */
 async function persistGeneratedPractice(auth: Auth, problem: Problem, ref: string) {
+  const existing = await existingSimilar(auth, problem);
+  if (existing) return apiSuccess(existing);
   const set = generateSimilarSet({ id: problem.id, ref });
   if (!set) return internalError();
   const drafts: SimilarProblemDraft[] = set.map((item) => ({
@@ -135,6 +186,7 @@ async function persistGeneratedPractice(auth: Auth, problem: Problem, ref: strin
     problem,
     drafts,
     set.map((item) => ({ choices: item.choices ?? null, listenText: item.listenText ?? null })),
+    false,
   );
 }
 
@@ -148,12 +200,14 @@ async function persistDrafts(
   problem: Problem,
   drafts: readonly SimilarProblemDraft[],
   extras?: readonly DraftExtras[],
+  /** AI が作った文だけ個人情報を取りのぞく。テンプレートで作った文には個人情報が無く、「先生」「小さい」のような語を こわしてしまう。 */
+  scrubPii = true,
 ) {
   const validated = similarProblemDraftsSchema.safeParse(drafts);
   if (!validated.success) return internalError();
 
   const now = nowJstIso();
-  const rows = validated.data.map(scrubPiiFromSimilarProblem).map((item, index) => ({
+  const rows = (scrubPii ? validated.data.map(scrubPiiFromSimilarProblem) : validated.data).map((item, index) => ({
     id: crypto.randomUUID(),
     sourceProblemId: problem.id,
     childId: problem.childId,

@@ -197,6 +197,19 @@ describe("生成した問題の 5円(1 日の上限つき)", () => {
     expect((await answer(await addGenerated())).body.data.reward).toMatchObject({ totalCorrectCount: 1 });
   });
 
+  it("ときかた(ヒント 3)まで見た生成問題の正解も 数えない(ときかたに答えが書かれているため)。問題バンクは これまでどおり", async () => {
+    const seen = async (problemId: string) =>
+      db.insert(schema.problemHintViews).values({ childId: CHILD, problemId, sessionId: SESSION, maxLevel: 3, updatedAt: nowJstIso() }).run();
+    const generated = await addGenerated();
+    await seen(generated);
+    expect((await answer(generated)).body.data.reward).toBeNull();
+
+    const bank = getCurriculumProblemsBySubject("math")[0];
+    const bankId = await ensureCurriculumProblem(db, CHILD, bank);
+    await seen(bankId);
+    expect((await answer(bankId, bank.correctAnswer, { answerType: "text" })).body.data.reward).not.toBeNull();
+  });
+
   it("問題バンクの問題は これまでどおり(上限なし・種類は problem)", async () => {
     vi.stubEnv("GENERATED_DAILY_REWARD_CAP", "1");
     for (const bank of getCurriculumProblemsBySubject("math").slice(0, 3)) {
