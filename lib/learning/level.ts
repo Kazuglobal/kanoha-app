@@ -73,6 +73,12 @@ export type Difficulty = "basic" | "standard" | "advanced";
 export const levelFromDifficulty = (difficulty: Difficulty): Level =>
   difficulty === "basic" ? 1 : difficulty === "advanced" ? 4 : 2;
 
+/** 生成した問題の `difficulty` 欄に入れる目印(正確なレベルは別の列 `difficulty_level` に持つ)。 */
+export const difficultyFromLevel = (level: number): Difficulty => {
+  const clamped = clampLevel(level);
+  return clamped === 1 ? "basic" : clamped >= 4 ? "advanced" : "standard";
+};
+
 const isSuccess = (event: LevelEvent): boolean => event.correct && !event.usedAnswerHint;
 
 const moveTo = (level: number): LevelProgress => ({ level: clampLevel(level), up: 0, down: 0 });

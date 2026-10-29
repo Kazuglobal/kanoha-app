@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BANK_LEVEL,
   clampLevel,
+  difficultyFromLevel,
   foldLevel,
   levelFromDifficulty,
   summarizeSkill,
@@ -213,5 +214,17 @@ describe("レベルの換算", () => {
     expect(levelFromDifficulty("basic")).toBe(1);
     expect(levelFromDifficulty("standard")).toBe(2);
     expect(levelFromDifficulty("advanced")).toBe(4);
+  });
+});
+
+describe("difficultyFromLevel: 生成した問題の難易度の目印", () => {
+  it("1 は basic、2〜3 は standard、4〜5 は advanced", () => {
+    expect([1, 2, 3, 4, 5].map((level) => difficultyFromLevel(level))).toEqual(["basic", "standard", "standard", "advanced", "advanced"]);
+  });
+
+  it("範囲の外や数でない値は、丸めたレベルで決める", () => {
+    expect(difficultyFromLevel(0)).toBe("basic");
+    expect(difficultyFromLevel(9)).toBe("advanced");
+    expect(difficultyFromLevel(Number.NaN)).toBe("standard");
   });
 });
