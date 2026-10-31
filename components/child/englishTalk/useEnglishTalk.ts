@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { soundManager } from "@/lib/audio/soundSystem";
-import { postCheck, type CheckOutcome, type CheckResult } from "@/lib/englishTalk/checkClient";
+import { newRunId, postCheck, postTalkComplete, type CheckOutcome, type CheckResult } from "@/lib/englishTalk/checkClient";
 import { adaptTurn, type ChosenFruit, type FruitId } from "@/lib/englishTalk/context";
 import {
   answerTalk,
@@ -11,6 +11,7 @@ import {
   nextTalk,
   repeatTalk,
   startTalk,
+  talkOutcomes,
   talkStarsOf,
   type TalkState,
 } from "@/lib/englishTalk/flow";
@@ -133,10 +134,19 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string, options
     };
   }, []);
 
-  // 最後のターンに答えた時点で ★ が決まる(「つぎへ」を押さずに離れても記録が残るよう、ここで記録する)
+  // 最後のターンに答えた時点で ★ が決まる(「つぎへ」を押さずに離れても記録が残るよう、ここで記録する)。
+  // ログイン中は サーバーにも 1 回の挑戦につき 1 回だけ送る(通信の失敗の送りなおしは postTalkComplete の中。
+  // 挑戦ごとの ID を付けるので、サーバーは同じ挑戦を二重に数えない)
   const isLastStep = state.phase === "correct" && nextTalk(state).phase === "done";
+  const clearSentRef = useRef(false);
+  const runIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (state.phase === "done" || isLastStep) recordEnglishTalkSceneClear(scene.id, talkStarsOf(state), childId);
+    if (state.phase !== "done" && !isLastStep) return;
+    recordEnglishTalkSceneClear(scene.id, talkStarsOf(state), childId);
+    if (!childId || clearSentRef.current) return;
+    clearSentRef.current = true;
+    runIdRef.current ??= newRunId();
+    void postTalkComplete({ childId, sceneId: scene.id, runId: runIdRef.current, outcomes: talkOutcomes(state) });
   }, [childId, isLastStep, scene.id, state]);
 
   const sayPrompt = useCallback(
@@ -340,6 +350,8 @@ export function useEnglishTalk(scene: PublicTalkScene, childId?: string, options
 
   const restart = useCallback(() => {
     speech.stop();
+    clearSentRef.current = false;
+    runIdRef.current = null;
     runRef.current += 1;
     checkingRef.current = false;
     repeatingRef.current = false;

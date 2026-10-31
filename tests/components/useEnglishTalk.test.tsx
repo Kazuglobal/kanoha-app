@@ -250,6 +250,108 @@ describe("useEnglishTalk: 画面を離れたとき・終わったとき", () => 
   });
 });
 
+describe("useEnglishTalk: サーバーへのクリア記録(ログイン中の子)", () => {
+  const CHILD = "11111111-1111-4111-8111-111111111111";
+  const single = { ...SCENE, turns: SCENE.turns.slice(0, 1) };
+
+  /** 答え合わせは正解、クリアの記録は 3★ で返す fetch。 */
+  const talkFetch = (completeBehavior: () => Promise<Response> = async () => reply({ stars: 3, bestStars: 3, clearCount: 1 })) =>
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => (String(url) === "/api/english-talk/complete" ? completeBehavior() : reply({ correct: true })));
+  const completes = (spy: ReturnType<typeof talkFetch>) => spy.mock.calls.filter(([url]) => String(url) === "/api/english-talk/complete");
+
+  it("最後のターンに答えたとき、ターンごとの結果を 1 回だけ送る(つぎへ を押して終わっても 2 回目は送らない)", async () => {
+    const spy = talkFetch();
+    const { result } = renderHook(() => useEnglishTalk(single, CHILD));
+    act(() => result.current.begin());
+    await act(async () => {
+      await result.current.answer("It's a dog.", "voice");
+    });
+    await act(async () => {
+      result.current.next();
+    });
+    expect(result.current.state.phase).toBe("done");
+    const sent = completes(spy);
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(String(sent[0][1]?.body))).toEqual({
+      childId: CHILD,
+      sceneId: "park",
+      runId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+      outcomes: [{ turnId: single.turns[0].id, outcome: "clean" }],
+    });
+  });
+
+  it("ヘルプを使ったターンは help として送る(★の計算はサーバーがやりなおす)", async () => {
+    const spy = talkFetch();
+    const { result } = renderHook(() => useEnglishTalk(single, CHILD));
+    act(() => result.current.begin());
+    act(() => result.current.noteHelp());
+    await act(async () => {
+      await result.current.answer("It's a dog.", "choice");
+    });
+    expect(JSON.parse(String(completes(spy)[0][1]?.body)).outcomes).toEqual([{ turnId: single.turns[0].id, outcome: "help" }]);
+  });
+
+  it("デモ(子どもがいない)・まだ次のターンがあるあいだは、送らない", async () => {
+    const spy = talkFetch();
+    const demo = renderHook(() => useEnglishTalk(single));
+    act(() => demo.result.current.begin());
+    await act(async () => {
+      await demo.result.current.answer("It's a dog.", "voice");
+    });
+    const middle = renderHook(() => useEnglishTalk(SCENE, CHILD));
+    act(() => middle.result.current.begin());
+    await act(async () => {
+      await middle.result.current.answer("It's a dog.", "voice");
+    });
+    expect(completes(spy)).toHaveLength(0);
+  });
+
+  it("やり直して もう一度おわったら、もう一度だけ送る", async () => {
+    const spy = talkFetch();
+    const { result } = renderHook(() => useEnglishTalk(single, CHILD));
+    for (let run = 0; run < 2; run += 1) {
+      act(() => result.current.begin());
+      await act(async () => {
+        await result.current.answer("It's a dog.", "voice");
+      });
+      act(() => result.current.restart());
+    }
+    expect(completes(spy)).toHaveLength(2);
+    // 挑戦ごとに別の ID(同じ挑戦の再送だけが 同じ ID)
+    const [first, second] = completes(spy).map(([, init]) => JSON.parse(String(init?.body)).runId);
+    expect(first).not.toBe(second);
+  });
+
+  it("送れなかったときも画面は止まらない。フックは送りなおさない(通信の関数が、同じ挑戦の ID で 1 回だけ送りなおす)", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const spy = talkFetch(async () => {
+        throw new TypeError("offline");
+      });
+      const { result } = renderHook(() => useEnglishTalk(single, CHILD));
+      act(() => result.current.begin());
+      await act(async () => {
+        await result.current.answer("It's a dog.", "voice");
+      });
+      expect(result.current.isLastStep).toBe(true);
+      await act(async () => {
+        result.current.next();
+      });
+      expect(result.current.state.phase).toBe("done");
+      // 送りなおしは時間がたってから(通信の関数の中)。フックが つぎへ のたびに送ることはない
+      expect(completes(spy)).toHaveLength(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+      expect(completes(spy)).toHaveLength(2);
+      const [first, retry] = completes(spy).map(([, init]) => JSON.parse(String(init?.body)));
+      expect(retry).toEqual(first);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("useEnglishTalk: まねして言うで進めないとき", () => {
   const toTeach = async (result: { current: ReturnType<typeof useEnglishTalk> }) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(reply(WRONG));

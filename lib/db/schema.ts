@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, real, primaryKey, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { sqliteTable, text, integer, real, primaryKey, uniqueIndex, index, check } from "drizzle-orm/sqlite-core";
 
 /**
  * Better Auth 必須テーブル
@@ -340,6 +341,28 @@ export const childRewards = sqliteTable("child_rewards", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * 英会話(えいごで おはなし)の場面ごとの進み具合。子どもごと・場面ごとに 1 行。
+ * 話した言葉は保存しない(場面・最高の★・クリアした回数・日時だけ)。★はサーバーが結果から計算して記録する。
+ */
+export const englishTalkProgress = sqliteTable(
+  "english_talk_progress",
+  {
+    childId: text("child_id").notNull().references(() => childProfiles.id, { onDelete: "cascade" }),
+    sceneId: text("scene_id").notNull(),
+    bestStars: integer("best_stars").notNull(),
+    clearCount: integer("clear_count").notNull(),
+    lastClearedAt: text("last_cleared_at").notNull(),
+    /** 最後に記録した挑戦の ID(端末が決めた UUID)。通信が失われて同じ挑戦が再送されても、回数を二重に数えないため。 */
+    lastRunId: text("last_run_id"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.childId, table.sceneId] }),
+    // 列名に表名を付けない(あとで表を作りなおす移行でも、新しい表の列として読める)
+    check("english_talk_progress_stars_range", sql`best_stars BETWEEN 1 AND 3`),
+  ],
+);
 
 /**
  * ごほうびの請求記録。同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ出すための重複防止。

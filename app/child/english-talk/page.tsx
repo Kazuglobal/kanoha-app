@@ -4,7 +4,9 @@ import { SceneProgressBadge } from "@/components/child/englishTalk/SceneProgress
 import styles from "@/components/kanoha.module.css";
 import talkStyles from "@/components/child/englishTalk/englishTalk.module.css";
 import { TALK_SCENES } from "@/lib/curriculum/englishTalkScenes";
+import { getDb } from "@/lib/db";
 import { getSceneFriendName } from "@/lib/englishTalk/sceneThemes";
+import { loadTalkProgress } from "@/lib/englishTalk/serverProgress";
 import { resolveOwnedChildId } from "./ownedChild";
 
 /** えいごで おはなし: シーンをえらぶ画面。 */
@@ -15,6 +17,8 @@ export default async function EnglishTalkListPage({
 }) {
   const childId = await resolveOwnedChildId((await searchParams).childId);
   const query = childId ? `?childId=${childId}` : "";
+  // ログイン中の子は、サーバーに残した★(どの端末でも同じ)。デモは端末の記録だけ。
+  const progress = childId ? await loadTalkProgress(getDb(), childId) : {};
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
@@ -33,7 +37,7 @@ export default async function EnglishTalkListPage({
                 style={{ backgroundImage: `url(${scene.background})` }}
                 aria-hidden="true"
               >
-                <SceneProgressBadge sceneId={scene.id} childId={childId} />
+                <SceneProgressBadge sceneId={scene.id} childId={childId} serverStars={progress[scene.id]?.bestStars} />
               </span>
               <span className={talkStyles.sceneCardBody}>
                 <strong>

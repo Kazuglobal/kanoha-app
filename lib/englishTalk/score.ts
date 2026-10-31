@@ -7,6 +7,9 @@
 
 export type TalkOutcome = "clean" | "help" | "teach";
 
+/** 場面の★(1〜3)。 */
+export type SceneStars = 1 | 2 | 3;
+
 const POINTS: Readonly<Record<TalkOutcome, number>> = { clean: 2, help: 1, teach: 0 };
 
 /** この点数の割合以上で ★3(おてほんを見たターンがないとき) */
@@ -14,7 +17,7 @@ const THREE_STAR_RATIO = 0.75;
 /** この点数の割合以上で ★2 */
 const TWO_STAR_RATIO = 0.4;
 
-export function talkStars(outcomes: readonly TalkOutcome[]): 1 | 2 | 3 {
+export function talkStars(outcomes: readonly TalkOutcome[]): SceneStars {
   if (outcomes.length === 0) return 1;
   const points = outcomes.reduce((sum, outcome) => sum + POINTS[outcome], 0);
   const ratio = points / (outcomes.length * POINTS.clean);
