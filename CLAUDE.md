@@ -70,6 +70,7 @@
 - `components/child/*` `components/parent/*` に分離
 - `lib/ai/` AI層 / `lib/review/` 復習・おすすめロジック / `lib/curriculum/` 単元マスタ
 - `lib/learning/` 進み具合(レベル 1〜5 の昇降格・ようす)/ `lib/generation/` 新しい問題の自動生成(生成器・検査 `validateGenerated`・出題計画 `planBatch`)。答えを計算するので `import "server-only"`
+- `lib/practice/` 「あたらしい もんだい」のセットの作成・読み出し・整理(`newSet.ts` `context.ts` `prune.ts`)。DB の複数文の書き込みは `db.batch`(本物の D1 では原子的。ローカルの D1 エミュレータも同じ)
 - テンプレ図解画像は `public/visuals/`
 
 ## コマンド(セットアップ後に有効)
@@ -93,6 +94,7 @@ npm run lint         # ESLint
 - 2026-10-28: 英会話は Three.js の3Dステージ(WebGL が無い端末は場面のSVGを背景に出す)。次の問いは「つぎへ」をタップしたときだけ読む(ほめ・おしえは答えへの返事なので自動)。判定は `lib/englishTalk/{normalize,match,judge}.ts`: 日本語だけの答えは正解にせず、似た音の別名は短い答えのときだけ使う。英会話の5円は1日 `TALK_DAILY_REWARD_CAP`(既定5)回まで。マイクは、ログイン中は自動・デモはタップした1回だけ。文字を打ち込む欄はない(英語は書かせない)
 - 2026-10-28: サーバーから `"use client"` のファイルの関数を呼ばない(英会話の一覧が開けなくなった)。答えを持つモジュールは `import "server-only"` を付け、ブラウザの JS に答えが入っていないかは `npm run check:leaks`(`npm run deploy` の前に自動で走る)で確かめる
 - 2026-10-29: 進み具合に合わせた新しい問題は、`lib/generation` の**決定的なテンプレート**が作る(答えはパラメータから計算し、AI に作らせない。同じ seed なら同じ問題)。保存・表示の前に必ず `validateGenerated`(答えの先出し・ルビ・選択肢・英語にカタカナなし 等)を通す。レベルは `lib/learning/level.ts`(続けて3回できたら上げ、続けて2回まちがえたら下げる。答えのヒントを見てからの正解はできたに数えない)。読解・作文は AI 生成(`FEATURE_PRACTICE_AI`、既定OFF)の予定
+- 2026-10-29: ホームの「あたらしい もんだい」(`components/child/NewPracticeCard`)は `POST /api/practice/new-set` で今日の5問のセットを取る。セットは 子ども×教科×日(JST)×セット番号 で1つ(リロードでは増えず、`more:true` で次のセット、1日 `PRACTICE_MAX_SETS_PER_DAY`(既定3)まで。上限・出す問題なしはエラーでなく 200 の `status`)。計画は `lib/generation/plan.ts`、保存・読み出し・整理は `lib/practice/`(`practice_batches` / `practice_batch_items`。生成した問題は `problems` の `choices` `listen_text` `generator_ref` `difficulty_level` 付きの行)。クライアントへ返すのは問題文・選択肢・聞く英語だけで、答え・ヒント・`generator_ref` は返さない。生成した問題の正解は 5円に種類 `generated` で数え、1日 `GENERATED_DAILY_REWARD_CAP`(既定10)回まで。類題は同じ生成器で作る(AI を呼ばない)。英語の声・スピーカーは教科(`subject === "english"`)で決め、選択肢の英字(32mm など)では決めない
 
 <!-- BEGIN:nextjs-agent-rules -->
 
