@@ -206,6 +206,8 @@ describe("バンクの問題と、つくれなかった枠", () => {
       const row = await db.select().from(schema.problems).where(eq(schema.problems.id, item.problemId)).get();
       if (row?.curriculumProblemId) bankItems.push({ item, row });
     }
+    // 国語は 生成器のない小単元(読解など)があるので、セットに バンクの問題が 1 問は入る(入らないと、下の確かめが 何も見ない)
+    expect(bankItems.length).toBeGreaterThan(0);
     for (const { item, row } of bankItems) {
       const bank = getCurriculumProblemById(row.curriculumProblemId!)!;
       expect(item.problemText).toBe(bank.problemText);

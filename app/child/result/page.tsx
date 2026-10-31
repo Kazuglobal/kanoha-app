@@ -7,25 +7,25 @@ import { RewardBurst } from "@/components/child/RewardBurst";
 import { RubyAuto } from "@/components/child/RubyText";
 import { RESULT_TEXT } from "@/components/child/childStrings";
 import styles from "@/components/kanoha.module.css";
+import { problemHref, homeHref } from "@/components/child/links";
 import { getCurriculumStageProgress, getNextCurriculumProblem } from "@/lib/curriculum/curriculumBank";
+import { isSubject } from "@/lib/curriculum/subjects";
 
 export default async function ResultPage({
   searchParams,
 }: {
-  searchParams: Promise<{ score?: string; unit?: string; problemId?: string; childId?: string; nextProblemId?: string }>;
+  searchParams: Promise<{ score?: string; unit?: string; problemId?: string; childId?: string; nextProblemId?: string; batch?: string; subject?: string }>;
 }) {
-  const { score = "5", unit = "かさ", problemId, childId, nextProblemId } = await searchParams;
+  const { score = "5", unit = "かさ", problemId, childId, nextProblemId, batch, subject } = await searchParams;
+  // 「あたらしい もんだい」のセットの中の問題は、つぎの問題・やりなおしでも セットの手がかりを引きつぐ
+  const homeLink = homeHref(childId, subject && isSubject(subject) ? subject : undefined);
   const mastered = Number(score) >= 4;
   const nextTargetId = nextProblemId ?? (problemId ? getNextCurriculumProblem(problemId)?.id : null);
   const stageProgress = problemId ? getCurriculumStageProgress(problemId) : null;
   const isLastInUnit = Boolean(stageProgress?.isLastInUnit);
-  const nextHref = nextTargetId
-    ? `/child/problem/${encodeURIComponent(nextTargetId)}${childId ? `?childId=${encodeURIComponent(childId)}` : ""}`
-    : null;
+  const nextHref = nextTargetId ? problemHref(nextTargetId, childId, batch) : null;
   // 「もういちど やる」(doc §6.1): 同じ問題のページへ戻る。デモはデモ問題へ。
-  const retryHref = problemId && childId
-    ? `/child/problem/${encodeURIComponent(problemId)}?childId=${encodeURIComponent(childId)}`
-    : "/child/problem/volume-1";
+  const retryHref = problemId && childId ? problemHref(problemId, childId, batch) : "/child/problem/volume-1";
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader childId={childId} />
@@ -62,7 +62,7 @@ export default async function ResultPage({
                 {isLastInUnit ? "つぎの ステージへ すすむ 🚀" : "🚀 つぎの もんだいへ すすむ！"}
               </Link>
             )}
-            <Link className={styles.primaryButton} href="/child/home">{RESULT_TEXT.home}</Link>
+            <Link className={styles.primaryButton} href={homeLink as Route}>{RESULT_TEXT.home}</Link>
             <Link className={styles.secondaryButton} href={retryHref as Route}>{RESULT_TEXT.retry}</Link>
           </div>
         </section>

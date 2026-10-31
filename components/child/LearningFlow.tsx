@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import styles from "@/components/kanoha.module.css";
@@ -13,7 +13,7 @@ import { HandwritingPad } from "./HandwritingPad";
 import { HintStepper } from "./HintStepper";
 import { ListenButton, speakEnglish } from "./ListenButton";
 import { RubyAuto } from "./RubyText";
-import { FLOW_TEXT } from "./childStrings";
+import { FLOW_TEXT, PRACTICE_TEXT } from "./childStrings";
 import { FinishedScreen, LimitScreen, PracticeFlow } from "./PracticeFlow";
 import { matchChoiceFromSpeech } from "@/lib/utils/answers";
 import { VoiceAnswer } from "./VoiceAnswer";
@@ -72,7 +72,7 @@ export function LearningFlow({
     };
   }, [flow.finished, subject, preferences.enableAudio]);
 
-  if (flow.dailyLimit) return <LimitScreen usedMinutes={flow.dailyLimit.usedMinutes} />;
+  if (flow.dailyLimit) return <LimitScreen usedMinutes={flow.dailyLimit.usedMinutes} homeHref={flow.homeHref} />;
   if (flow.finished) {
     return (
       <FinishedScreen
@@ -80,6 +80,8 @@ export function LearningFlow({
         resultHref={flow.resultHref}
         nextProblemHref={flow.nextProblemHref}
         isLastInUnit={flow.isLastInUnit}
+        homeHref={flow.homeHref}
+        setClear={Boolean(persisted?.setProgress && !persisted.nextProblemId)}
         score={flow.score}
         unit={flow.unit}
         onRestart={() => void flow.restartFlow()}
@@ -100,6 +102,7 @@ export function LearningFlow({
             practiceIndex={flow.practiceIndex}
             problems={flow.similarProblems}
             readingMode={preferences.readingMode}
+            isEnglish={subject === "english"}
             score={flow.score}
             onAnswer={persisted ? flow.answerSimilar : undefined}
             onComplete={(correct) => void flow.completeSimilar(correct)}
@@ -132,7 +135,9 @@ export function LearningFlow({
                 <span className={`${styles.subjectBadge} ${SUBJECT_BADGE_CLASS[subject]}`}>
                   {subjectConfig.emoji} {subjectConfig.child}
                 </span>
-                <span className={styles.problemNumber}>{FLOW_TEXT.recommendedLabel}</span>
+                <span className={styles.problemNumber}>
+                  {persisted?.setProgress ? PRACTICE_TEXT.setBadge : FLOW_TEXT.recommendedLabel}
+                </span>
               </div>
               {preferences.enableAudio ? <VoiceButton text={flow.question} /> : null}
             </div>
@@ -207,43 +212,9 @@ function AnswerDock({
   const choices = persisted?.choices;
   return (
     <div className={styles.answerDock}>
-      {flow.checked ? (
-        <div className={flow.checked.correct ? styles.feedback : styles.feedbackWrong} role="status">
-          {flow.checked.correct ? (
-            <span className={styles.feedbackStrong}>🎉 {FLOW_TEXT.correctFeedback}</span>
-          ) : (
-            <div>
-              <p style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{FLOW_TEXT.wrongFeedback}</p>
-              <p style={{ fontSize: "0.95rem", opacity: 0.9 }}>
-                💡 まよったら、うえの「ヒント」を ひらいてみてね！
-              </p>
-            </div>
-          )}
-        </div>
-      ) : null}
+      {flow.checked ? <AnswerFeedback correct={flow.checked.correct} /> : null}
 
-      {flow.checked?.correct ? (
-        flow.isLastInUnit ? (
-          <div className={styles.stageClearNotice}>
-            <p className={styles.stageClearTitle}>🎉 このステージ クリア！</p>
-            <p className={styles.stageClearLead}>よくがんばったね！ひとやすみしよう。</p>
-            <div className={styles.stageClearButtons}>
-              <Link href="/child/home" className={styles.primaryButton}>
-                🏠 ステージマップへ もどる
-              </Link>
-              {flow.nextProblemHref ? (
-                <Link href={flow.nextProblemHref as Route} className={styles.secondaryButton}>
-                  つぎの ステージへ 🚀
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        ) : flow.nextProblemHref ? (
-          <Link href={flow.nextProblemHref as Route} className={styles.nextProblemButton}>
-            🚀 つぎの もんだいへ すすむ！
-          </Link>
-        ) : null
-      ) : null}
+      {flow.checked?.correct ? <SolvedNextStep flow={flow} persisted={persisted} /> : null}
 
       {/* 正解したら入力欄は畳み、「つぎの もんだいへ」に場所をゆずる(スマホで重ならないように) */}
       {solved ? null : choices ? (
@@ -265,6 +236,66 @@ function AnswerDock({
   );
 }
 
+function AnswerFeedback({ correct }: { correct: boolean }) {
+  return (
+    <div className={correct ? styles.feedback : styles.feedbackWrong} role="status">
+      {correct ? (
+        <span className={styles.feedbackStrong}>🎉 {FLOW_TEXT.correctFeedback}</span>
+      ) : (
+        <div>
+          <p style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{FLOW_TEXT.wrongFeedback}</p>
+          <p style={{ fontSize: "0.95rem", opacity: 0.9 }}>
+            💡 まよったら、うえの「ヒント」を ひらいてみてね！
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 正解したあとの つぎの一歩: セットの最後ならホームへ、ステージの最後ならステージマップへ、ふつうは つぎの もんだいへ。 */
+function SolvedNextStep({ flow, persisted }: { flow: Flow; persisted?: PersistedProblem }) {
+  // 「あたらしい もんだい」のセットの最後の問題(つぎの問題が無い)
+  if (persisted?.setProgress && !persisted.nextProblemId) {
+    return <ClearNotice title={PRACTICE_TEXT.setClearTitle} lead={PRACTICE_TEXT.setClearLead} homeLabel={PRACTICE_TEXT.backHome} homeHref={flow.homeHref} />;
+  }
+  if (flow.isLastInUnit) {
+    return (
+      <ClearNotice
+        title="🎉 このステージ クリア！"
+        lead="よくがんばったね！ひとやすみしよう。"
+        homeLabel="🏠 ステージマップへ もどる"
+        homeHref={flow.homeHref}
+        nextHref={flow.nextProblemHref}
+      />
+    );
+  }
+  return flow.nextProblemHref ? (
+    <Link href={flow.nextProblemHref as Route} className={styles.nextProblemButton}>
+      🚀 つぎの もんだいへ すすむ！
+    </Link>
+  ) : null;
+}
+
+function ClearNotice({ title, lead, homeLabel, homeHref, nextHref }: { title: string; lead: string; homeLabel: string; homeHref: string; nextHref?: string | null }) {
+  return (
+    <div className={styles.stageClearNotice}>
+      <p className={styles.stageClearTitle}>{title}</p>
+      <p className={styles.stageClearLead}>{lead}</p>
+      <div className={styles.stageClearButtons}>
+        <Link href={homeHref as Route} className={styles.primaryButton}>
+          {homeLabel}
+        </Link>
+        {nextHref ? (
+          <Link href={nextHref as Route} className={styles.secondaryButton}>
+            つぎの ステージへ 🚀
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /** 選択式(英語など): タップまたは音声でそのまま答え合わせする。英語は音声を再生する。 */
 function ChoiceAnswers({
   choices,
@@ -277,22 +308,25 @@ function ChoiceAnswers({
   subject: Subject;
   enableVoiceAnswer?: boolean;
 }) {
-  const isEnglish = subject === "english" || choices.some((c) => /[a-zA-Z]/.test(c));
+  // 英語の声は教科で決める(算数の「32mm」のような単位の英字を、英語の声で読まない)
+  const isEnglish = subject === "english";
+  // 聞き取る言語は、選択肢が英字のときだけ英語(「いぬ」「ねこ」から えらぶ英語の問題は 日本語で聞き取る)
+  const speechLang = isEnglish && choices.some((c) => /[a-zA-Z]/.test(c)) ? "en-US" : "ja-JP";
+  const [voiceMiss, setVoiceMiss] = useState(false);
 
-  const handleSelect = (choice: string) => {
-    if (/[a-zA-Z]/.test(choice)) {
+  const handleSelect = (choice: string, kind: "tap" | "voice") => {
+    setVoiceMiss(false);
+    if (isEnglish && /[a-zA-Z]/.test(choice)) {
       void speakEnglish(choice);
     }
-    void flow.checkOriginalAnswer(choice);
+    void flow.checkOriginalAnswer(choice, kind);
   };
 
   const handleVoiceAnswer = (spokenText: string) => {
     const matched = matchChoiceFromSpeech(spokenText, choices);
-    if (matched) {
-      handleSelect(matched);
-    } else {
-      handleSelect(spokenText);
-    }
+    // 選択肢に合わない声は まちがいとして送らない(聞きまちがいで「おしい」になり、レベルも下がってしまう)
+    if (matched) handleSelect(matched, "voice");
+    else setVoiceMiss(true);
   };
 
   return (
@@ -301,31 +335,41 @@ function ChoiceAnswers({
         <div className={styles.choiceVoiceRow} style={{ marginBottom: "0.75rem" }}>
           <VoiceAnswer
             disabled={flow.pending}
-            lang={isEnglish ? "en-US" : "ja-JP"}
+            lang={speechLang}
             onAnswer={handleVoiceAnswer}
             onSubmitAnswer={handleVoiceAnswer}
           />
+          {voiceMiss ? <p role="status" style={{ margin: "0.5rem 0 0", fontWeight: 600 }}>{FLOW_TEXT.voiceTryAgain}</p> : null}
         </div>
       )}
       <div className={styles.choiceGrid} role="group" aria-label="こたえを えらぶ">
-        {choices.map((choice) => {
-          const isEnglishWord = /[a-zA-Z]/.test(choice);
-          return (
-            <button
-              className={`${styles.choice} ${flow.answer === choice ? styles.choiceSelected : ""}`}
-              disabled={flow.pending}
-              key={choice}
-              lang={isEnglishWord ? "en" : undefined}
-              type="button"
-              onClick={() => handleSelect(choice)}
-            >
-              <span>{choice}</span>
-              {isEnglishWord ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
-            </button>
-          );
-        })}
+        {choices.map((choice) => (
+          <ChoiceButton
+            key={choice}
+            choice={choice}
+            selected={flow.answer === choice}
+            disabled={flow.pending}
+            english={isEnglish && /[a-zA-Z]/.test(choice)}
+            onSelect={() => handleSelect(choice, "tap")}
+          />
+        ))}
       </div>
     </div>
+  );
+}
+
+function ChoiceButton({ choice, selected, disabled, english, onSelect }: { choice: string; selected: boolean; disabled: boolean; english: boolean; onSelect: () => void }) {
+  return (
+    <button
+      className={`${styles.choice} ${selected ? styles.choiceSelected : ""}`}
+      disabled={disabled}
+      lang={english ? "en" : undefined}
+      type="button"
+      onClick={onSelect}
+    >
+      <span>{choice}</span>
+      {english ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
+    </button>
   );
 }
 
@@ -370,14 +414,14 @@ function TypedAnswer({
             <VoiceAnswer
               lang={SUBJECT_CONFIG[subject].speechLang}
               onAnswer={flow.setAnswer}
-              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
+              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans, "voice")}
             />
           ) : null}
           {persisted ? (
             <HandwritingPad
               childId={persisted.childId}
               onAnswer={flow.setAnswer}
-              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans)}
+              onSubmitAnswer={(ans) => void flow.checkOriginalAnswer(ans, "handwriting")}
               problemId={persisted.problemId}
               subject={subject}
             />

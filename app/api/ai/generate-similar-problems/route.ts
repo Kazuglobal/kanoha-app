@@ -195,19 +195,10 @@ interface DraftExtras {
   listenText: string | null;
 }
 
-async function persistDrafts(
-  auth: Auth,
-  problem: Problem,
-  drafts: readonly SimilarProblemDraft[],
-  extras?: readonly DraftExtras[],
-  /** AI が作った文だけ個人情報を取りのぞく。テンプレートで作った文には個人情報が無く、「先生」「小さい」のような語を こわしてしまう。 */
-  scrubPii = true,
-) {
-  const validated = similarProblemDraftsSchema.safeParse(drafts);
-  if (!validated.success) return internalError();
-
+/** 保存する行(4 択は 渡されたもの、なければ答えから決めた数字の 4 択)。 */
+function similarRows(problem: Problem, items: readonly SimilarProblemDraft[], extras: readonly DraftExtras[] | undefined) {
   const now = nowJstIso();
-  const rows = (scrubPii ? validated.data.map(scrubPiiFromSimilarProblem) : validated.data).map((item, index) => ({
+  return items.map((item, index) => ({
     id: crypto.randomUUID(),
     sourceProblemId: problem.id,
     childId: problem.childId,
@@ -221,13 +212,26 @@ async function persistDrafts(
     listenText: extras?.[index]?.listenText ?? null,
     createdAt: now,
   }));
+}
+
+async function persistDrafts(
+  auth: Auth,
+  problem: Problem,
+  drafts: readonly SimilarProblemDraft[],
+  extras?: readonly DraftExtras[],
+  /** AI が作った文だけ個人情報を取りのぞく。テンプレートで作った文には個人情報が無く、「先生」「小さい」のような語を こわしてしまう。 */
+  scrubPii = true,
+) {
+  const validated = similarProblemDraftsSchema.safeParse(drafts);
+  if (!validated.success) return internalError();
+  const rows = similarRows(problem, scrubPii ? validated.data.map(scrubPiiFromSimilarProblem) : validated.data, extras);
 
   try {
     const inserted = [];
-    for (const r of rows) {
-      const res = await auth.db
+    for (const row of rows) {
+      const saved = await auth.db
         .insert(schema.generatedSimilarProblems)
-        .values(r)
+        .values(row)
         .returning({
           id: schema.generatedSimilarProblems.id,
           problem_text: schema.generatedSimilarProblems.problemText,
@@ -238,12 +242,8 @@ async function persistDrafts(
           listen_text: schema.generatedSimilarProblems.listenText,
         })
         .get();
-      inserted.push({
-        ...res,
-        choices: res.choices ? JSON.parse(res.choices) : null,
-      });
+      inserted.push(similarResponse(saved));
     }
-
     return apiSuccess(inserted, 201);
   } catch {
     return internalError();
