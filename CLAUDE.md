@@ -95,6 +95,7 @@ npm run lint         # ESLint
 - 2026-10-28: サーバーから `"use client"` のファイルの関数を呼ばない(英会話の一覧が開けなくなった)。答えを持つモジュールは `import "server-only"` を付け、ブラウザの JS に答えが入っていないかは `npm run check:leaks`(`npm run deploy` の前に自動で走る)で確かめる
 - 2026-10-29: 進み具合に合わせた新しい問題は、`lib/generation` の**決定的なテンプレート**が作る(答えはパラメータから計算し、AI に作らせない。同じ seed なら同じ問題)。保存・表示の前に必ず `validateGenerated`(答えの先出し・ルビ・選択肢・英語にカタカナなし 等)を通す。レベルは `lib/learning/level.ts`(続けて3回できたら上げ、続けて2回まちがえたら下げる。答えのヒントを見てからの正解はできたに数えない)。読解・作文は AI 生成(`FEATURE_PRACTICE_AI`、既定OFF)の予定
 - 2026-10-29: ホームの「あたらしい もんだい」(`components/child/NewPracticeCard`)は `POST /api/practice/new-set` で今日の5問のセットを取る。セットは 子ども×教科×日(JST)×セット番号 で1つ(リロードでは増えず、`more:true` で次のセット、1日 `PRACTICE_MAX_SETS_PER_DAY`(既定3)まで。上限・出す問題なしはエラーでなく 200 の `status`)。計画は `lib/generation/plan.ts`、保存・読み出し・整理は `lib/practice/`(`practice_batches` / `practice_batch_items`。生成した問題は `problems` の `choices` `listen_text` `generator_ref` `difficulty_level` 付きの行)。クライアントへ返すのは問題文・選択肢・聞く英語だけで、答え・ヒント・`generator_ref` は返さない。生成した問題の正解は 5円に種類 `generated` で数え、1日 `GENERATED_DAILY_REWARD_CAP`(既定10)回まで。類題は同じ生成器で作る(AI を呼ばない)。英語の声・スピーカーは教科(`subject === "english"`)で決め、選択肢の英字(32mm など)では決めない
+- 2026-10-31: 英会話の場面の ★ は、ログイン中は `POST /api/english-talk/complete` でサーバー(`english_talk_progress`)にも残す。★はターンごとの結果(clean / help / teach)からサーバーで計算し、端末の申告は使わない。1 回の挑戦に ID(`runId`)を付けて送り、通信が失われて同じ挑戦が再送されても回数を二重に数えない。一覧の★はサーバーの値と端末の値の高いほう
 
 <!-- BEGIN:nextjs-agent-rules -->
 
