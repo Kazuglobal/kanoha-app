@@ -4,14 +4,17 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   use: {
-    baseURL: "http://127.0.0.1:3107",
+    // localhost を使う: 本番モードの子どもモード cookie は Secure 付きで、
+    // http://127.0.0.1 には送られない(localhost はブラウザがセキュアコンテキスト扱い)
+    baseURL: "http://localhost:3107",
     trace: "on-first-retry",
   },
   webServer: {
     command: "npm run build && npm run start -- -p 3107",
-    url: "http://127.0.0.1:3107",
+    url: "http://localhost:3107",
     reuseExistingServer: true,
-    timeout: 120_000,
+    // OpenNext ビルド込みで起動するため長めに待つ
+    timeout: 600_000,
     // `next start` は本番モードなので、署名鍵と AI プロバイダが必須(E2E 専用の値を既定にする)
     env: {
       BETTER_AUTH_SECRET:

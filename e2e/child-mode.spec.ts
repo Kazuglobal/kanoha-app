@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-const BASE_URL = "http://127.0.0.1:3107";
 const CHILD_PAGES = ["/child/home", "/child/problem/volume-1", "/child/result?score=5&unit=かさ"];
 
 test.describe("child mode (kanoha_mode=child cookie)", () => {
-  test.beforeEach(async ({ context }) => {
-    await context.addCookies([{ name: "kanoha_mode", value: "child", url: BASE_URL }]);
+  test.beforeEach(async ({ context, baseURL }) => {
+    await context.addCookies([{ name: "kanoha_mode", value: "child", url: baseURL }]);
   });
 
   test("redirects parent pages to the child home", async ({ page }) => {
