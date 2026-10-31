@@ -11,8 +11,8 @@
 | Phase 1 英会話の修正 | 完了(単体 1067 件・`next build`・OpenNext バンドル・`check:leaks`・e2e 36 件・型・lint すべて緑。反証レビュー2回) | `4d9f449` |
 | Phase 2a 進捗エンジン+生成器 | 完了(単体 1780 件のうち 1779 件緑・`next build`・`check:leaks`・型・lint 緑。反証レビュー2回(内容/実装)。全体実行の 1 件は 負荷でのタイムアウトで、単独では通る) | `0cbde3f` `7f31f33` `4a7a0cd` |
 | Phase 2b 保存・API・UI(migration 0006 / 0007) | 完了(単体 1947 件・`next build`・`check:leaks`・e2e 40 件・型・lint すべて緑。反証レビュー3視点) | `849d5bb` `134951b` `638c885` `0f62d7f`(サーバー側)`1c29ee6`(UI) |
-| Phase 3 英会話の拡張(migration 0008) | 一部だけ完了: ★のサーバー保存(下の「Phase 3 の判断」)。シーン追加・解放・ともだちの声は見送り。単体 1992 件・`next build`・`check:leaks`・e2e 40 件・型・lint 緑。反証レビュー1回 | 次のコミット |
-| Phase 4 着せかえの土台(migration 0008) | 未着手 | |
+| Phase 3 英会話の拡張(migration 0008) | 一部だけ完了: ★のサーバー保存(下の「Phase 3 の判断」)。シーン追加・解放・ともだちの声は見送り。単体 1992 件・`next build`・`check:leaks`・e2e 40 件・型・lint 緑。反証レビュー1回 | `e060652` |
+| Phase 4 着せかえの土台(migration 0009) | 未着手 | |
 | Phase 5 モーション | 未着手 | |
 | Phase 6 新パーツ・アセット | 未着手 | |
 | Phase 2c AI生成(既定OFF) | 未着手 | |
