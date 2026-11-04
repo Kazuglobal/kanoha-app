@@ -4,7 +4,7 @@ import * as schema from "@/lib/db/schema";
 import { jstDayRange, nowJstIso, todayKeyJst } from "@/lib/utils/date";
 import { generatedDailyRewardCap, talkDailyRewardCap } from "@/lib/utils/flags";
 import { ANSWER_HINT_LEVEL, SOLUTION_HINT_LEVEL } from "@/lib/utils/resources";
-import type { EquippedAccessories } from "./catalog";
+import { DEFAULT_EQUIPPED, type EquippedAccessories } from "./catalog";
 import {
   DEFAULT_REWARD_STATE,
   REWARD_CYCLE,
@@ -210,6 +210,35 @@ export async function saveEquippedAccessories(
     .values({ childId, equippedAccessories: json, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({ target: schema.childRewards.childId, set: { equippedAccessories: json, updatedAt: now } })
     .run();
+}
+
+/**
+ * 着せかえの一部の枠だけを 1 文で書きかえる。読んでから書くまでの間に別の PUT が来ても、お互いの枠を消さない。
+ * 行が無いときは、既定の装備にこの枠を重ねて作る。戻り値は書いたあとの装備全体。
+ * ロック中のアイテムの除外は呼び出し側で済ませておくこと。
+ */
+export async function patchEquippedAccessories(
+  db: Database,
+  childId: string,
+  patch: Partial<EquippedAccessories>,
+): Promise<EquippedAccessories> {
+  const now = nowJstIso();
+  const column = schema.childRewards.equippedAccessories;
+  const row = await db
+    .insert(schema.childRewards)
+    .values({
+      childId,
+      equippedAccessories: JSON.stringify({ ...DEFAULT_EQUIPPED, ...patch }),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: schema.childRewards.childId,
+      set: { equippedAccessories: sql`json_patch(coalesce(${column}, '{}'), ${JSON.stringify(patch)})`, updatedAt: now },
+    })
+    .returning({ equippedAccessories: column })
+    .get();
+  return parseEquippedJson(row?.equippedAccessories);
 }
 
 /**

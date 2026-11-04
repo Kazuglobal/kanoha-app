@@ -50,6 +50,10 @@ export const SHOES_COLOR_FILTERS: Record<string, string> = {
   shoes_color_brown: "sepia(0.95) hue-rotate(-25deg) brightness(0.65) contrast(1.2)",
   shoes_color_blue: "hue-rotate(185deg) saturate(2.8) brightness(1.15)",
   shoes_color_gold: "hue-rotate(25deg) saturate(4) brightness(1.3)",
+  shoes_color_purple: "hue-rotate(300deg) saturate(2.2) brightness(1.05)",
+  shoes_color_green: "hue-rotate(140deg) saturate(2.4) brightness(1.1)",
+  shoes_color_red: "hue-rotate(20deg) saturate(3) brightness(1)",
+  shoes_color_black: "brightness(0.35) saturate(0.3) contrast(1.2)",
 };
 
 export const SHOES_SPRITES: Record<string, string> = {

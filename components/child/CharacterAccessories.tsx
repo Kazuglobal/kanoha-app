@@ -49,6 +49,11 @@ export const HAIR_COLOR_FILTERS: Record<string, string> = {
   hair_color_pink: "sepia(0.55) hue-rotate(295deg) saturate(2.6) brightness(1.1)",
   hair_color_gold: "sepia(0.85) hue-rotate(16deg) saturate(3.2) brightness(1.25)",
   hair_color_blue: "sepia(0.65) hue-rotate(175deg) saturate(2.8) brightness(1.1)",
+  hair_color_purple: "sepia(0.6) hue-rotate(242deg) saturate(2.6) brightness(1.1)",
+  hair_color_green: "sepia(0.6) hue-rotate(82deg) saturate(2.4) brightness(1.05)",
+  hair_color_orange: "sepia(0.8) hue-rotate(347deg) saturate(3.2) brightness(1.2)",
+  hair_color_red: "sepia(0.7) hue-rotate(322deg) saturate(3) brightness(1)",
+  hair_color_white: "saturate(0.05) brightness(1.7) contrast(0.9)",
 };
 
 export function resolveCharacterHairFilter(

@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACCESSORY_CATALOG,
-  equipAccessory,
   getCharacterLevel,
   getEquippedAccessories,
-  getLastEquippedCategory,
   isAccessoryUnlocked,
+  saveEquippedAccessories,
 } from "@/lib/rewards/characterGrowthStore";
 import { recordCorrectAnswer } from "@/lib/rewards/rewardStore";
 
@@ -36,9 +35,17 @@ describe("characterGrowthStore", () => {
       expect(getCharacterLevel(49).level).toBe(4);
     });
 
-    it("returns level 5 (まんかいマスター) for 50+ correct answers", () => {
+    it("returns level 5 (まんかいマスター) for 50 - 79 correct answers", () => {
       expect(getCharacterLevel(50).level).toBe(5);
-      expect(getCharacterLevel(100).level).toBe(5);
+      expect(getCharacterLevel(79).level).toBe(5);
+    });
+
+    it("keeps growing up to level 10 (でんせつのマスター) at 300+ correct answers", () => {
+      expect(getCharacterLevel(80).level).toBe(6);
+      expect(getCharacterLevel(100).level).toBe(6);
+      expect(getCharacterLevel(299).level).toBe(9);
+      expect(getCharacterLevel(300).level).toBe(10);
+      expect(getCharacterLevel(5000).level).toBe(10);
     });
   });
 
@@ -64,7 +71,7 @@ describe("characterGrowthStore", () => {
     });
   });
 
-  describe("equipAccessory & getEquippedAccessories", () => {
+  describe("saveEquippedAccessories & getEquippedAccessories", () => {
     it("returns default accessories initially", () => {
       const equipped = getEquippedAccessories();
       expect(equipped.hat).toBe("hat_none");
@@ -73,37 +80,21 @@ describe("characterGrowthStore", () => {
       expect(equipped.clothes).toBe("clothes_tshirt");
     });
 
-    it("updates and saves equipped accessory and clothes", () => {
+    it("saves the equipped accessories and tells the other screens", () => {
       const dispatchSpy = vi.spyOn(window, "dispatchEvent");
-      const updated = equipAccessory("hat", "hat_beret");
-
-      expect(updated.hat).toBe("hat_beret");
+      saveEquippedAccessories({ ...getEquippedAccessories(), hat: "hat_beret" });
       expect(getEquippedAccessories().hat).toBe("hat_beret");
-      expect(getLastEquippedCategory()).toBe("hat");
 
-      const updatedClothes = equipAccessory("clothes", "clothes_school");
-      expect(updatedClothes.clothes).toBe("clothes_school");
-      expect(getEquippedAccessories().clothes).toBe("clothes_school");
-      expect(getLastEquippedCategory()).toBe("clothes");
+      saveEquippedAccessories({ ...getEquippedAccessories(), clothes: "clothes_school" });
+      expect(getEquippedAccessories()).toMatchObject({ hat: "hat_beret", clothes: "clothes_school" });
 
       expect(dispatchSpy).toHaveBeenCalledWith(
         expect.objectContaining({ type: "kanoha-accessory-update" })
       );
     });
 
-    it("preserves all dress-up categories including character when equipping new items sequentially", () => {
-      equipAccessory("character", "char_fuwari");
-      equipAccessory("hairstyle", "hair_twintail");
-      equipAccessory("hair_color", "hair_color_pink");
-      equipAccessory("shoes", "shoes_boots");
-      equipAccessory("shoes_color", "shoes_color_white");
-      equipAccessory("accessory", "acc_wings");
-      equipAccessory("hat", "hat_crown");
-      equipAccessory("glasses", "glasses_star");
-      equipAccessory("gloves", "gloves_gold");
-      const finalState = equipAccessory("clothes", "clothes_wizard");
-
-      expect(finalState).toEqual({
+    it("preserves all dress-up categories including character", () => {
+      const full = {
         character: "char_fuwari",
         clothes: "clothes_wizard",
         hairstyle: "hair_twintail",
@@ -114,9 +105,20 @@ describe("characterGrowthStore", () => {
         glasses: "glasses_star",
         gloves: "gloves_gold",
         accessory: "acc_wings",
-      });
-      expect(getEquippedAccessories()).toEqual(finalState);
-      expect(getLastEquippedCategory()).toBe("clothes");
+        effect: "effect_aura",
+        pet: "pet_dragon",
+        motion: "motion_spin",
+      };
+      saveEquippedAccessories(full);
+      expect(getEquippedAccessories()).toEqual(full);
+    });
+
+    it("fills slots a saved set does not have (an older device) with the usual look", () => {
+      localStorage.setItem(
+        "kanoha_child_equipped_accessories_v1",
+        JSON.stringify({ hat: "hat_safari", glasses: "glasses_none", gloves: "gloves_none", clothes: "clothes_tshirt" }),
+      );
+      expect(getEquippedAccessories()).toMatchObject({ hat: "hat_safari", effect: "effect_none", pet: "pet_none", motion: "motion_calm" });
     });
   });
 
