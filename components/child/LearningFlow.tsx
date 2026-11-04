@@ -95,6 +95,7 @@ export function LearningFlow({
           <CharacterCoach
             message="れんしゅうも いっしょに がんばろうっ♪"
             mood="happy"
+            intensity="subtle"
           />
         </div>
         <div className={styles.learningCardCol}>
@@ -124,6 +125,7 @@ export function LearningFlow({
               : FLOW_TEXT.coachThink
           }
           mood={flow.checked?.correct ? "celebrate" : "think"}
+          intensity="subtle"
         />
       </div>
 
