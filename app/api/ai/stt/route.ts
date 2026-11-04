@@ -3,6 +3,7 @@ import { z } from "zod";
 import { buildTranscribePrompt } from "@/lib/ai/prompts";
 import { transcribeAudio } from "@/lib/ai/stt";
 import { getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
+import { adaptTurn, FRUIT_IDS } from "@/lib/englishTalk/context";
 import { bodyTooLarge, parseJsonText, readBodyText, requireUser } from "@/lib/utils/api";
 import { todayKeyJst } from "@/lib/utils/date";
 import { envNumber } from "@/lib/utils/envNumber";
@@ -32,6 +33,8 @@ const schema = z.object({
   lang: z.enum(["en-US", "ja-JP"]).catch("en-US"),
   sceneId: z.string().max(50).catch(""),
   turnId: z.string().max(80).catch(""),
+  /** 画面で問いが変わっているとき(おみせで選んだ くだもの)。聞き取りの文脈を合わせる */
+  fruit: z.enum(FRUIT_IDS).nullish().catch(undefined),
 });
 
 const failure = (error: string, status?: number) =>
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     if (text === null) return failure("Audio data is too large", 413);
     const parsed = parseJsonText(text, schema);
     if (!parsed.success) return failure("Audio data is required", 400);
-    const { audioBase64, mimeType, lang, sceneId, turnId } = parsed.data;
+    const { audioBase64, mimeType, lang, sceneId, turnId, fruit } = parsed.data;
 
     if (audioBase64.length < MIN_AUDIO_BASE64_LENGTH) return failure("Audio data is required", 400);
     if (audioBase64.length > MAX_AUDIO_BASE64_LENGTH) return failure("Audio data is too large", 413);
@@ -65,7 +68,8 @@ export async function POST(request: Request) {
       return failure("Too many requests", 429);
     }
 
-    const turn = sceneId && turnId ? getTalkTurn(sceneId, turnId) : undefined;
+    const baseTurn = sceneId && turnId ? getTalkTurn(sceneId, turnId) : undefined;
+    const turn = baseTurn ? adaptTurn(baseTurn, { fruit }) : undefined;
     const transcript = await transcribeAudio({ audioBase64, mimeType, prompt: buildTranscribePrompt(turn, lang) });
     return transcript ? NextResponse.json({ success: true, transcript }) : failure("Speech recognition unavailable");
   } catch {

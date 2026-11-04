@@ -2,8 +2,9 @@ import { and, eq, gte, lt, max, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { jstDayRange, nowJstIso, todayKeyJst } from "@/lib/utils/date";
-import { ANSWER_HINT_LEVEL } from "@/lib/utils/resources";
-import type { EquippedAccessories } from "./catalog";
+import { generatedDailyRewardCap, talkDailyRewardCap } from "@/lib/utils/flags";
+import { ANSWER_HINT_LEVEL, SOLUTION_HINT_LEVEL } from "@/lib/utils/resources";
+import { DEFAULT_EQUIPPED, type EquippedAccessories } from "./catalog";
 import {
   DEFAULT_REWARD_STATE,
   REWARD_CYCLE,
@@ -74,27 +75,54 @@ export async function recordCorrectReward(db: Database, childId: string): Promis
   return normalizeRewardState(row);
 }
 
-type ClaimKind = "english_talk" | "problem";
+type ClaimKind = "english_talk" | "problem" | "generated";
 
 /**
- * 同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ数える。
- * 請求の記録は主キーで原子的に取る(同時に来ても1回だけ)。数えられなかったときは記録を戻し、あとで数え直せるようにする。
- * すでに今日数えていれば null。
+ * 請求の記録を取る。取れたら true(同じ 子ども×種類×対象×日 が既にあれば false)。
+ * dailyCap があるときは、その日のその種類の請求が上限に届いていなければ、の条件つき。
+ * 数えて足す処理を 1 文にまとめているので、同時に来ても上限を超えない。
+ */
+async function insertClaim(
+  db: Database,
+  { childId, kind, refId, claimDate }: { childId: string; kind: ClaimKind; refId: string; claimDate: string },
+  dailyCap: number | undefined,
+): Promise<boolean> {
+  const createdAt = nowJstIso();
+  const claims = schema.rewardClaims;
+  if (dailyCap === undefined) {
+    const rows = await db
+      .insert(claims)
+      .values({ childId, kind, refId, claimDate, createdAt })
+      .onConflictDoNothing()
+      .returning({ childId: claims.childId })
+      .all();
+    return rows.length > 0;
+  }
+  // INSERT … SELECT … ON CONFLICT は、SELECT に WHERE が要る(SQLite の構文の決まり)
+  const rows = await db.all(sql`
+    INSERT INTO ${claims} (child_id, kind, ref_id, claim_date, created_at)
+    SELECT ${childId}, ${kind}, ${refId}, ${claimDate}, ${createdAt}
+    WHERE (SELECT COUNT(*) FROM ${claims} WHERE child_id = ${childId} AND kind = ${kind} AND claim_date = ${claimDate}) < ${dailyCap}
+    ON CONFLICT DO NOTHING
+    RETURNING child_id
+  `);
+  return rows.length > 0;
+}
+
+/**
+ * 同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ数える。dailyCap があれば、その日のその種類の合計の上限も守る。
+ * 請求の記録は 1 文で原子的に取る(同時に来ても1回だけ・上限も超えない)。数えられなかったときは記録を戻し、あとで数え直せるようにする。
+ * すでに今日数えていた・上限に届いていたときは null。
  */
 async function claimOnceThenRecord(
   db: Database,
   childId: string,
   kind: ClaimKind,
   refId: string,
+  dailyCap?: number,
 ): Promise<RewardState | null> {
   const claimDate = todayKeyJst();
-  const claimed = await db
-    .insert(schema.rewardClaims)
-    .values({ childId, kind, refId, claimDate, createdAt: nowJstIso() })
-    .onConflictDoNothing()
-    .returning({ childId: schema.rewardClaims.childId })
-    .all();
-  if (claimed.length === 0) return null;
+  if (!(await insertClaim(db, { childId, kind, refId, claimDate }, dailyCap))) return null;
 
   try {
     return await recordCorrectReward(db, childId);
@@ -115,22 +143,24 @@ async function claimOnceThenRecord(
   }
 }
 
-/** 英会話れんしゅうの1ターン正解(子ども×場面×ターン×日に1回)。 */
+/** 英会話れんしゅうの1ターン正解(子ども×場面×ターン×日に1回。1日の合計は TALK_DAILY_REWARD_CAP まで)。 */
 export const recordEnglishTalkClear = (
   db: Database,
   childId: string,
   sceneId: string,
   turnId: string,
-): Promise<RewardState | null> => claimOnceThenRecord(db, childId, "english_talk", `${sceneId}:${turnId}`);
+): Promise<RewardState | null> =>
+  claimOnceThenRecord(db, childId, "english_talk", `${sceneId}:${turnId}`, talkDailyRewardCap());
 
-/** 今日(JST)、この子がこの問題で「答え」のヒントまで開いたか(どのセッションでも。やり直しで消えない)。 */
+/** 今日(JST)、この子がこの問題で blockAt 段階以上のヒントまで開いたか(どのセッションでも。やり直しで消えない)。 */
 async function openedAnswerHintToday(
   db: Database,
   childId: string,
   problemId: string,
   hintLevelUsed: number,
+  blockAt: number,
 ): Promise<boolean> {
-  if (hintLevelUsed >= ANSWER_HINT_LEVEL) return true;
+  if (hintLevelUsed >= blockAt) return true;
   const { start, end } = jstDayRange();
   const row = await db
     .select({ level: max(schema.problemHintViews.maxLevel) })
@@ -144,23 +174,28 @@ async function openedAnswerHintToday(
       ),
     )
     .get();
-  return Number(row?.level ?? 0) >= ANSWER_HINT_LEVEL;
+  return Number(row?.level ?? 0) >= blockAt;
 }
 
 /**
  * 元問題の正解をごほうびとして数える。
- * - 答えのヒント(最終段階)を見たあとの正解は対象外
+ * - 答えのヒント(最終段階)を見たあとの正解は対象外。自動で作った問題(generated)は、答えが書かれた「ときかた」まで見たら対象外
  * - 同じ問題は1日(JST)に1回だけ。別の日の復習はあらためて対象になる
- * 対象外・すでに数えたときは null。
+ * - 自動で作った問題(generated)は、種類を分けて 1日 GENERATED_DAILY_REWARD_CAP 回まで(問題バンクの問題は上限なし)
+ * 対象外・すでに数えた・上限に届いていたときは null。
  */
 export async function recordProblemReward(
   db: Database,
   childId: string,
   problemId: string,
   hintLevelUsed: number,
+  options: { generated?: boolean } = {},
 ): Promise<RewardState | null> {
-  if (await openedAnswerHintToday(db, childId, problemId, hintLevelUsed)) return null;
-  return claimOnceThenRecord(db, childId, "problem", problemId);
+  const blockAt = options.generated ? SOLUTION_HINT_LEVEL : ANSWER_HINT_LEVEL;
+  if (await openedAnswerHintToday(db, childId, problemId, hintLevelUsed, blockAt)) return null;
+  return options.generated
+    ? claimOnceThenRecord(db, childId, "generated", problemId, generatedDailyRewardCap())
+    : claimOnceThenRecord(db, childId, "problem", problemId);
 }
 
 export async function saveEquippedAccessories(
@@ -175,6 +210,35 @@ export async function saveEquippedAccessories(
     .values({ childId, equippedAccessories: json, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({ target: schema.childRewards.childId, set: { equippedAccessories: json, updatedAt: now } })
     .run();
+}
+
+/**
+ * 着せかえの一部の枠だけを 1 文で書きかえる。読んでから書くまでの間に別の PUT が来ても、お互いの枠を消さない。
+ * 行が無いときは、既定の装備にこの枠を重ねて作る。戻り値は書いたあとの装備全体。
+ * ロック中のアイテムの除外は呼び出し側で済ませておくこと。
+ */
+export async function patchEquippedAccessories(
+  db: Database,
+  childId: string,
+  patch: Partial<EquippedAccessories>,
+): Promise<EquippedAccessories> {
+  const now = nowJstIso();
+  const column = schema.childRewards.equippedAccessories;
+  const row = await db
+    .insert(schema.childRewards)
+    .values({
+      childId,
+      equippedAccessories: JSON.stringify({ ...DEFAULT_EQUIPPED, ...patch }),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: schema.childRewards.childId,
+      set: { equippedAccessories: sql`json_patch(coalesce(${column}, '{}'), ${JSON.stringify(patch)})`, updatedAt: now },
+    })
+    .returning({ equippedAccessories: column })
+    .get();
+  return parseEquippedJson(row?.equippedAccessories);
 }
 
 /**

@@ -1,3 +1,4 @@
+import "server-only";
 import { buildChoices } from "@/lib/review/choices";
 import {
   getCurriculumProblemById,

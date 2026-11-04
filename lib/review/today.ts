@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, gte, lt, inArray } from "drizzle-orm";
+import { eq, and, or, desc, asc, gte, lt, inArray, isNull, exists } from "drizzle-orm";
 import { mistakeTypeSchema } from "@/lib/ai/schemas";
 import { isAnyMistakeType } from "@/lib/curriculum/mistakeTypes";
 import type { Subject } from "@/lib/curriculum/subjects";
@@ -155,7 +155,18 @@ async function loadSources(childId: string, now: Date, db = getDb()) {
           subject: schema.problems.subject,
         })
         .from(schema.problems)
-        .where(and(eq(schema.problems.childId, childId), eq(schema.problems.status, "active")))
+        .where(
+          and(
+            eq(schema.problems.childId, childId),
+            eq(schema.problems.status, "active"),
+            // 自動で作った問題は、一度解いてから(「あたらしい もんだい」のセットで解く)。
+            // まだ解いていないものを入れると、セットを作るたびに新しい 100 件が自動の問題で埋まり、ほかの問題が押し出される
+            or(
+              isNull(schema.problems.generatorRef),
+              exists(db.select({ solved: schema.attempts.id }).from(schema.attempts).where(and(eq(schema.attempts.childId, childId), eq(schema.attempts.problemId, schema.problems.id)))),
+            ),
+          ),
+        )
         .orderBy(desc(schema.problems.createdAt))
         .limit(LIMITS.problems)
         .all(),

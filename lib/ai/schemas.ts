@@ -103,6 +103,27 @@ export const similarProblemDraftsSchema = z.array(similarProblemSchema).length(5
 /** サーバーが生成して保存する類題の 4 択(lib/review/choices.ts)。null は文字入力にフォールバック。 */
 export const similarChoicesSchema = z.array(answerText).length(4).nullable();
 
+/**
+ * 自動生成した問題(テンプレート生成も AI 生成も、保存の前にこの形で検証する)。
+ * `ref` は同じ問題を作り直すための手がかり(`単元/小単元/L<レベル>/<seed>`)。
+ */
+export const generatedProblemSchema = z
+  .object({
+    subject: subjectSchema,
+    unit: allUnitSchema,
+    subUnit: subUnitText,
+    level: z.number().int().min(1).max(5),
+    problemText,
+    correctAnswer: answerText,
+    /** 選択式のときだけ。ちょうど 4 つで、答えを 1 つ含む */
+    choices: z.array(answerText).length(4).optional(),
+    /** 「えいごを きく」で読む英語(ASCII のみ) */
+    listenText: boundedText(120).optional(),
+    hints: hintsSchema,
+    ref: boundedText(200),
+  })
+  .strict();
+
 export const handwritingAnswerSchema = z
   .object({
     answer: answerText,
@@ -144,6 +165,7 @@ export type MistakeTypeId = z.infer<typeof allMistakeTypeSchema>;
 export type MathUnit = z.infer<typeof unitSchema>;
 export type Unit = z.infer<typeof allUnitSchema>;
 export type SimilarChoices = z.infer<typeof similarChoicesSchema>;
+export type GeneratedProblem = z.infer<typeof generatedProblemSchema>;
 export type HandwritingAnswer = z.infer<typeof handwritingAnswerSchema>;
 export type Hints = z.infer<typeof hintsSchema>;
 export type ParsedProblem = z.infer<typeof parsedProblemSchema>;

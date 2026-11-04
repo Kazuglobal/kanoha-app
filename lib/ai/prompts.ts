@@ -144,7 +144,7 @@ export const buildParentReportPrompt = (summary: string): string =>
 
 /** 声のこたえ(STT)。英語は出題の文脈つきで、日本語(算数・国語)は聞こえたことばだけを書き起こさせる。 */
 export const buildTranscribePrompt = (
-  turn?: { prompt: string; modelAnswer: string },
+  turn?: { prompt: string },
   lang: "en-US" | "ja-JP" = "en-US",
 ): string =>
   lang === "ja-JP"
@@ -155,10 +155,10 @@ export const buildTranscribePrompt = (
       ].join(" ")
     : [
         "Transcribe the short voice recording from a Japanese child practicing English conversation.",
-        turn
-          ? `Question asked to the child: "${turn.prompt}" (Expected example answer: "${turn.modelAnswer}").`
-          : "",
+        // お手本の答えは渡さない(書き起こしが正解に寄って、まちがいまで正解に聞こえてしまうため)
+        turn ? `Question asked to the child: "${turn.prompt}".` : "",
         "If the child says an English phrase (even with a Japanese accent), output the English words only.",
+        "Never translate: if the child speaks Japanese, write the Japanese exactly as spoken.",
         "If the child says 'わからない', 'わかんない', 'ヒント', or asks for Japanese, output 'わからない'.",
         "Return ONLY the transcribed phrase as plain text, with no quotes or explanation.",
       ]

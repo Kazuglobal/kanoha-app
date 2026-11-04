@@ -2,95 +2,34 @@
 
 import { Mic, MicOff, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isDontKnowAnswer, normalizeSpokenEnglish } from "@/lib/englishTalk/judge";
+import { isDontKnowAnswer, isExplicitDontKnow } from "@/lib/englishTalk/judge";
 import { stripSpeechFillers } from "@/lib/utils/answers";
+import {
+  isIncompleteUtterance,
+  LISTENING_TRANSCRIPT,
+  MAX_SILENT_WAIT_MS,
+  MAX_UTTERANCE_MS,
+  MIC_PERMISSION_HINT,
+  SERVER_STT_UNAVAILABLE_HINT,
+  type RealtimeSpeechRecognitionConstructor,
+} from "./micSpeech";
 import styles from "./englishTalk.module.css";
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence?: number;
-}
-
-interface SpeechRecognitionResultItem extends ArrayLike<SpeechRecognitionAlternative> {
-  isFinal?: boolean;
-}
-
-interface SpeechRecognitionEventLike {
-  resultIndex?: number;
-  results: ArrayLike<SpeechRecognitionResultItem>;
-}
-
-type RealtimeSpeechRecognitionConstructor = new () => {
-  lang: string;
-  continuous?: boolean;
-  interimResults?: boolean;
-  maxAlternatives?: number;
-  start: () => void;
-  stop?: () => void;
-  abort?: () => void;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event?: { error?: string }) => void) | null;
-  onend: (() => void) | null;
-};
-
-/**
- * まだ文の途中で後ろに単語が続く可能性が高いプレフィックス。
- * これだけの段階で isFinal になっても即座にマイクを切らず、少し待って続きの言葉を待つ。
- */
-const INCOMPLETE_PREFIXES = new Set([
-  "hello",
-  "hi",
-  "hey",
-  "my",
-  "my name",
-  "my name is",
-  "name",
-  "name is",
-  "i",
-  "im",
-  "i am",
-  "im a",
-  "i am a",
-  "it",
-  "its",
-  "it is",
-  "its a",
-  "its an",
-  "it is a",
-  "it is an",
-  "this",
-  "this is",
-  "this is a",
-  "i like",
-  "i want",
-  "yes i",
-  "no i",
-]);
-
-function isIncompleteUtterance(rawText: string): boolean {
-  const norm = normalizeSpokenEnglish(rawText);
-  if (!norm) return true;
-  return INCOMPLETE_PREFIXES.has(norm);
-}
-
-/** 録音をサーバーで文字にできないときの案内(ボタンや文字入力は使える) */
-const SERVER_STT_UNAVAILABLE_HINT = "ボタンか もじで こたえてね";
-
-/** 録音(VAD)の時間の上限: 誰も話さない待ち時間 / 1回の発話の長さ(ミリ秒) */
-const MAX_SILENT_WAIT_MS = 10_000;
-const MAX_UTTERANCE_MS = 15_000;
 
 export interface RealtimeTalkMicProps {
   /** キャラクターが発話中・判定中など、自動聞き取りを待機するとき true */
   disabled?: boolean;
   /** キャラクターが現在しゃべっている最中か */
   characterSpeaking?: boolean;
-  /** 自動で常時マイクをONにしてリアルタイム対話するか */
+  /** 自動で常時マイクをONにしてリアルタイム対話するか(false のときは、タップした1回の発話だけ聞く) */
   autoListen?: boolean;
   /** シーンID（フォールバック音声認識の文脈補助用） */
   sceneId?: string;
   /** ターンID（フォールバック音声認識の文脈補助用） */
   turnId?: string;
+  /** おみせで子どもが選んだ くだもの（問いが変わっているときの文脈。フォールバック音声認識用） */
+  fruit?: string | null;
+  /** マイクが使えないとわかったとき(許可されない・未対応・サーバーが受け付けない)に呼ばれる。ボタンでの答えに切り替える合図 */
+  onUnavailable?: () => void;
   /** 音声が確定したときに呼ばれるコールバック */
   onUtterance: (spokenText: string) => void;
   /** 聞き取り状態の変化通知 */
@@ -114,6 +53,8 @@ export function RealtimeTalkMic({
   autoListen = true,
   sceneId,
   turnId,
+  fruit,
+  onUnavailable,
   onUtterance,
   onListeningChange,
   onInterruptSpeech,
@@ -151,8 +92,10 @@ export function RealtimeTalkMic({
     autoListen,
     sceneId,
     turnId,
+    fruit,
     recognitionLang,
     onUtterance,
+    onUnavailable,
   });
   propsRef.current = {
     disabled,
@@ -160,8 +103,10 @@ export function RealtimeTalkMic({
     autoListen,
     sceneId,
     turnId,
+    fruit,
     recognitionLang,
     onUtterance,
+    onUnavailable,
   };
 
   const setListeningBoth = useCallback((val: boolean) => {
@@ -308,6 +253,7 @@ export function RealtimeTalkMic({
         if (Date.now() < serverSttBlockedUntilRef.current) {
           setMicHint(SERVER_STT_UNAVAILABLE_HINT);
           setListeningBoth(false);
+          propsRef.current.onUnavailable?.();
           return;
         }
         vadActiveRef.current = true;
@@ -375,7 +321,7 @@ export function RealtimeTalkMic({
               }
 
               vadActiveRef.current = false;
-              setLiveTranscript("声をききとっています...");
+              setLiveTranscript(LISTENING_TRANSCRIPT);
 
               let base64Audio = "";
               let mimeType = "audio/webm";
@@ -434,6 +380,7 @@ export function RealtimeTalkMic({
                   lang: targetLang,
                   sceneId: propsRef.current.sceneId,
                   turnId: propsRef.current.turnId,
+                  fruit: propsRef.current.fruit ?? undefined,
                 }),
               }).catch(() => null);
 
@@ -445,6 +392,7 @@ export function RealtimeTalkMic({
                 setLiveTranscript("");
                 setMicHint(SERVER_STT_UNAVAILABLE_HINT);
                 setListeningBoth(false);
+                propsRef.current.onUnavailable?.();
                 return;
               }
 
@@ -503,7 +451,7 @@ export function RealtimeTalkMic({
                   if (spokeAt === 0 && voiceFrames >= 5) {
                     spokeAt = now;
                     if (!interimRef.current) {
-                      setLiveTranscript("声をききとっています...");
+                      setLiveTranscript(LISTENING_TRANSCRIPT);
                     }
                   }
                 } else if (spokeAt === 0 && voiceFrames > 0 && now - lastVoiceAt > 250) {
@@ -529,7 +477,8 @@ export function RealtimeTalkMic({
             vadActiveRef.current = false;
             if (!activeRef.current && sessionTokenRef.current === myToken) {
               setListeningBoth(false);
-              setMicHint("ブラウザのアドレスバー左のアイコンから「マイク」を許可してね");
+              setMicHint(MIC_PERMISSION_HINT);
+              propsRef.current.onUnavailable?.();
             }
           }
         })();
@@ -560,7 +509,8 @@ export function RealtimeTalkMic({
               let chosen = item[0]?.transcript ?? "";
               for (let a = 0; a < item.length; a += 1) {
                 const alt = item[a]?.transcript ?? "";
-                if (isDontKnowAnswer(alt)) {
+                // 候補の中から「わからない」を選ぶのは、はっきりした言い方のときだけ(what・huh のような1語は聞き取りの偶然かもしれない)
+                if (isExplicitDontKnow(alt)) {
                   chosen = alt;
                   break;
                 }
@@ -626,7 +576,7 @@ export function RealtimeTalkMic({
             if (err === "not-allowed" || err === "audio-capture") {
               userRequestedListenRef.current = false;
               setListeningBoth(false);
-              setMicHint("マイクボタンを1回タップしてマイクをONにしてね！");
+              setMicHint("マイクボタンを 1かい タップして マイクを ONに してね！");
               return;
             }
 
@@ -670,6 +620,11 @@ export function RealtimeTalkMic({
       } else if (hasGetUserMedia) {
         // B) Web Speech API が存在しない環境では最初から VAD + /api/ai/stt を起動
         startVadFallback();
+      } else {
+        // C) 声を聞く手段がない端末: ボタンで答えられるようにする
+        setListeningBoth(false);
+        setMicHint(MIC_PERMISSION_HINT);
+        propsRef.current.onUnavailable?.();
       }
     },
     [clearTimers, commitText, detachRecognition, setListeningBoth, shouldKeepListening, stopVadStream],
@@ -764,7 +719,7 @@ export function RealtimeTalkMic({
           {characterSpeaking ? (
             <>
               <Volume2 size={22} aria-hidden="true" />
-              <span>相手の声をきいています（タップですぐ話す）</span>
+              <span>あいての こえを ききています（タップで すぐ はなす）</span>
             </>
           ) : isListening ? (
             <>
@@ -777,8 +732,8 @@ export function RealtimeTalkMic({
               <Mic size={22} aria-hidden="true" />
               <span>
                 {liveTranscript
-                  ? "話しおわったら自動で送信（タップですぐ送信）"
-                  : "マイクON・そのまま声で話してね！"}
+                  ? "はなしおわったら じどうで おくるよ（タップで すぐ おくる）"
+                  : "マイクON・そのまま こえで はなしてね！"}
               </span>
             </>
           ) : (
@@ -789,14 +744,14 @@ export function RealtimeTalkMic({
           )}
         </button>
 
-        <div className={styles.langModeSwitch} role="group" aria-label="音声認識モード">
+        <div className={styles.langModeSwitch} role="group" aria-label="ことばの モード">
           <button
             type="button"
             className={`${styles.langChip} ${recognitionLang === "en-US" ? styles.langChipActive : ""}`}
             onClick={() => handleLangSwitch("en-US")}
             disabled={disabled}
           >
-            🇺🇸 英語で話す
+            🇺🇸 えいごで はなす
           </button>
           <button
             type="button"
@@ -804,14 +759,14 @@ export function RealtimeTalkMic({
             onClick={() => handleLangSwitch("ja-JP")}
             disabled={disabled}
           >
-            🇯🇵 日本語(わからない等)
+            🇯🇵 にほんご（わからない など）
           </button>
         </div>
       </div>
 
       {liveTranscript && (
         <div className={styles.liveTranscriptBar} data-testid="live-transcript">
-          🎙️ 聞き取り中: <strong>「{liveTranscript}」</strong>
+          🎙️ ききとりちゅう: <strong>「{liveTranscript}」</strong>
         </div>
       )}
 

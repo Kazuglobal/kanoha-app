@@ -78,7 +78,7 @@ export function ChildHeader({ progress, childId }: { progress?: string; childId?
         </div>
       ) : null}
       <div className={styles.topActions}>
-        <RewardMeter />
+        <RewardMeter childId={childId} />
         <SoundToggleButton />
         <Link
           className={`${styles.ghostButton} ${styles.topIconButton} ${styles.topHomeButton}`}

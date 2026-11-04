@@ -7,6 +7,7 @@ import {
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
+import { SLOT_IDS } from "./slots";
 
 /**
  * ごほうびの計算(クライアント・サーバー共通の純粋関数)。
@@ -98,18 +99,8 @@ export function describeRewardChange(previousState: RewardState, newState: Rewar
   };
 }
 
-export const CATEGORIES: readonly AccessoryCategory[] = [
-  "character",
-  "clothes",
-  "hairstyle",
-  "hair_color",
-  "shoes",
-  "shoes_color",
-  "hat",
-  "glasses",
-  "gloves",
-  "accessory",
-];
+/** 着せかえの枠(一覧の正本は slots.ts)。 */
+export const CATEGORIES: readonly AccessoryCategory[] = SLOT_IDS;
 
 const itemInCategory = (category: AccessoryCategory, itemId: unknown): itemId is string =>
   typeof itemId === "string" && ACCESSORY_CATALOG.some((item) => item.id === itemId && item.category === category);
@@ -139,4 +130,16 @@ export function parseEquippedJson(json: string | null | undefined): EquippedAcce
 export function canEquip(category: AccessoryCategory, itemId: string, totalCorrect: number): boolean {
   const item = ACCESSORY_CATALOG.find((entry) => entry.id === itemId && entry.category === category);
   return Boolean(item && isAccessoryUnlocked(item, totalCorrect));
+}
+
+/** 着せかえの申し込みを、いま着られるものと、着られない枠(カタログに無い・まだ解放されていない)に分ける。 */
+export function splitEquipRequest(
+  requested: Partial<Record<AccessoryCategory, string>>,
+  totalCorrect: number,
+): { accepted: Partial<EquippedAccessories>; rejected: AccessoryCategory[] } {
+  const entries = Object.entries(requested) as [AccessoryCategory, string][];
+  return {
+    accepted: Object.fromEntries(entries.filter(([slot, itemId]) => canEquip(slot, itemId, totalCorrect))),
+    rejected: entries.filter(([slot, itemId]) => !canEquip(slot, itemId, totalCorrect)).map(([slot]) => slot),
+  };
 }

@@ -1,5 +1,5 @@
 import { eq, and, desc } from "drizzle-orm";
-import { mistakeTypeSchema, type MistakeTypeId } from "@/lib/ai/schemas";
+import { allMistakeTypeSchema, type MistakeTypeId } from "@/lib/ai/schemas";
 import { getDb } from "@/lib/db";
 import { recomputeWeakness as dbRecomputeWeakness } from "@/lib/db/operations";
 import * as schema from "@/lib/db/schema";
@@ -53,7 +53,7 @@ export async function recomputeWeakness(
   }
 }
 
-/** problems.explanation_json に保存された AI 診断の mistakeType(検証済みのもののみ)。 */
+/** problems.explanation_json に保存された AI 診断の mistakeType(算数・国語・英語のどれかとして検証できたもののみ)。 */
 export const mistakeTypeFromExplanation = (explanation: unknown): MistakeTypeId | null => {
   let obj = explanation;
   if (typeof obj === "string") {
@@ -64,7 +64,7 @@ export const mistakeTypeFromExplanation = (explanation: unknown): MistakeTypeId 
     }
   }
   if (!obj || typeof obj !== "object") return null;
-  const parsed = mistakeTypeSchema.safeParse((obj as { mistakeType?: unknown }).mistakeType);
+  const parsed = allMistakeTypeSchema.safeParse((obj as { mistakeType?: unknown }).mistakeType);
   return parsed.success ? parsed.data : null;
 };
 
@@ -220,7 +220,7 @@ export async function recentUnitAttempts(
       .slice(0, limit)
       .map((a) => ({
         isCorrect: Boolean(a.is_correct),
-        mistakeType: mistakeTypeSchema.safeParse(a.mistake_type).success
+        mistakeType: allMistakeTypeSchema.safeParse(a.mistake_type).success
           ? (a.mistake_type as MistakeTypeId)
           : null,
       }));

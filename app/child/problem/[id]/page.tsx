@@ -15,6 +15,8 @@ import { demoPracticeFor } from "@/lib/curriculum/demoCheck";
 import { SUBJECT_CONFIG } from "@/lib/curriculum/subjects";
 import { getDb, type Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { loadSetContext } from "@/lib/practice/context";
+import { readStoredChoices } from "@/lib/review/choices";
 import { ownsChild } from "@/lib/utils/api";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -25,31 +27,35 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * 答えとヒントはここでは読まず、POST /api/problems/[id]/hint が 1 段ずつ返す。
  * ステージマップ(問題バンク)の問題も、ログイン中は子どもの problems 行として登録し、
  * 正誤・苦手単元・復習予定・親レポートの学習ループに乗せる。
+ * 「あたらしい もんだい」のセットの問題は、選択肢・聞く英語を DB から渡し、セットの何問目か・つぎの問題も出す。
  */
 export default async function ProblemPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ childId?: string }>;
+  searchParams: Promise<{ childId?: string; batch?: string }>;
 }) {
-  const [{ id }, { childId }] = await Promise.all([params, searchParams]);
+  const [{ id }, { childId, batch }] = await Promise.all([params, searchParams]);
   const bank = getCurriculumProblemById(id);
-  const loaded = childId ? await loadOwnedProblem(id, childId, bank) : null;
+  const loaded = childId ? await loadOwnedProblem(id, childId, bank, batch) : null;
 
   const curriculumId = bank?.id ?? loaded?.curriculumProblemId ?? null;
   const curriculum = curriculumId ? getCurriculumProblemById(curriculumId) : undefined;
-  const nextProblemId = curriculumId ? (getNextCurriculumProblem(curriculumId)?.id ?? null) : null;
-  const stageProgress = curriculumId ? getCurriculumStageProgress(curriculumId) : null;
+  // セットの中の問題は、ステージマップではなくセットの順で進む
+  const set = loaded?.setContext ?? null;
+  const nextProblemId = set ? set.nextProblemId : curriculumId ? (getNextCurriculumProblem(curriculumId)?.id ?? null) : null;
+  const stageProgress = !set && curriculumId ? getCurriculumStageProgress(curriculumId) : null;
   const isLastInUnit = Boolean(stageProgress?.isLastInUnit);
+  const setProgress = set ? { batchId: set.batchId, position: set.position, total: set.total } : undefined;
 
   const persisted: PersistedProblem = loaded
-    ? { ...loaded.persisted, ...curriculumExtras(curriculum), nextProblemId, isLastInUnit }
+    ? { ...loaded.persisted, ...curriculumExtras(curriculum), nextProblemId, isLastInUnit, ...(setProgress ? { setProgress } : {}) }
     : demoProblem(bank ?? getCurriculumProblemById(SUBJECT_CONFIG.math.defaultProblemId)!, childId, nextProblemId, isLastInUnit);
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
-      <ChildHeader progress={stageProgress?.label ?? "1 / 1"} childId={loaded ? childId : undefined} />
+      <ChildHeader progress={set ? `${set.position} / ${set.total}` : (stageProgress?.label ?? "1 / 1")} childId={loaded ? childId : undefined} />
       <main className={styles.learningStage}>
         <LearningFlow persisted={persisted} preferences={loaded?.preferences} />
       </main>
@@ -83,17 +89,17 @@ function demoProblem(
 }
 
 /** セッションの親がその子どもを持っているときだけ、実データの問題を読む(バンク問題は登録してから読む)。 */
-async function loadOwnedProblem(id: string, childId: string, bank?: CurriculumProblem) {
+async function loadOwnedProblem(id: string, childId: string, bank?: CurriculumProblem, batch?: string) {
   if (!UUID.test(childId) || (!bank && !UUID.test(id))) return null;
   const session = await getServerSession();
   if (!session?.user) return null;
   const db = getDb();
   if (!(await ownsChild(session.user.id, childId, db))) return null;
   const problemId = bank ? await ensureCurriculumProblem(db, childId, bank) : id;
-  return loadProblem(problemId, childId, db);
+  return loadProblem(problemId, childId, db, batch);
 }
 
-async function loadProblem(id: string, childId: string, db: Database) {
+async function loadProblem(id: string, childId: string, db: Database, batch?: string) {
   const problem = await db
     .select({
       id: schema.problems.id,
@@ -102,6 +108,9 @@ async function loadProblem(id: string, childId: string, db: Database) {
       unit: schema.problems.unit,
       subject: schema.problems.subject,
       curriculumProblemId: schema.problems.curriculumProblemId,
+      choices: schema.problems.choices,
+      listenText: schema.problems.listenText,
+      generatorRef: schema.problems.generatorRef,
     })
     .from(schema.problems)
     .where(and(eq(schema.problems.id, id), eq(schema.problems.childId, childId)))
@@ -109,7 +118,7 @@ async function loadProblem(id: string, childId: string, db: Database) {
 
   if (!problem) return null;
 
-  const [settings, childProfile] = await Promise.all([
+  const [settings, childProfile, setContext] = await Promise.all([
     db
       .select({
         enableAudio: schema.appSettings.enableAudio,
@@ -123,16 +132,22 @@ async function loadProblem(id: string, childId: string, db: Database) {
       .from(schema.childProfiles)
       .where(eq(schema.childProfiles.id, childId))
       .get(),
+    loadSetContext(db, childId, { id: problem.id, generated: problem.generatorRef !== null }, batch),
   ]);
 
+  const choices = readStoredChoices(problem.choices);
   return {
     curriculumProblemId: problem.curriculumProblemId,
+    setContext,
     persisted: {
       childId: problem.childId,
       problemId: problem.id,
       question: problem.problemText,
       unit: problem.unit,
       subject: problem.subject,
+      // 自動で作った問題の 4 択・聞く英語(答えは入っていない)
+      ...(choices ? { choices } : {}),
+      ...(problem.listenText ? { listenText: problem.listenText } : {}),
     },
     preferences: {
       enableAudio: settings ? Boolean(settings.enableAudio) : true,

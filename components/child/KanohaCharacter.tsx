@@ -24,6 +24,8 @@ import {
   NewCharacterGlovesOverlay,
   resolveCharacterHairFilter,
 } from "./CharacterAccessories";
+import { CharacterExtras, motionClassName } from "./CharacterExtras";
+import { resolveMotion, type Intensity } from "./characterExtrasData";
 import {
   CHARACTER_ANCHORS,
   CHARACTER_DISPLAY_NAMES,
@@ -51,10 +53,12 @@ interface KanohaCharacterProps {
   mood?: Mood;
   accessories?: EquippedAccessories;
   previewCategory?: AccessoryCategory;
+  /** subtle=問題を解いている間(うごきは「しずか」、エフェクトは少なめ)。既定は full */
+  intensity?: Intensity;
   onClick?: () => void;
 }
 
-export function KanohaCharacter({ mood = "happy", accessories, previewCategory, onClick }: KanohaCharacterProps) {
+export function KanohaCharacter({ mood = "happy", accessories, previewCategory, intensity = "full", onClick }: KanohaCharacterProps) {
   const [storedAccessories, setStoredAccessories] = useState<EquippedAccessories>(DEFAULT_EQUIPPED);
 
   useEffect(() => {
@@ -72,6 +76,10 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
     : "char_kanoha") as CharacterId;
   const displayName = CHARACTER_DISPLAY_NAMES[charId];
   const moodLabel = mood === "think" ? "かんがえちゅう" : mood === "celebrate" ? "よろこび" : "にっこり";
+  // うごき・エフェクト・ペットは、どのキャラクターでも同じ(絵の重ね合わせとは別の層)
+  const motion = resolveMotion(activeAccessories.motion, intensity);
+  const containerClass = `${styles.characterContainer} ${motionClassName(motion)}`;
+  const extras = <CharacterExtras effect={activeAccessories.effect} pet={activeAccessories.pet} intensity={intensity} />;
 
   // 新規5キャラクター選択時は、各キャラクター専用の3D生成フルボディスプライト・髪型・帽子・メガネ・手袋・靴・髪色・アクセサリを独立合成
   if (charId !== "char_kanoha") {
@@ -144,7 +152,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
           }
         }}
       >
-        <div className={styles.characterContainer}>
+        <div className={containerClass} data-motion={motion}>
           {showWings && (
             <AngelWings style={{ transform: anchor.wingsTransform, transformOrigin: "50% 40%" }} />
           )}
@@ -328,6 +336,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
             <BearPochette style={{ transform: anchor.bagTransform, transformOrigin: "45% 60%" }} />
           )}
         </div>
+        {extras}
       </div>
     );
   }
@@ -422,7 +431,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
         }
       }}
     >
-      <div className={styles.characterContainer}>
+      <div className={containerClass} data-motion={motion}>
         {/* レイヤー0: 天使の翼 (背中アクセサリ) */}
         {accessoryType === "acc_wings" && <AngelWings />}
 
@@ -556,6 +565,7 @@ export function KanohaCharacter({ mood = "happy", accessories, previewCategory, 
         {accessoryType === "acc_wand" && <MagicWand />}
         {accessoryType === "acc_bag_bear" && <BearPochette />}
       </div>
+      {extras}
     </div>
   );
 }

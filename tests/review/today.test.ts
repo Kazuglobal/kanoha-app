@@ -293,4 +293,59 @@ describe("getTodayRecommendations", () => {
     const japaneseResult = await getTodayRecommendations(CHILD, new Date(), db, "japanese");
     expect(japaneseResult.problems.some((p) => p.id === "p-kanji")).toBe(true);
   });
+
+  describe("自動で作った問題(「あたらしい もんだい」のセット)", () => {
+    const addGenerated = async (id: string, createdAt: string, unit = "ひき算") => {
+      await db.insert(schema.problems).values({
+        id,
+        childId: CHILD,
+        problemText: `${id} text`,
+        subject: "math",
+        grade: 2,
+        unit,
+        subUnit: "くり下がり",
+        difficulty: "standard",
+        correctAnswer: "5",
+        explanationJson: "{}",
+        status: "active",
+        generatorRef: `${unit}/くり下がり/L2/${id}`,
+        difficultyLevel: 2,
+        createdAt,
+        updatedAt: createdAt,
+      }).run();
+    };
+
+    it("まだ一度も解いていない問題は、おすすめに出さない(セットの問題は「あたらしい もんだい」から解く)", async () => {
+      await setupDefaultScenario();
+      await addGenerated("g-untouched", new Date(Date.now() + 1000).toISOString());
+      const result = await getTodayRecommendations(CHILD, new Date(), db);
+      expect(result.problems.map(({ id }) => id)).not.toContain("g-untouched");
+      expect(result.problems.map(({ id }) => id)).toEqual(["p-len", "p-sub", "p-add"]);
+    });
+
+    it("たくさん作っても、ほかの問題を押し出さない(読み込みは新しい 100 件まで)", async () => {
+      await setupDefaultScenario();
+      const future = Date.now() + 60_000;
+      for (let index = 0; index < 120; index += 1) await addGenerated(`g-${index}`, new Date(future + index).toISOString());
+      const result = await getTodayRecommendations(CHILD, new Date(), db);
+      expect(result.problems.map(({ id }) => id)).toEqual(["p-len", "p-sub", "p-add"]);
+    });
+
+    it("一度でも解いた問題は、ほかの問題と同じようにおすすめの対象", async () => {
+      await setupDefaultScenario();
+      await addGenerated("g-touched", new Date(Date.now() + 1000).toISOString());
+      await db.insert(schema.attempts).values({
+        id: "att-g",
+        sessionId: "sess-today",
+        childId: CHILD,
+        problemId: "g-touched",
+        childAnswer: "1",
+        answerType: "tap",
+        isCorrect: 0,
+        createdAt: nowJstIso(),
+      }).run();
+      const result = await getTodayRecommendations(CHILD, new Date(), db);
+      expect(result.problems.map(({ id }) => id)).toContain("g-touched");
+    });
+  });
 });

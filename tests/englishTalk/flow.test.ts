@@ -4,10 +4,13 @@ import {
   REPEAT_TARGET,
   answerTalk,
   currentTurnId,
+  markHelp,
   nextTalk,
   repeatTalk,
   startTalk,
+  talkOutcomes,
   talkScore,
+  talkStarsOf,
 } from "@/lib/englishTalk/flow";
 
 const ids = ["a", "b"] as const;
@@ -61,5 +64,57 @@ describe("english talk flow", () => {
     expect(nextTalk(start)).toBe(start);
     const correct = answerTalk(start, true);
     expect(answerTalk(correct, false)).toBe(correct);
+  });
+});
+
+describe("help and outcomes", () => {
+  it("records help on the current turn once, only while asking", () => {
+    const start = startTalk(ids);
+    const helped = markHelp(start);
+    expect(helped.helped).toEqual(["a"]);
+    expect(markHelp(helped)).toBe(helped);
+    const teach = answerTalk(start, false);
+    expect(markHelp(teach)).toBe(teach);
+    const done = startTalk([]);
+    expect(markHelp(done)).toBe(done);
+  });
+
+  it("does not change the original state", () => {
+    const start = startTalk(ids);
+    markHelp(start);
+    expect(start.helped).toEqual([]);
+  });
+
+  it("gives each turn clean / help / teach", () => {
+    let state = startTalk(["a", "b", "c"]);
+    state = nextTalk(answerTalk(state, true)); // a: clean
+    state = markHelp(state);
+    state = nextTalk(answerTalk(state, true)); // b: help
+    state = answerTalk(state, false); // c: missed
+    for (let i = 0; i < REPEAT_TARGET; i += 1) state = repeatTalk(state, true);
+    state = nextTalk(state);
+    state = nextTalk(answerTalk(state, true)); // c again (retry)
+    expect(state.phase).toBe("done");
+    expect(talkOutcomes(state)).toEqual([
+      { turnId: "a", outcome: "clean" },
+      { turnId: "b", outcome: "help" },
+      { turnId: "c", outcome: "teach" },
+    ]);
+  });
+
+  it("turns the outcomes into stars", () => {
+    let state = startTalk(ids);
+    state = nextTalk(answerTalk(state, true));
+    state = markHelp(state);
+    state = nextTalk(answerTalk(state, true));
+    expect(talkStarsOf(state)).toBe(3);
+
+    let missed = startTalk(ids);
+    missed = answerTalk(missed, false);
+    for (let i = 0; i < REPEAT_TARGET; i += 1) missed = repeatTalk(missed, true);
+    missed = nextTalk(missed);
+    missed = nextTalk(answerTalk(missed, true));
+    missed = nextTalk(answerTalk(missed, true));
+    expect(talkStarsOf(missed)).toBe(2);
   });
 });

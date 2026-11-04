@@ -16,7 +16,8 @@ import { RealRewardExchangeModal } from "./RealRewardExchangeModal";
 import { LevelUpModal } from "./LevelUpModal";
 import { CELEBRATION_GATE_EVENT, areCelebrationsDeferred } from "@/lib/rewards/celebrationGate";
 
-export function RewardMeter() {
+/** childId: いま開いている子ども(着せかえの保存先)。デモは無し。 */
+export function RewardMeter({ childId }: { childId?: string }) {
   const [reward, setReward] = useState<RewardState>({
     currentCycleCount: 0,
     totalCorrectCount: 0,
@@ -184,6 +185,7 @@ export function RewardMeter() {
       <CharacterDressUpModal
         isOpen={showDressUpModal}
         onClose={() => setShowDressUpModal(false)}
+        childId={childId}
       />
 
       {/* レベルアップお祝いモーダル */}

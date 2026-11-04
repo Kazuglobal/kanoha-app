@@ -37,6 +37,7 @@ import {
   startLearningSession,
   type DailyLimitInfo,
 } from "./learningApi";
+import { homeHref as buildHomeHref, problemHref } from "./links";
 import type { SimilarAnswerResult, SimilarProblem } from "./SimilarProblemCard";
 
 /** サーバーから渡される問題情報。答えとヒントは含まない(A2)。デモ時は正解検証用フォールバックを受け取れる。 */
@@ -56,7 +57,19 @@ export interface PersistedProblem {
   isLastInUnit?: boolean;
   /** デモ専用: れんしゅう 5もん(答えは持たず、checkId でサーバーが判定する) */
   demoPractice?: readonly SimilarProblem[];
+  /** 「あたらしい もんだい」のセットの中の問題のときだけ。何問目か(つぎの問題は nextProblemId) */
+  setProgress?: SetProgress;
 }
+
+export interface SetProgress {
+  batchId: string;
+  /** セットの何問目か(1 から) */
+  position: number;
+  total: number;
+}
+
+/** 答えの送りかた(記録に残る)。ふだんの文字入力は text。 */
+export type AnswerKind = "tap" | "voice" | "text" | "handwriting";
 
 export interface PersistedSimilarProblem extends SimilarProblem {
   id: string;
@@ -121,16 +134,17 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   const finishedRef = useRef(false);
   const originalSavedRef = useRef(false);
 
-  const nextProblemHref = persisted?.nextProblemId
-    ? `/child/problem/${persisted.nextProblemId}${persisted.childId ? `?childId=${persisted.childId}` : ""}`
-    : null;
+  const batchId = persisted?.setProgress?.batchId;
+  const nextProblemHref = persisted?.nextProblemId ? problemHref(persisted.nextProblemId, persisted.childId, batchId) : null;
+  // ホームへ もどる道は 子どもと教科を引きつぐ(デモは /child/home のまま)
+  const homeHref = isDemo ? "/child/home" : buildHomeHref(persisted.childId, subject);
 
   const finished = practiceIndex !== null && practiceIndex >= similarProblems.length;
   const question = persisted?.question ?? DEMO_QUESTION;
   const unit = persisted?.unit ?? DEMO_UNIT;
   const nextParam = persisted?.nextProblemId ? `&nextProblemId=${persisted.nextProblemId}` : "";
   const resultHref = persisted
-    ? `/child/result?score=${score}&unit=${encodeURIComponent(unit)}&problemId=${persisted.problemId}&childId=${persisted.childId}${nextParam}`
+    ? `/child/result?score=${score}&unit=${encodeURIComponent(unit)}&problemId=${persisted.problemId}&childId=${persisted.childId}&subject=${subject}${nextParam}${batchId ? `&batch=${encodeURIComponent(batchId)}` : ""}`
     : `/child/result?score=${score}&unit=${encodeURIComponent(unit)}${nextParam}`;
 
   async function startNewSession(target: PersistedProblem) {
@@ -272,7 +286,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
   }, []);
 
   /** 元問題の正誤はサーバー(/api/attempts)が判定する。デモだけはクライアントで照合する。 */
-  async function checkOriginalAnswer(overrideAnswer?: string) {
+  async function checkOriginalAnswer(overrideAnswer?: string, kind?: AnswerKind) {
     const candidateAnswer = (overrideAnswer ?? answer).trim();
     if (!candidateAnswer) return;
     if (overrideAnswer && overrideAnswer !== answer) {
@@ -307,7 +321,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
       sessionId,
       problemId: persisted.problemId,
       childAnswer: candidateAnswer,
-      answerType: overrideAnswer ? "handwriting" : "text",
+      answerType: kind ?? (overrideAnswer ? "handwriting" : "text"),
     });
     if (!result) {
       originalSavedRef.current = false;
@@ -494,7 +508,7 @@ export function useLearningFlow(persisted?: PersistedProblem) {
     subject, answer, setAnswer, checked, revealedHints, practiceIndex, score, sessionId,
     similarProblems, pending, simplifying, visualPending, visualUrl, visualAvailable,
     saveMessage, retryAction, dailyLimit, finished, question, unit, resultHref,
-    nextProblemHref, isLastInUnit: Boolean(persisted?.isLastInUnit),
+    nextProblemHref, homeHref, isLastInUnit: Boolean(persisted?.isLastInUnit),
     requestNextHint, checkOriginalAnswer, startPractice, simplifyHints,
     showVisualHint, answerSimilar, completeSimilar, restartFlow,
   };

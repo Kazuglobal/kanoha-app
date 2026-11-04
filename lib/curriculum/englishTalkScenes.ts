@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * えいごで おはなし(英会話れんしゅう)のシーン定義。
  * 背景は public/scenes/*.svg のテンプレ画像(生成コストなし)。
@@ -23,6 +25,16 @@ export interface TalkTurn {
   /** 4択(正解1つ + まちがい3つ)。表示順はシャッフルする */
   readonly choices: readonly [string, string, string, string];
   readonly accept: readonly (readonly string[])[];
+  /**
+   * accept に合っていても、これらの語句が入っていたら正解にしない(「How are you?」に「Good morning」など)。
+   * 語句の並びで探す。
+   */
+  readonly reject?: readonly string[];
+  /**
+   * すきなものを聞くなど、答えが決まっていない問い。キーワードに合わない英語の答えを、
+   * ログイン中の子だけ AI がゆるく判定してよい。ふつうの問いは false(名前を聞く問いは必ず false)。
+   */
+  readonly aiJudge?: boolean;
   /** シーンの中で注目させるもの(絵文字) */
   readonly visual?: string;
 }
@@ -45,14 +57,20 @@ const NUMBERS = [
 const FRUITS = [
   "apple", "apples", "banana", "bananas", "orange", "oranges", "melon", "melons",
   "grape", "grapes", "strawberry", "strawberries", "peach", "peaches",
+  "pineapple", "pineapples", "lemon", "lemons", "cherry", "cherries", "pear", "pears",
+  "kiwi", "kiwis", "watermelon", "watermelons", "mango", "mangoes",
 ] as const;
 
 const ANIMALS = [
   "panda", "pandas", "lion", "lions", "elephant", "elephants", "giraffe", "giraffes",
   "monkey", "monkeys", "rabbit", "rabbits", "dog", "dogs", "cat", "cats", "tiger", "tigers",
+  "koala", "koalas", "bear", "bears", "horse", "horses", "pig", "pigs", "cow", "cows",
+  "sheep", "zebra", "zebras", "penguin", "penguins", "bird", "birds", "fish", "mouse",
+  "duck", "ducks", "frog", "frogs", "snake", "snakes", "whale", "whales", "dolphin", "dolphins",
+  "hippo", "hippos", "camel", "camels", "kangaroo", "kangaroos", "owl", "owls",
 ] as const;
 
-const BYE = ["goodbye", "good bye", "bye", "see you"] as const;
+const BYE = ["goodbye", "good bye", "bye", "bye bye", "byebye", "see you", "see ya"] as const;
 
 const greeting: TalkScene = {
   id: "greeting",
@@ -65,14 +83,14 @@ const greeting: TalkScene = {
     {
       id: "greeting-name",
       prompt: "Hello! I'm Kanoha. What's your name?",
-      promptJa: "こんにちは！わたしは かのは。あなたの おなまえは なあに？",
-      answerHintJa: "「My name is 〇〇.」で なまえを いってみよう",
-      feedbackEn: "Nice try! Tell me your name. Say: My name is Yuki.",
+      promptJa: "こんにちは！わたしは かのは。あなたの おなまえは なあに？ きょうは すきな なまえに なりきって こたえてね",
+      answerHintJa: "ほんとうの なまえは いわないで、すきな なまえで「My name is Ken.」って いってみよう",
+      feedbackEn: "Nice try! Pick a name you like and say: My name is Yuki.",
       modelAnswer: "My name is Yuki.",
       modelAnswerJa: "わたしの なまえは ゆきです。",
       choices: ["My name is Yuki.", "I like apples.", "It's sunny.", "Goodbye!"],
-      // 「I'm fine」などを名前と取りちがえないよう、名前を言う言い方だけをキーワードにする。
-      // 「I'm Yuki.」のような答えは、ログイン中なら AI 判定がひろう
+      // 名前の判定は lib/englishTalk/judge.ts の matchesName が行う(名前の言葉があること。「My name is」だけ・「I'm fine」は不正解)。
+      // この accept はデータとして残している。AI 判定は使わない(本名を外へ送らない)
       accept: [["my name is", "name is", "call me"]],
       visual: "🙂",
     },
@@ -85,7 +103,14 @@ const greeting: TalkScene = {
       modelAnswer: "I'm fine, thank you.",
       modelAnswerJa: "げんきだよ、ありがとう。",
       choices: ["I'm fine, thank you.", "I'm seven.", "It's a cat.", "See you."],
-      accept: [["fine", "good", "great", "happy", "ok", "okay", "sleepy", "hungry", "tired"]],
+      accept: [
+        [
+          "fine", "good", "great", "happy", "ok", "okay", "sleepy", "hungry", "tired",
+          "sad", "so so", "not bad", "bad", "excited", "sick", "angry", "cold", "hot", "well",
+        ],
+      ],
+      // 「Good」は元気のこたえだが、「Good morning / night / bye」は別のあいさつ
+      reject: ["good morning", "good night", "good afternoon", "good evening", "good bye", "goodbye"],
       visual: "😊",
     },
     {
@@ -109,7 +134,12 @@ const greeting: TalkScene = {
       modelAnswer: "Nice to meet you, too.",
       modelAnswerJa: "わたしも あえて うれしいよ。",
       choices: ["Nice to meet you, too.", "I'm hungry.", "Yes, it is.", "Red, please."],
-      accept: [["nice to meet you", "nice to see you"]],
+      accept: [
+        [
+          "nice to meet you", "nice to see you", "nice to meet ya", "nice meeting you",
+          "pleased to meet you", "glad to meet you", "me too", "you too",
+        ],
+      ],
       visual: "🤝",
     },
   ],
@@ -133,6 +163,7 @@ const shop: TalkScene = {
       modelAnswerJa: "りんごを ください。",
       choices: ["Apples, please.", "I'm fine.", "Good morning.", "It's Monday."],
       accept: [[...FRUITS]],
+      aiJudge: true,
       visual: "🍎🍌🍊",
     },
     {
@@ -191,7 +222,7 @@ const park: TalkScene = {
       modelAnswer: "Yes, I do.",
       modelAnswerJa: "うん、すきだよ。",
       choices: ["Yes, I do.", "I'm eight.", "Three, please.", "Good night."],
-      accept: [["yes", "no", "yeah"]],
+      accept: [["yes", "no", "yeah", "yep", "yup", "sure", "ok", "okay", "i do", "i like", "i dont", "i do not"]],
       visual: "⚽",
     },
     {
@@ -250,7 +281,7 @@ const school: TalkScene = {
       modelAnswer: "Good morning!",
       modelAnswerJa: "おはよう！",
       choices: ["Good morning!", "Good night!", "Goodbye!", "Thank you!"],
-      accept: [["morning", "hello", "hi"]],
+      accept: [["morning", "goodmorning", "hello", "hi", "hey"]],
       visual: "☀️",
     },
     {
@@ -310,6 +341,7 @@ const zoo: TalkScene = {
       modelAnswerJa: "パンダが すき。",
       choices: ["I like pandas.", "I'm fine.", "Good morning.", "It's Monday."],
       accept: [[...ANIMALS]],
+      aiJudge: true,
       visual: "🐼🦁🦒",
     },
     {

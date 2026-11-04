@@ -36,6 +36,7 @@ export function SimilarProblemCard({
   total,
   score,
   readingMode = "kanji_with_ruby",
+  isEnglish,
   onAnswer,
   onComplete,
 }: {
@@ -44,6 +45,8 @@ export function SimilarProblemCard({
   total: number;
   score: number;
   readingMode?: "kanji_with_ruby" | "hiragana";
+  /** 英語の教科か。英語の声・スピーカーを出すかを教科で決める。分からないとき(未指定)は、英字があれば英語あつかい。 */
+  isEnglish?: boolean;
   onAnswer?: (answer: string) => Promise<SimilarAnswerResult | null>;
   onComplete: (correct: boolean, selectedAnswer: string) => void;
 }) {
@@ -53,10 +56,11 @@ export function SimilarProblemCard({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [lastAttempt, setLastAttempt] = useState<string | null>(null);
+  const wantsEnglish = (text: string): boolean => (isEnglish ?? true) && /[a-zA-Z]/.test(text);
 
   async function submit(answer: string) {
     if (pending || selected !== null) return;
-    if (/[a-zA-Z]/.test(answer)) {
+    if (wantsEnglish(answer)) {
       void speakEnglish(answer);
     }
     soundManager.playTap();
@@ -106,7 +110,7 @@ export function SimilarProblemCard({
             <div className={styles.choiceVoiceRow} style={{ marginBottom: "0.75rem" }}>
               <VoiceAnswer
                 disabled={pending}
-                lang={/[a-zA-Z]/.test(problem.choices[0] ?? "") ? "en-US" : "ja-JP"}
+                lang={wantsEnglish(problem.choices[0] ?? "") ? "en-US" : "ja-JP"}
                 onAnswer={(spoken) => {
                   const matched = matchChoiceFromSpeech(spoken, problem.choices ?? []);
                   if (matched) void submit(matched);
@@ -122,7 +126,7 @@ export function SimilarProblemCard({
           )}
           <div className={styles.choiceGrid}>
             {problem.choices.map((choice) => {
-              const isEnglish = /[a-zA-Z]/.test(choice);
+              const isEnglishChoice = wantsEnglish(choice);
               return (
                 <button
                   className={`${styles.choice} ${selected === choice ? styles.choiceSelected : ""}`}
@@ -132,7 +136,7 @@ export function SimilarProblemCard({
                   onClick={() => void submit(choice)}
                 >
                   <span>{choice}</span>
-                  {isEnglish ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
+                  {isEnglishChoice ? <Volume2 size={16} aria-hidden="true" className={styles.choiceSpeakerIcon} /> : null}
                 </button>
               );
             })}
@@ -144,7 +148,7 @@ export function SimilarProblemCard({
             <div className={styles.choiceVoiceRow} style={{ marginBottom: "0.75rem" }}>
               <VoiceAnswer
                 disabled={pending}
-                lang={/[a-zA-Z]/.test(problem.question) ? "en-US" : "ja-JP"}
+                lang={wantsEnglish(problem.question) ? "en-US" : "ja-JP"}
                 onAnswer={(spoken) => {
                   setTyped(spoken);
                 }}

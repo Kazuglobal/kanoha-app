@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signUpParent as signUp } from "./support/auth";
 
 /**
  * ログインした親の実データで v0.1 ループを一周する E2E(better-auth + D1)。
@@ -19,13 +20,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-const signUpParent = async (page: Page) => {
-  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const response = await page.request.post("/api/auth/sign-up/email", {
-    data: { email: `e2e-${stamp}@example.com`, password: `pw-${stamp}-long`, name: "e2e" },
-  });
-  expect(response.ok(), await response.text()).toBe(true);
-};
+const signUpParent = (page: Page) => signUp(page.request);
 
 const createChild = async (page: Page): Promise<string> => {
   const response = await page.request.post("/api/children", {
