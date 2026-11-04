@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { getSceneTheme, type SceneTheme } from "@/lib/englishTalk/sceneThemes";
 import { TalkCharacter, type TalkMood } from "./TalkCharacter";
 import styles from "./englishTalk.module.css";
 
@@ -14,81 +15,24 @@ export interface ThreeTalkStage3DProps {
   mood: TalkMood;
   isListening?: boolean;
   visual?: string;
+  /** WebGL が使えないときに背景として出す場面の絵(scene.background) */
+  fallbackBackground?: string;
   onCharacterTap?: () => void;
 }
 
-interface SceneTheme {
-  skyTop: string;
-  skyMiddle: string;
-  skyBottom: string;
-  groundColor: number;
-  grassAccent: number;
-  pathColor: number;
-  petalColor: number;
-  friendSprite: string;
-  friendName: string;
-}
-
-const SCENE_THEMES: Record<string, SceneTheme> = {
-  greeting: {
-    skyTop: "#8fd3ff",
-    skyMiddle: "#d4f0ff",
-    skyBottom: "#fff6fa",
-    groundColor: 0x9ae68c,
-    grassAccent: 0x7ed970,
-    pathColor: 0xf7e4c4,
-    petalColor: 0xffb7d5,
-    friendSprite: "/images/character/chars/fuwari-base.png",
-    friendName: "ふわりちゃん",
-  },
-  shop: {
-    skyTop: "#ffd6a5",
-    skyMiddle: "#fff0d6",
-    skyBottom: "#fffaf0",
-    groundColor: 0xa3e48c,
-    grassAccent: 0x87d46e,
-    pathColor: 0xf3dcc0,
-    petalColor: 0xffcf96,
-    friendSprite: "/images/character/chars/hinata-base.png",
-    friendName: "ひなたちゃん",
-  },
-  park: {
-    skyTop: "#7cc6fe",
-    skyMiddle: "#c8ebff",
-    skyBottom: "#f0faff",
-    groundColor: 0x8ce28a,
-    grassAccent: 0x6ecf6c,
-    pathColor: 0xf5e2c0,
-    petalColor: 0xfff3b0,
-    friendSprite: "/images/character/chars/riku-base.png",
-    friendName: "リクくん",
-  },
-  school: {
-    skyTop: "#fcecc9",
-    skyMiddle: "#fff7e6",
-    skyBottom: "#fffdf9",
-    groundColor: 0xe3b788,
-    grassAccent: 0xd4a373,
-    pathColor: 0xedd0b0,
-    petalColor: 0xffdf80,
-    friendSprite: "/images/character/chars/mia-base.png",
-    friendName: "ミアちゃん",
-  },
-  zoo: {
-    skyTop: "#88e0c0",
-    skyMiddle: "#d6f8ec",
-    skyBottom: "#f7fff9",
-    groundColor: 0x98de80,
-    grassAccent: 0x7bc963,
-    pathColor: 0xf2dbb6,
-    petalColor: 0xb8f2e6,
-    friendSprite: "/images/character/chars/fuwari-safari.png",
-    friendName: "ふわりちゃん",
-  },
-};
-
-export function getSceneFriendName(sceneId: string): string {
-  return (SCENE_THEMES[sceneId] ?? SCENE_THEMES.greeting).friendName;
+/** 3D のオブジェクトを片づける(ジオメトリ・マテリアル・テクスチャ)。使い捨てのプロップや、画面を離れるときに呼ぶ。 */
+function disposeObject3D(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    mesh.geometry?.dispose();
+    const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    for (const material of materials) {
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) value.dispose();
+      }
+      material.dispose();
+    }
+  });
 }
 
 const CAMERA_TURN_OFFSETS: readonly { x: number; y: number; z: number; lookX: number; lookY: number }[] = [
@@ -495,10 +439,13 @@ export function ThreeTalkStage3D({
   mood,
   isListening = false,
   visual,
+  fallbackBackground,
   onCharacterTap,
 }: ThreeTalkStage3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [speaking, setSpeaking] = useState(false);
+  // WebGL が使えない端末や、描画の準備ができるまでは、場面の絵(SVG)を背景に出す
+  const [canvasReady, setCanvasReady] = useState(false);
 
   const stateRef = useRef({
     started,
@@ -544,6 +491,7 @@ export function ThreeTalkStage3D({
     if (!holder.scene) return;
     if (holder.currentProp) {
       holder.scene.remove(holder.currentProp);
+      disposeObject3D(holder.currentProp);
       holder.currentProp = null;
     }
     if (started && (turnId || visual)) {
@@ -569,7 +517,7 @@ export function ThreeTalkStage3D({
       return;
     }
 
-    const activeTheme = SCENE_THEMES[sceneId] ?? SCENE_THEMES.greeting;
+    const activeTheme = getSceneTheme(sceneId);
     const width = Math.max(container.clientWidth, 320);
     const height = Math.max(container.clientHeight, 260);
 
@@ -636,10 +584,14 @@ export function ThreeTalkStage3D({
     let frameId = 0;
     const clock = new THREE.Clock();
     let walkPhase = 0;
-    const reducedMotion =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 「動きを減らす」の設定は、あとから変えられても追いかける
+    const motionQuery =
+      typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+    let reducedMotion = motionQuery?.matches ?? false;
+    const onMotionChange = (event: MediaQueryListEvent) => {
+      reducedMotion = event.matches;
+    };
+    motionQuery?.addEventListener?.("change", onMotionChange);
 
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
@@ -747,6 +699,19 @@ export function ThreeTalkStage3D({
     };
 
     animate();
+    setCanvasReady(true);
+
+    // タブが隠れているあいだは描画を止める(バッテリーとCPUを使わない)
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        window.cancelAnimationFrame(frameId);
+        frameId = 0;
+      } else if (frameId === 0) {
+        clock.getDelta();
+        animate();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const handleResize = () => {
       if (!container || !renderer) return;
@@ -760,13 +725,18 @@ export function ThreeTalkStage3D({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      setCanvasReady(false);
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      motionQuery?.removeEventListener?.("change", onMotionChange);
       window.cancelAnimationFrame(frameId);
       propHolder.scene = null;
       propHolder.currentProp = null;
+      disposeObject3D(scene);
       skyTex.dispose();
       shadowTex.dispose();
       renderer?.dispose();
+      renderer?.forceContextLoss();
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
       }
@@ -778,6 +748,11 @@ export function ThreeTalkStage3D({
       ref={containerRef}
       className={styles.threeViewport}
       data-testid="three-talk-stage"
+      style={
+        !canvasReady && fallbackBackground
+          ? { backgroundImage: `url(${fallbackBackground})`, backgroundSize: "cover", backgroundPosition: "center bottom" }
+          : undefined
+      }
       onPointerMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {

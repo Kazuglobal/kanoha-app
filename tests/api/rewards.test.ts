@@ -230,6 +230,92 @@ describe("child rewards are stored per child in the DB", () => {
     expect(data.stored).toBe(true);
   });
 
+  describe("PUT saves the whole equipped set in one write", () => {
+    const seedCorrect = (totalCorrectCount: number) => {
+      const now = nowJstIso();
+      return db.insert(schema.childRewards).values({ childId: CHILD, totalCorrectCount, createdAt: now, updatedAt: now }).run();
+    };
+    const put = async (childId: string, equipped: unknown) => (await route()).PUT(request("PUT", { equipped }), ctx(childId));
+    const stored = async () => (await (await (await route()).GET(request("GET"), ctx(CHILD))).json()).data;
+
+    it("applies several slots at once and keeps the reward counts as they were", async () => {
+      await seedCorrect(5);
+      const response = await put(CHILD, { hat: "hat_safari", glasses: "glasses_round", effect: "effect_sparkle", pet: "pet_cat" });
+      expect(response.status).toBe(200);
+      const { data } = await response.json();
+      expect(data.rejected).toEqual([]);
+      expect(data.equipped).toMatchObject({ hat: "hat_safari", glasses: "glasses_round", effect: "effect_sparkle", pet: "pet_cat" });
+      expect(data.reward.totalCorrectCount).toBe(5);
+
+      const after = await stored();
+      expect(after.equipped).toMatchObject({ hat: "hat_safari", effect: "effect_sparkle", pet: "pet_cat" });
+      expect(after.reward.totalCorrectCount).toBe(5);
+    });
+
+    it("creates the row on the first save without inventing any reward", async () => {
+      const response = await put(CHILD, { hat: "hat_safari" });
+      expect(response.status).toBe(200);
+      const after = await stored();
+      expect(after).toMatchObject({ stored: true, reward: { totalCorrectCount: 0, totalRewardYen: 0 }, equipped: { hat: "hat_safari" } });
+    });
+
+    it("leaves locked and unknown items off, reports their slots, and still applies the rest", async () => {
+      const response = await put(CHILD, {
+        hat: "hat_crown", // Lv.5
+        effect: "effect_aura", // Lv.10
+        pet: "pet_not_in_catalog",
+        glasses: "glasses_round",
+        motion: "glasses_round", // 別の枠のアイテム
+      });
+      expect(response.status).toBe(200);
+      const { data } = await response.json();
+      expect([...data.rejected].sort()).toEqual(["effect", "hat", "motion", "pet"]);
+      expect(data.equipped).toMatchObject({ hat: "hat_none", effect: "effect_none", pet: "pet_none", motion: "motion_calm", glasses: "glasses_round" });
+    });
+
+    it("unlocks new slots by level (effect_sparkle at Lv.2 = 5 correct)", async () => {
+      expect((await (await put(CHILD, { effect: "effect_sparkle" })).json()).data.rejected).toEqual(["effect"]);
+      await seedCorrect(5);
+      const response = await put(CHILD, { effect: "effect_sparkle" });
+      expect((await response.json()).data).toMatchObject({ rejected: [], equipped: { effect: "effect_sparkle" } });
+    });
+
+    it("rejects unknown slots and malformed bodies without writing", async () => {
+      for (const body of [{ equipped: { cape: "cape_red" } }, { equipped: { hat: 3 } }, { equipped: { hat: "" } }, { equipped: "hat_safari" }, {}]) {
+        const response = await (await route()).PUT(request("PUT", body), ctx(CHILD));
+        expect(response.status, JSON.stringify(body)).toBe(400);
+      }
+      expect(await db.select().from(schema.childRewards).all()).toHaveLength(0);
+    });
+
+    it("does not touch another parent's child, and needs a login", async () => {
+      expect((await put(OTHER_CHILD, { hat: "hat_safari" })).status).toBe(404);
+      expect(await db.select().from(schema.childRewards).all()).toHaveLength(0);
+      state.userId = null;
+      expect((await put(CHILD, { hat: "hat_safari" })).status).toBe(401);
+    });
+
+    it("keeps both changes when two requests for different slots arrive together", async () => {
+      await Promise.all([put(CHILD, { hat: "hat_safari" }), put(CHILD, { glasses: "glasses_round" })]);
+      expect((await stored()).equipped).toMatchObject({ hat: "hat_safari", glasses: "glasses_round" });
+    });
+
+    it("ends up as exactly one of two whole sets sent together, never a mix", async () => {
+      const first = { hat: "hat_safari", glasses: "glasses_none", clothes: "clothes_tshirt" };
+      const second = { hat: "hat_none", glasses: "glasses_round", clothes: "clothes_school" };
+      await Promise.all([put(CHILD, first), put(CHILD, second)]);
+      const { equipped } = await stored();
+      const picked = { hat: equipped.hat, glasses: equipped.glasses, clothes: equipped.clothes };
+      expect([first, second]).toContainEqual(picked);
+    });
+
+    it("leaves the stored set alone when nothing in the request can be applied", async () => {
+      await put(CHILD, { hat: "hat_safari" });
+      const response = await put(CHILD, { hat: "hat_crown" });
+      expect((await response.json()).data).toMatchObject({ rejected: ["hat"], equipped: { hat: "hat_safari" } });
+    });
+  });
+
   it("imports legacy device rewards only once and caps the yen", async () => {
     const { POST } = await route();
     const first = await POST(

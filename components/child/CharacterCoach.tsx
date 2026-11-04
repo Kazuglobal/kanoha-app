@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import styles from "@/components/kanoha.module.css";
 import { KanohaCharacter } from "./KanohaCharacter";
+import type { Intensity } from "./characterExtrasData";
 import { speakCoachVoice } from "@/lib/audio/coachSpeech";
 import {
   getEquippedAccessories,
@@ -21,9 +22,12 @@ const TAP_REACTIONS = [
 export function CharacterCoach({
   message,
   mood = "happy",
+  intensity = "full",
 }: {
   message: string;
   mood?: "happy" | "think" | "celebrate";
+  /** subtle: 問題を解いている間。うごきは「しずか」、エフェクトは少なめ */
+  intensity?: Intensity;
 }) {
   const [tapMessage, setTapMessage] = useState<string | null>(null);
   const [tapMood, setTapMood] = useState<"happy" | "think" | "celebrate" | null>(null);
@@ -139,6 +143,7 @@ export function CharacterCoach({
         <KanohaCharacter
           mood={activeMood}
           accessories={accessories}
+          intensity={intensity}
         />
       </div>
     </aside>

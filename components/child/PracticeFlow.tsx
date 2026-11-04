@@ -7,7 +7,7 @@ import styles from "@/components/kanoha.module.css";
 import { soundManager } from "@/lib/audio/soundSystem";
 import { CharacterCoach } from "./CharacterCoach";
 import { RubyAuto } from "./RubyText";
-import { FLOW_TEXT } from "./childStrings";
+import { FLOW_TEXT, PRACTICE_TEXT } from "./childStrings";
 import {
   SimilarProblemCard,
   type SimilarAnswerResult,
@@ -17,7 +17,7 @@ import {
 type ReadingMode = "kanji_with_ruby" | "hiragana";
 
 /** 利用時間の上限に達したときの「きょうは ここまで！」画面。 */
-export function LimitScreen({ usedMinutes }: { usedMinutes: number }) {
+export function LimitScreen({ usedMinutes, homeHref = "/child/home" }: { usedMinutes: number; homeHref?: string }) {
   return (
     <section className={`${styles.card} ${styles.resultHero}`}>
       <CharacterCoach message={FLOW_TEXT.limitCoach} mood="celebrate" />
@@ -25,7 +25,7 @@ export function LimitScreen({ usedMinutes }: { usedMinutes: number }) {
       <p className={styles.lead}>
         {FLOW_TEXT.limitLeadPrefix}{usedMinutes}{FLOW_TEXT.limitLeadSuffix}
       </p>
-      <Link className={styles.primaryButton} href="/child/home">{FLOW_TEXT.backHome}</Link>
+      <Link className={styles.primaryButton} href={homeHref as Route}>{FLOW_TEXT.backHome}</Link>
     </section>
   );
 }
@@ -38,6 +38,8 @@ export function FinishedScreen({
   resultHref,
   nextProblemHref,
   isLastInUnit,
+  homeHref = "/child/home",
+  setClear = false,
   onRestart,
 }: {
   score: number;
@@ -46,6 +48,10 @@ export function FinishedScreen({
   resultHref: string;
   nextProblemHref?: string | null;
   isLastInUnit?: boolean;
+  /** ホームへ もどる道(子どもと教科を引きつぐ)。 */
+  homeHref?: string;
+  /** 「あたらしい もんだい」のセットの最後の問題のあと */
+  setClear?: boolean;
   onRestart: () => void;
 }) {
   // 声は手動再生のみ(自動再生しない)。効果音だけ鳴らし、声はコーチの吹き出しをタップしたときに聞ける。
@@ -64,6 +70,7 @@ export function FinishedScreen({
         {mastered ? FLOW_TEXT.finishedGreat : FLOW_TEXT.finishedRetryTitle}
       </h1>
       <p className={styles.score}>{score}/5</p>
+      {setClear ? <p className={styles.lead}>{PRACTICE_TEXT.setClearTitle}</p> : null}
       <p className={styles.lead}>
         <RubyAuto text={unit} readingMode={readingMode} />
         {FLOW_TEXT.finishedLeadSuffix}
@@ -74,7 +81,7 @@ export function FinishedScreen({
             {isLastInUnit ? "つぎの ステージへ すすむ 🚀" : "🚀 つぎの もんだいへ すすむ！"}
           </Link>
         )}
-        <Link className={styles.primaryButton} href="/child/home">
+        <Link className={styles.primaryButton} href={homeHref as Route}>
           🏠 ステージマップへ もどる
         </Link>
         <Link className={styles.secondaryButton} href={resultHref as Route}>{FLOW_TEXT.resultLink}</Link>
@@ -92,6 +99,7 @@ export function PracticeFlow({
   practiceIndex,
   score,
   readingMode,
+  isEnglish,
   onAnswer,
   onComplete,
 }: {
@@ -99,6 +107,7 @@ export function PracticeFlow({
   practiceIndex: number;
   score: number;
   readingMode: ReadingMode;
+  isEnglish?: boolean;
   onAnswer?: (answer: string) => Promise<SimilarAnswerResult | null>;
   onComplete: (correct: boolean) => void;
 }) {
@@ -108,6 +117,7 @@ export function PracticeFlow({
       key={practiceIndex}
       problem={problems[practiceIndex]}
       readingMode={readingMode}
+      isEnglish={isEnglish}
       score={score}
       total={problems.length}
       onAnswer={onAnswer}

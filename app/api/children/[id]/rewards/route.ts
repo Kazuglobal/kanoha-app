@@ -1,15 +1,18 @@
 import { z } from "zod";
 import { DEFAULT_EQUIPPED } from "@/lib/rewards/catalog";
+import { SLOT_IDS } from "@/lib/rewards/slots";
 import {
   REWARD_CYCLE,
   YEN_PER_CYCLE,
   canEquip,
   normalizeEquipped,
   normalizeRewardState,
+  splitEquipRequest,
 } from "@/lib/rewards/rewardLogic";
 import {
   importLegacyRewards,
   loadChildRewards,
+  patchEquippedAccessories,
   saveEquippedAccessories,
 } from "@/lib/rewards/serverRewards";
 import { apiError, apiSuccess, internalError, parseJson, requireOwnedChild } from "@/lib/utils/api";
@@ -18,25 +21,18 @@ import { uuid } from "@/lib/utils/schemas";
 
 /**
  * 子どものごほうび(5円メーター・累計正解数)と着せかえ。
- * GET: 読む / PATCH: 着せかえを1つ変える / POST: 旧端末(localStorage)のデータを1回だけ取り込む。
+ * GET: 読む / PUT: 着せかえを枠ごとにまとめて変える / PATCH: 着せかえを1つ変える(古い画面向け)
+ * POST: 旧端末(localStorage)のデータを1回だけ取り込む。
  * 正解数を増やすのは /api/attempts だけ。
  */
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const category = z.enum([
-  "character",
-  "hat",
-  "glasses",
-  "gloves",
-  "clothes",
-  "hairstyle",
-  "hair_color",
-  "shoes",
-  "shoes_color",
-  "accessory",
-]);
-const equipInput = z.object({ category, itemId: z.string().trim().min(1).max(64) });
+const category = z.enum(SLOT_IDS);
+const itemIdSchema = z.string().trim().min(1).max(64);
+const equipInput = z.object({ category, itemId: itemIdSchema });
+/** 送った枠だけ変わる(送らない枠はそのまま)。 */
+const equipSetInput = z.object({ equipped: z.record(category, itemIdSchema) });
 
 /** 取り込みの上限: これより多い正解数は旧データとして不自然なので受け付けない。 */
 const MAX_IMPORT_CORRECT = 5000;
@@ -86,6 +82,27 @@ export async function PATCH(request: Request, context: RouteContext) {
     const equipped = { ...current.equipped, [slot]: itemId };
     await saveEquippedAccessories(auth.db, auth.id, equipped);
     return apiSuccess({ ...current, equipped, stored: true });
+  } catch {
+    return internalError();
+  }
+}
+
+/**
+ * 着せかえを枠ごとにまとめて変える。着られない枠(まだ解放されていない・カタログに無い)は今のままにして、
+ * 名前を rejected で返す(残りの枠は変える)。書き込みは 1 文なので、同時に来ても別々の枠を消し合わない。
+ */
+export async function PUT(request: Request, context: RouteContext) {
+  const parsed = await parseJson(request, equipSetInput);
+  if (!parsed.success) return apiError("Invalid accessories");
+  const auth = await authorize(context, "rewards-equip", 60);
+  if (auth.response) return auth.response;
+
+  try {
+    const current = await loadChildRewards(auth.db, auth.id);
+    const { accepted, rejected } = splitEquipRequest(parsed.data.equipped, current.reward.totalCorrectCount);
+    const wrote = Object.keys(accepted).length > 0;
+    const equipped = wrote ? await patchEquippedAccessories(auth.db, auth.id, accepted) : current.equipped;
+    return apiSuccess({ ...current, equipped, stored: current.stored || wrote, rejected });
   } catch {
     return internalError();
   }

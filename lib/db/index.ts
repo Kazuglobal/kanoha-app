@@ -27,44 +27,66 @@ const newMemoryDb = (): DatabaseSync =>
  */
 const localStore = globalThis as typeof globalThis & { __kanohaLocalD1?: D1Database };
 
+/** batch が 1 回も席をゆずらずに(割り込まれずに)文を流すための、同期の実行口。 */
+const runSync = Symbol("runSync");
+
+interface LocalStatement {
+  bind(...params: unknown[]): LocalStatement;
+  all(): Promise<{ results: unknown[]; success: true }>;
+  run(): Promise<{ success: true; meta: { changes: number | bigint; last_row_id: number } }>;
+  first(col?: string): Promise<unknown>;
+  raw(): Promise<unknown[][]>;
+  [runSync](): unknown[];
+}
+
+const createStatement = (dbSync: DatabaseSync, query: string, params: unknown[]): LocalStatement => {
+  const args = params as SQLInputValue[];
+  const rows = () => dbSync.prepare(query).all(...args);
+  return {
+    bind: (...next) => createStatement(dbSync, query, next),
+    async all() {
+      return { results: rows(), success: true as const };
+    },
+    async run() {
+      const info = dbSync.prepare(query).run(...args);
+      return { success: true as const, meta: { changes: info.changes, last_row_id: Number(info.lastInsertRowid) } };
+    },
+    async first(col?: string) {
+      const row = dbSync.prepare(query).get(...args) as Record<string, unknown> | undefined;
+      if (!row) return null;
+      return col ? row[col] : row;
+    },
+    async raw() {
+      // 位置で返す(本物の D1 の raw と同じ)。オブジェクトで返すと、結合した表の同じ名前の列(unit など)が 1 つに潰れる。
+      // setReturnArrays は Node 22.16 / 24 から。無い Node で黙って列を取りちがえるより、止めて知らせる。
+      const stmt = dbSync.prepare(query);
+      if (typeof stmt.setReturnArrays !== "function") {
+        throw new Error("ローカルの D1 エミュレータには Node 22.16 以上が必要です(node:sqlite の setReturnArrays)。");
+      }
+      stmt.setReturnArrays(true);
+      return stmt.all(...args) as unknown as unknown[][];
+    },
+    [runSync]: rows,
+  };
+};
+
 export const createLocalD1 = (dbSync: DatabaseSync = newMemoryDb()): D1Database => {
   return {
-    prepare(query: string) {
-      return {
-        bind(...params: unknown[]) {
-          return {
-            async all() {
-              const stmt = dbSync.prepare(query);
-              const rows = stmt.all(...(params as SQLInputValue[]));
-              return { results: rows, success: true };
-            },
-            async run() {
-              const stmt = dbSync.prepare(query);
-              const info = stmt.run(...(params as SQLInputValue[]));
-              return {
-                success: true,
-                meta: {
-                  changes: info.changes,
-                  last_row_id: Number(info.lastInsertRowid),
-                },
-              };
-            },
-            async first(col?: string) {
-              const stmt = dbSync.prepare(query);
-              const row = stmt.get(...(params as SQLInputValue[])) as Record<string, unknown> | undefined;
-              if (!row) return null;
-              return col ? row[col] : row;
-            },
-            async raw() {
-              const stmt = dbSync.prepare(query);
-              return stmt.all(...(params as SQLInputValue[])).map((r) => Object.values(r as Record<string, unknown>));
-            },
-          };
-        },
-      };
-    },
-    async batch(stmts: { all: () => Promise<unknown> }[]) {
-      return Promise.all(stmts.map((s) => s.all()));
+    prepare: (query: string) => createStatement(dbSync, query, []),
+    /**
+     * 本物の D1 の batch と同じく、全部の文が成功するか、1 つでも失敗したら全部なかったことになる。
+     * 途中で席をゆずる(await する)と、ほかのリクエストの文が取引の中に入りこむので、文はすべて同期で流す。
+     */
+    async batch(stmts: LocalStatement[]) {
+      dbSync.exec("BEGIN");
+      try {
+        const results = stmts.map((stmt) => ({ results: stmt[runSync](), success: true }));
+        dbSync.exec("COMMIT");
+        return results;
+      } catch (error) {
+        dbSync.exec("ROLLBACK");
+        throw error;
+      }
     },
     async exec(query: string) {
       dbSync.exec(query);

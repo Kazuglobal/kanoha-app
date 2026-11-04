@@ -67,7 +67,8 @@ export function TalkCharacter({ mood, onTap }: { mood: TalkMood; onTap?: () => v
         className={styles.characterBody}
         animate={reducedMotion ? undefined : MOTION[pose]}
       >
-        <KanohaCharacter mood={mood} onClick={onTap} />
+        {/* 話す・よろこぶ・かんがえる の動きはここで付けるので、着せかえの「うごき」は しずか にする */}
+        <KanohaCharacter mood={mood} onClick={onTap} intensity="subtle" />
       </motion.div>
       {speaking && (
         <span className={styles.soundWaves} aria-hidden="true">

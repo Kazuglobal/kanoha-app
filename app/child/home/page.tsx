@@ -7,6 +7,7 @@ import { ChildHeader } from "@/components/child/ChildHeader";
 import { RubyAuto } from "@/components/child/RubyText";
 import { SubjectSwitch } from "@/components/child/SubjectSwitch";
 import { CurriculumStageSection } from "@/components/child/CurriculumStageSection";
+import { NewPracticeCard } from "@/components/child/NewPracticeCard";
 import { HOME_TEXT } from "@/components/child/childStrings";
 import styles from "@/components/kanoha.module.css";
 import { getTodayRecommendations } from "@/lib/review/today";
@@ -14,6 +15,7 @@ import { getServerSession } from "@/lib/auth/session";
 import { SUBJECT_CONFIG, isSubject, type Subject } from "@/lib/curriculum/subjects";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { loadSolvedCurriculumIds } from "@/lib/learning/inputs";
 
 type ReadingMode = "kanji_with_ruby" | "hiragana";
 
@@ -64,7 +66,7 @@ export default async function ChildHomePage({
     getTodayRecommendations(selected.id, new Date(), db, currentSubject),
     loadRecentProblemId(selected.id, currentSubject, db),
     loadWrongProblemId(selected.id, currentSubject, db),
-    loadSolvedCurriculumIds(selected.id, db),
+    loadSolvedCurriculumIds(db, selected.id),
   ]);
 
   return (
@@ -79,23 +81,6 @@ export default async function ChildHomePage({
       solvedIds={solvedIds}
     />
   );
-}
-
-/** ステージマップの進み具合: いちどでも正解した問題バンクの id。 */
-async function loadSolvedCurriculumIds(childId: string, db = getDb()): Promise<readonly string[]> {
-  const rows = await db
-    .selectDistinct({ id: schema.problems.curriculumProblemId })
-    .from(schema.attempts)
-    .innerJoin(schema.problems, eq(schema.attempts.problemId, schema.problems.id))
-    .where(
-      and(
-        eq(schema.attempts.childId, childId),
-        eq(schema.attempts.isCorrect, 1),
-        isNotNull(schema.problems.curriculumProblemId),
-      ),
-    )
-    .all();
-  return rows.flatMap(({ id }) => (id ? [id] : []));
 }
 
 /** 「もういちど」タイル用: いちばん最近といた問題の id(attempts から)。 */
@@ -308,6 +293,8 @@ function RealHome({
           )}
           <EnglishTalkTile href={`/child/english-talk?childId=${selected.id}` as Route} />
         </div>
+
+        <NewPracticeCard childId={selected.id} subject={currentSubject} />
 
         <CurriculumStageSection
           currentSubject={currentSubject}

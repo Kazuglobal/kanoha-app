@@ -92,15 +92,16 @@ describe("RealtimeTalkMic recording fallback when the server speech API refuses"
     await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
 
     // Web Speech API が無い環境: ボタンでマイクを入れると録音(VAD)で始まり、声を検出して「ききとっています」になる
-    await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
     await userEvent.click(await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ }));
-    await screen.findByText(/声をききとっています/, undefined, { timeout: 3000 });
+    await screen.findByText(/こえを ききとっています/, undefined, { timeout: 3000 });
     const startsBeforeSend = getUserMedia.mock.calls.length;
     // ボタンをタップして録音を確定 → サーバーへ送る
-    await userEvent.click(screen.getByRole("button", { name: /タップですぐ送信/ }));
+    await userEvent.click(screen.getByRole("button", { name: /タップで すぐ おくる/ }));
 
-    expect(await screen.findByText(/ボタンか もじで こたえてね/)).toBeInTheDocument();
+    expect(await screen.findByText(/ボタンで こたえてね/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /タップでマイクON/ })).toBeInTheDocument();
+    // 受け付けないとわかったら、4択をはじめから出す(声以外でも続けられる)
+    expect(screen.getByRole("group", { name: "こたえの ヒント せんたくし" })).toBeInTheDocument();
 
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(sttCalls).toHaveLength(1);
@@ -140,10 +141,11 @@ describe("RealtimeTalkMic recording fallback when the server speech API refuses"
     try {
       render(<EnglishTalkStage scene={scene} />);
       await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
-      // 自動マイクで始まり、最初の Web Speech が失敗して録音(VAD)に切り替わる
-      await screen.findByText(/声をききとっています/, undefined, { timeout: 3000 });
-      await userEvent.click(screen.getByRole("button", { name: /タップですぐ送信/ }));
-      expect(await screen.findByText(/ボタンか もじで こたえてね/)).toBeInTheDocument();
+      // デモはタップ式: マイクのボタンを押すと、最初の Web Speech が失敗して録音(VAD)に切り替わる
+      await userEvent.click(await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ }));
+      await screen.findByText(/こえを ききとっています/, undefined, { timeout: 3000 });
+      await userEvent.click(screen.getByRole("button", { name: /タップで すぐ おくる/ }));
+      expect(await screen.findByText(/ボタンで こたえてね/)).toBeInTheDocument();
 
       // もう一度マイクを入れると Web Speech で聞き始める。そこで no-speech になっても、録音には戻らず Web Speech をやり直す
       await userEvent.click(await screen.findByRole("button", { name: /タップでマイクON/ }));
@@ -182,9 +184,8 @@ describe("RealtimeTalkMic recording fallback when the server speech API refuses"
 
       render(<EnglishTalkStage scene={scene} />);
       await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
-      await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
       await userEvent.click(await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ }));
-      await screen.findByText(/声をききとっています/, undefined, { timeout: 3000 });
+      await screen.findByText(/こえを ききとっています/, undefined, { timeout: 3000 });
       expect(getUserMedia).toHaveBeenCalled();
 
       advance(16_000);
@@ -202,7 +203,6 @@ describe("RealtimeTalkMic recording fallback when the server speech API refuses"
 
       render(<EnglishTalkStage scene={scene} />);
       await userEvent.click(screen.getByRole("button", { name: /おはなしを はじめる/ }));
-      await userEvent.click(screen.getByRole("button", { name: /じどうマイク/ }));
       await userEvent.click(await screen.findByRole("button", { name: /こえで こたえる（タップでマイクON）/ }));
       await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalled(), { timeout: 3000 });
       await new Promise((resolve) => setTimeout(resolve, 600));

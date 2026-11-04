@@ -5,6 +5,7 @@ import styles from "@/components/kanoha.module.css";
 import { getTalkScene } from "@/lib/curriculum/englishTalkScenes";
 import { toPublicScene } from "@/lib/englishTalk/judge";
 import { resolveOwnedChildId } from "../ownedChild";
+import { loadTalkSettings } from "../talkSettings";
 
 /** えいごで おはなし: シーンの中で かのはちゃんと会話する。判定キーはクライアントへ渡さない。 */
 export default async function EnglishTalkScenePage({
@@ -18,11 +19,13 @@ export default async function EnglishTalkScenePage({
   const scene = getTalkScene(sceneId);
   if (!scene) notFound();
   const childId = await resolveOwnedChildId(rawChildId);
+  // 親の設定(音・声のこたえ)は、所有確認できた子のぶんだけ読む。デモは両方オン。
+  const settings = childId ? await loadTalkSettings(childId) : undefined;
 
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
       <ChildHeader childId={childId} />
-      <EnglishTalkStage scene={toPublicScene(scene)} childId={childId} />
+      <EnglishTalkStage scene={toPublicScene(scene)} childId={childId} settings={settings} />
     </div>
   );
 }

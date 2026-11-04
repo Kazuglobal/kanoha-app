@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { MotionProvider } from "@/components/MotionProvider";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import "./globals.css";
 
@@ -28,7 +29,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           rel="stylesheet"
         />
       </head>
-      <body>{children}<ServiceWorkerRegistration /></body>
+      <body>
+        <MotionProvider>{children}</MotionProvider>
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

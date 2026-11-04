@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { TALK_SCENES, getTalkTurn } from "@/lib/curriculum/englishTalkScenes";
+import { isExplicitDontKnow } from "@/lib/englishTalk/dontKnow";
 import {
   buildCorrectiveFeedbackEn,
   isDontKnowAnswer,
@@ -34,6 +35,17 @@ describe("isDontKnowAnswer", () => {
     expect(isDontKnowAnswer("わからない")).toBe(true);
     expect(isDontKnowAnswer("えいごが分かんない")).toBe(true);
     expect(isDontKnowAnswer("wakaranai")).toBe(true);
+  });
+
+  it("isExplicitDontKnow: 単語ひとつ(what・huh・help)は聞き取りのまちがいかもしれないので、はっきりした「わからない」には入れない", () => {
+    expect(isExplicitDontKnow("I don't know")).toBe(true);
+    expect(isExplicitDontKnow("help me")).toBe(true);
+    expect(isExplicitDontKnow("わからない")).toBe(true);
+    for (const word of ["what", "huh", "help", "hint", "pardon", "japanese"]) {
+      expect(isExplicitDontKnow(word), word).toBe(false);
+      expect(isDontKnowAnswer(word), word).toBe(true);
+    }
+    expect(isExplicitDontKnow("It's a dog.")).toBe(false);
   });
 
   it("does not treat normal English answers as don't know", () => {

@@ -5,11 +5,10 @@ import {
   DEFAULT_EQUIPPED,
   GROWTH_LEVELS,
   getCharacterLevel,
-  type AccessoryCategory,
   type EquippedAccessories,
   type GrowthLevelInfo,
 } from "./catalog";
-import { CATEGORIES, normalizeEquipped } from "./rewardLogic";
+import { normalizeEquipped } from "./rewardLogic";
 
 export {
   ACCESSORY_CATALOG,
@@ -27,7 +26,6 @@ export {
 } from "./catalog";
 
 const ACCESSORY_STORAGE_KEY = "kanoha_child_equipped_accessories_v1";
-const ACCESSORY_FOCUS_KEY = "kanoha_child_accessory_focus_v1";
 
 export interface CharacterProgress {
   currentLevel: GrowthLevelInfo;
@@ -90,33 +88,3 @@ export function saveEquippedAccessories(accessories: EquippedAccessories): void 
   }
 }
 
-export function getLastEquippedCategory(): AccessoryCategory {
-  if (typeof window === "undefined") return "clothes";
-  try {
-    const category = localStorage.getItem(ACCESSORY_FOCUS_KEY);
-    if (category && (CATEGORIES as readonly string[]).includes(category)) {
-      return category as AccessoryCategory;
-    }
-  } catch {
-    // ignore
-  }
-  return "clothes";
-}
-
-export function equipAccessory(
-  category: AccessoryCategory,
-  itemId: string
-): EquippedAccessories {
-  const current = getEquippedAccessories();
-  const updated: EquippedAccessories = {
-    ...current,
-    [category]: itemId,
-  };
-  try {
-    localStorage.setItem(ACCESSORY_FOCUS_KEY, category);
-  } catch {
-    // ignore
-  }
-  saveEquippedAccessories(updated);
-  return updated;
-}

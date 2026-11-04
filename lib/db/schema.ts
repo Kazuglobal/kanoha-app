@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, real, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { sqliteTable, text, integer, real, primaryKey, uniqueIndex, index, check } from "drizzle-orm/sqlite-core";
 
 /**
  * Better Auth 必須テーブル
@@ -97,11 +98,59 @@ export const problems = sqliteTable("problems", {
   status: text("status").notNull().default("active"),
   /** 問題バンク(lib/curriculum/curriculumBank.ts)から登録した問題の元 id。アップロード由来は null。 */
   curriculumProblemId: text("curriculum_problem_id"),
+  /** 自動生成の問題の 4 択(JSON 配列)。4 択でない問題・バンク/アップロード由来は null。 */
+  choices: text("choices"),
+  /** 英語の聞き取り問題で en-US 読み上げする文(答えそのものは入れない)。 */
+  listenText: text("listen_text"),
+  /** 自動生成の問題をつくった手がかり(`単元/小単元/L<レベル>/<seed>`)。生成問題だけ。クライアントへ返さない。 */
+  generatorRef: text("generator_ref"),
+  /** 自動生成の問題のレベル(1〜5)。 */
+  difficultyLevel: integer("difficulty_level"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [
   uniqueIndex("problems_child_curriculum_unique").on(table.childId, table.curriculumProblemId),
 ]);
+
+/**
+ * 「あたらしい もんだい」の 1 セット(子ども×教科×日(JST)×セット番号)。
+ * 同じ子ども・教科・日・番号は 1 つだけなので、リロードや二重送信でセットが増えない。
+ */
+export const practiceBatches = sqliteTable(
+  "practice_batches",
+  {
+    id: text("id").primaryKey(),
+    childId: text("child_id").notNull().references(() => childProfiles.id, { onDelete: "cascade" }),
+    subject: text("subject").notNull(),
+    batchDate: text("batch_date").notNull(),
+    /** その日の何セット目か(1 から) */
+    seq: integer("seq").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("practice_batches_child_subject_date_seq_unique").on(
+      table.childId,
+      table.subject,
+      table.batchDate,
+      table.seq,
+    ),
+  ],
+);
+
+/** セットの中の問題(位置は 0 から)。reason は practice / review / stretch / preview(出題計画の `PlanReason`)。 */
+export const practiceBatchItems = sqliteTable(
+  "practice_batch_items",
+  {
+    batchId: text("batch_id").notNull().references(() => practiceBatches.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    problemId: text("problem_id").notNull().references(() => problems.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.batchId, table.position] }),
+    index("practice_batch_items_problem_idx").on(table.problemId),
+  ],
+);
 
 export const learningSessions = sqliteTable("learning_sessions", {
   id: text("id").primaryKey(),
@@ -128,7 +177,11 @@ export const attempts = sqliteTable("attempts", {
   mistakeType: text("mistake_type"),
   aiFeedback: text("ai_feedback"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => [
+  // 子どもの記録を新しい順に読む(ホーム・おすすめ・レベルの計算)/ 問題ごとの記録を引く(整理・おすすめの除外)
+  index("attempts_child_created_idx").on(table.childId, table.createdAt),
+  index("attempts_child_problem_idx").on(table.childId, table.problemId),
+]);
 
 export const generatedSimilarProblems = sqliteTable("generated_similar_problems", {
   id: text("id").primaryKey(),
@@ -144,7 +197,10 @@ export const generatedSimilarProblems = sqliteTable("generated_similar_problems"
   /** 英語の聞き取り問題で en-US 読み上げする文(答えそのものは入れない) */
   listenText: text("listen_text"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => [
+  // 元の問題の類題を引く(同じ類題をもういちど頼まれたときの再利用・整理)
+  index("generated_similar_child_source_idx").on(table.childId, table.sourceProblemId),
+]);
 
 export const problemHintViews = sqliteTable(
   "problem_hint_views",
@@ -287,8 +343,30 @@ export const childRewards = sqliteTable("child_rewards", {
 });
 
 /**
+ * 英会話(えいごで おはなし)の場面ごとの進み具合。子どもごと・場面ごとに 1 行。
+ * 話した言葉は保存しない(場面・最高の★・クリアした回数・日時だけ)。★はサーバーが結果から計算して記録する。
+ */
+export const englishTalkProgress = sqliteTable(
+  "english_talk_progress",
+  {
+    childId: text("child_id").notNull().references(() => childProfiles.id, { onDelete: "cascade" }),
+    sceneId: text("scene_id").notNull(),
+    bestStars: integer("best_stars").notNull(),
+    clearCount: integer("clear_count").notNull(),
+    lastClearedAt: text("last_cleared_at").notNull(),
+    /** 最後に記録した挑戦の ID(端末が決めた UUID)。通信が失われて同じ挑戦が再送されても、回数を二重に数えないため。 */
+    lastRunId: text("last_run_id"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.childId, table.sceneId] }),
+    // 列名に表名を付けない(あとで表を作りなおす移行でも、新しい表の列として読める)
+    check("english_talk_progress_stars_range", sql`best_stars BETWEEN 1 AND 3`),
+  ],
+);
+
+/**
  * ごほうびの請求記録。同じ対象のごほうびを 子ども×種類×対象×日(JST) につき1回だけ出すための重複防止。
- * kind: "english_talk"(ref_id は "場面:ターン") / "problem"(ref_id は問題ID)
+ * kind: "english_talk"(ref_id は "場面:ターン") / "problem"(ref_id は問題ID) / "generated"(自動で作った問題。ref_id は問題ID)
  */
 export const rewardClaims = sqliteTable(
   "reward_claims",

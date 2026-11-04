@@ -7,6 +7,8 @@
   justify-content: center;
   overflow: hidden;
   user-select: none;
+  /* エフェクト・ペット(.extras の z-index)をこの中に閉じ込める。外に漏れると、ヘッダーの重なり(z-index: 10)より前に出て、モーダルの上に描かれてしまう */
+  isolation: isolate;
 }
 
 .stage[role="button"] {
@@ -17,7 +19,10 @@
   position: relative;
   display: block;
   width: auto;
-  height: 100%;
+  /* 上にはねる・よろこぶ動きでも、頭のてっぺん(おだんご・ぼうし)が枠(overflow: hidden)で切れないよう、枠の上に余白を作る(足もとは そのまま)。
+     動きの大きさは 高さの %(translateY)なので、どの大きさでも この余白に収まる */
+  height: 92%;
+  align-self: flex-end;
   max-width: 100%;
   aspect-ratio: 1024 / 1536;
   filter: drop-shadow(0 12px 14px rgb(157 93 104 / 12%));
@@ -131,6 +136,199 @@
   50% { transform: translate(-50%, -50%) scale(1.06, 0.96); }
 }
 
+/* 待機中のうごき(うごきスロット)。しずか は上の float のまま。よろこび(.celebrate)は これより優先 */
+.motionBouncy {
+  transform-origin: 50% 100%;
+  animation: motionBounce 0.9s ease-in-out infinite;
+}
+
+.motionFloat {
+  animation: motionFloat 4.8s ease-in-out infinite;
+}
+
+.motionSway {
+  transform-origin: 50% 100%;
+  animation: motionSway 3.4s ease-in-out infinite;
+}
+
+.motionDance {
+  transform-origin: 50% 100%;
+  animation: motionDance 1.1s ease-in-out infinite;
+}
+
+.motionSpin {
+  animation: motionSpin 5s ease-in-out infinite;
+}
+
+/* translateY の % は この要素の高さに対する割合(画面の大きさに合わせて、余白の中に収まる) */
+@keyframes motionBounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  35%, 55% { transform: translateY(-5%) scale(0.98, 1.03); }
+  80% { transform: translateY(0) scale(1.03, 0.97); }
+}
+
+@keyframes motionFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5%) rotate(0.8deg); }
+}
+
+@keyframes motionSway {
+  0%, 100% { transform: rotate(-2.4deg); }
+  50% { transform: rotate(2.4deg); }
+}
+
+@keyframes motionDance {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  25%, 75% { transform: translateY(-4%) rotate(0deg); }
+  50% { transform: translateY(0) rotate(3deg); }
+}
+
+@keyframes motionSpin {
+  0%, 60% { transform: perspective(900px) rotateY(0deg); }
+  85%, 100% { transform: perspective(900px) rotateY(360deg); }
+}
+
+/* エフェクト・ペット: キャラクターと同じ大きさの枠(.characterContainer と同じ比率)に重ねる。キャラクターのうごきには引きずられない */
+.extras {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.extrasBox {
+  position: relative;
+  height: 92%; /* .characterContainer と同じ大きさ・同じ位置(下そろえ) */
+  align-self: flex-end;
+  max-width: 100%;
+  aspect-ratio: 1024 / 1536;
+}
+
+.effectLayer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.effectLayer[data-intensity="subtle"] {
+  opacity: 0.6;
+}
+
+.particleTwinkle,
+.particleRise,
+.particleFall {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+.particleTwinkle { animation-name: particleTwinkle; animation-timing-function: ease-in-out; }
+.particleRise { animation-name: particleRise; animation-timing-function: linear; }
+.particleFall { animation-name: particleFall; animation-timing-function: linear; }
+
+.particleSway {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: particleSway 3.2s ease-in-out infinite alternate;
+}
+
+@keyframes particleTwinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes particleRise {
+  0% { opacity: 0; transform: translateY(0); }
+  12% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(-520px); }
+}
+
+@keyframes particleFall {
+  0% { opacity: 0; transform: translateY(-160px) rotate(0deg); }
+  10% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(720px) rotate(200deg); }
+}
+
+@keyframes particleSway {
+  from { transform: translateX(-18px); }
+  to { transform: translateX(18px); }
+}
+
+.orbit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: orbitSpin 8s linear infinite;
+}
+
+@keyframes orbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+.auraPulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: auraPulse 3.4s ease-in-out infinite;
+}
+
+@keyframes auraPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+.pet {
+  position: absolute;
+  right: 0;
+  bottom: 1%;
+  width: 30%;
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+
+.petHop {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: petHop 2.6s ease-in-out infinite;
+}
+
+@keyframes petHop {
+  0%, 50%, 74%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-9px); }
+  62% { transform: translateY(-4px); }
+}
+
+/* 「動きを減らす」: 動きは止めて、飾りは止めたまま見せる。ただし 顔のあたりで止まった粒・光は出さない(顔が隠れる) */
 @media (prefers-reduced-motion: reduce) {
-  .sprite, .celebrate .sprite, .wingsLayer { animation: none; }
+  .characterContainer,
+  .celebrate .characterContainer,
+  .motionBouncy,
+  .motionFloat,
+  .motionSway,
+  .motionDance,
+  .motionSpin,
+  .wingsLayer,
+  .particleSway,
+  .auraPulse,
+  .petHop {
+    animation: none;
+  }
+
+  .particleTwinkle,
+  .particleRise,
+  .particleFall,
+  .orbit {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .particleFace {
+    opacity: 0;
+  }
 }

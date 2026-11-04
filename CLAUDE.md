@@ -69,6 +69,8 @@
 - `app/child/*` 子ども画面 / `app/parent/*` 親画面 / `app/api/*` Route Handlers
 - `components/child/*` `components/parent/*` に分離
 - `lib/ai/` AI層 / `lib/review/` 復習・おすすめロジック / `lib/curriculum/` 単元マスタ
+- `lib/learning/` 進み具合(レベル 1〜5 の昇降格・ようす)/ `lib/generation/` 新しい問題の自動生成(生成器・検査 `validateGenerated`・出題計画 `planBatch`)。答えを計算するので `import "server-only"`
+- `lib/practice/` 「あたらしい もんだい」のセットの作成・読み出し・整理(`newSet.ts` `context.ts` `prune.ts`)。DB の複数文の書き込みは `db.batch`(本物の D1 では原子的。ローカルの D1 エミュレータも同じ)
 - テンプレ図解画像は `public/visuals/`
 
 ## コマンド(セットアップ後に有効)
@@ -88,7 +90,13 @@ npm run lint         # ESLint
 - 単元・間違え方分類の正は `lib/curriculum/*`、日付は `lib/utils/date.ts`(Asia/Tokyo)のみを使う。`AI_PROVIDER_TEXT` は本番で必須
 - 2026-10-05: 英語教科を追加(7単元・4択23問)。ステージマップ問題の学習記録を結線し、デモの答え合わせをサーバー化
 - 2026-10-07: 「えいごで おはなし」(`/child/english-talk`)を追加。シーン(背景 `public/scenes/*.svg`)の中でかのはちゃんと英会話。シーン定義は `lib/curriculum/englishTalkScenes.ts`、判定・進行は `lib/englishTalk/*`(判定キーはクライアントへ渡さない)。音声は Gemini TTS(`lang: "en"`)、声のこたえの AI 判定はログイン中のみ costGuard 経由
-- 2026-10-05: ごほうび(5円メーター・正解数)と着せかえを `child_rewards` に保存。正解数を増やすのは `/api/attempts` だけ、端末の localStorage は表示キャッシュ(`lib/rewards/rewardSync.ts`)
+- 2026-10-05: ごほうび(5円メーター・正解数)と着せかえを `child_rewards` に保存。正解数を増やすのは `/api/attempts` と `/api/english-talk/check` だけ、端末の localStorage は表示キャッシュ(`lib/rewards/rewardSync.ts`)
+- 2026-10-28: 英会話は Three.js の3Dステージ(WebGL が無い端末は場面のSVGを背景に出す)。次の問いは「つぎへ」をタップしたときだけ読む(ほめ・おしえは答えへの返事なので自動)。判定は `lib/englishTalk/{normalize,match,judge}.ts`: 日本語だけの答えは正解にせず、似た音の別名は短い答えのときだけ使う。英会話の5円は1日 `TALK_DAILY_REWARD_CAP`(既定5)回まで。マイクは、ログイン中は自動・デモはタップした1回だけ。文字を打ち込む欄はない(英語は書かせない)
+- 2026-10-28: サーバーから `"use client"` のファイルの関数を呼ばない(英会話の一覧が開けなくなった)。答えを持つモジュールは `import "server-only"` を付け、ブラウザの JS に答えが入っていないかは `npm run check:leaks`(`npm run deploy` の前に自動で走る)で確かめる
+- 2026-10-29: 進み具合に合わせた新しい問題は、`lib/generation` の**決定的なテンプレート**が作る(答えはパラメータから計算し、AI に作らせない。同じ seed なら同じ問題)。保存・表示の前に必ず `validateGenerated`(答えの先出し・ルビ・選択肢・英語にカタカナなし 等)を通す。レベルは `lib/learning/level.ts`(続けて3回できたら上げ、続けて2回まちがえたら下げる。答えのヒントを見てからの正解はできたに数えない)。読解・作文は AI 生成(`FEATURE_PRACTICE_AI`、既定OFF)の予定
+- 2026-10-29: ホームの「あたらしい もんだい」(`components/child/NewPracticeCard`)は `POST /api/practice/new-set` で今日の5問のセットを取る。セットは 子ども×教科×日(JST)×セット番号 で1つ(リロードでは増えず、`more:true` で次のセット、1日 `PRACTICE_MAX_SETS_PER_DAY`(既定3)まで。上限・出す問題なしはエラーでなく 200 の `status`)。計画は `lib/generation/plan.ts`、保存・読み出し・整理は `lib/practice/`(`practice_batches` / `practice_batch_items`。生成した問題は `problems` の `choices` `listen_text` `generator_ref` `difficulty_level` 付きの行)。クライアントへ返すのは問題文・選択肢・聞く英語だけで、答え・ヒント・`generator_ref` は返さない。生成した問題の正解は 5円に種類 `generated` で数え、1日 `GENERATED_DAILY_REWARD_CAP`(既定10)回まで。類題は同じ生成器で作る(AI を呼ばない)。英語の声・スピーカーは教科(`subject === "english"`)で決め、選択肢の英字(32mm など)では決めない
+- 2026-10-31: 着せかえ v2。枠(スロット)の一覧は `lib/rewards/slots.ts` に一本化(型・API の入力検査・着せかえ画面のタブはここから作る)。新しい枠 effect(粒)・pet(足元)・motion(待機中のうごき)は、絵の重ね合わせではなく キャラクターの外側の層に SVG と絵文字で描く(`components/child/CharacterExtras.tsx`、描き方の表は `characterExtrasData.ts`)。成長レベルは Lv10 まで(正解 300 問)、アイテムは `catalogItems.ts`(もとから)と `catalogExtraItems.ts`(あとから)に分かれ、レベルによる解放は `unlocks.ts`。コーデ(テーマ別セット)は `lib/rewards/outfits.ts`。保存は `PUT /api/children/[id]/rewards`(送った枠だけ 1 文の `json_patch` で書く。まだ着られない枠は `rejected` で返す)。クライアント(`lib/rewards/rewardSync.ts`)は「変えた枠だけ」を、少し待ってまとめて 1 つずつ送る。送り先は画面が持っている子どもの ID(共有の「開いている子」では決めない)で、変えた時点で先に端末へ(子どもごとに)書き、サーバーが受け取ってから消す。通信の失敗だけ次にその子を開いたとき送り直し、401/404 は残さない(デモやほかのアカウントの操作が本物の記録に入らないように)。問題を解いている間は `intensity="subtle"`(うごきは しずか、粒は少なめ)。`.stage` は `isolation: isolate`(外へ z-index が漏れて、モーダルの上に飾りが出るのを防ぐ)
+- 2026-10-31: 英会話の場面の ★ は、ログイン中は `POST /api/english-talk/complete` でサーバー(`english_talk_progress`)にも残す。★はターンごとの結果(clean / help / teach)からサーバーで計算し、端末の申告は使わない。1 回の挑戦に ID(`runId`)を付けて送り、通信が失われて同じ挑戦が再送されても回数を二重に数えない。一覧の★はサーバーの値と端末の値の高いほう
 
 <!-- BEGIN:nextjs-agent-rules -->
 

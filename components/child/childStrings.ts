@@ -30,6 +30,7 @@ export const FLOW_TEXT = Object.freeze({
   correctFeedback: "せいかい！ よく できたね。",
   wrongFeedback: "おしい！ ヒントをつかって、ゆっくりかんがえよう。",
   answerButton: "こたえる",
+  voiceTryAgain: "もういちど いってみてね。",
   practiceButton: "れんしゅう 5もんへ",
   preparing: "じゅんびちゅう...",
   recommendedLabel: "きょうの おすすめ 1",
@@ -86,6 +87,25 @@ export const RESULT_TEXT = Object.freeze({
   retry: "もういちど やる",
 });
 
+/** 「あたらしい もんだい」(自動で作る、その子にぴったりの 5もん)の固定文言。 */
+export const PRACTICE_TEXT = Object.freeze({
+  title: "あたらしい もんだい",
+  lead: "いまの きみに ぴったりの 5もん",
+  loading: "じゅんびちゅう...",
+  start: "はじめる ▶",
+  resume: "つづきから ▶",
+  progressSuffix: "もん できたよ",
+  allDone: "ぜんぶ できたね！",
+  more: "もう 1セット ▶",
+  tomorrow: "きょうの ぶんは ぜんぶ できたね！ また あした！",
+  failed: "うまく ひらけなかったよ。",
+  retry: "もういちど ためす",
+  setBadge: "あたらしい もんだい",
+  setClearTitle: "🎉 あたらしい もんだい ぜんぶ できたね！",
+  setClearLead: "よくがんばったね！ ひとやすみしよう。",
+  backHome: "🏠 ホームへ もどる",
+});
+
 /** ランディング(app/page.tsx)の子どもにも見える文言。 */
 export const LANDING_TEXT = Object.freeze({
   eyebrow: "まいにち 15ふん",
@@ -110,5 +130,6 @@ export const CHILD_FIXED_STRINGS: readonly string[] = Object.freeze([
   ...Object.values(FLOW_TEXT),
   ...Object.values(HOME_TEXT),
   ...Object.values(RESULT_TEXT),
+  ...Object.values(PRACTICE_TEXT),
   ...Object.values(LANDING_TEXT),
 ]);
