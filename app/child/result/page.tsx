@@ -10,6 +10,7 @@ import styles from "@/components/kanoha.module.css";
 import { problemHref, homeHref } from "@/components/child/links";
 import { getCurriculumStageProgress, getNextCurriculumProblem } from "@/lib/curriculum/curriculumBank";
 import { isSubject } from "@/lib/curriculum/subjects";
+import { resolveOwnedChildId } from "../english-talk/ownedChild";
 
 export default async function ResultPage({
   searchParams,
@@ -28,7 +29,7 @@ export default async function ResultPage({
   const retryHref = problemId && childId ? problemHref(problemId, childId, batch) : "/child/problem/volume-1";
   return (
     <div className={`${styles.childShell} ${styles.appScreen}`}>
-      <ChildHeader childId={childId} />
+      <ChildHeader childId={await resolveOwnedChildId(childId)} />
       <main className={styles.narrow}>
         <section className={`${styles.card} ${styles.resultHero}`}>
           <CharacterCoach
