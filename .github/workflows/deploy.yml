@@ -31,7 +31,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # package.json の engines(>=22.16.0)と同じ。node:sqlite(テストのローカル D1)がこの版から使える
+          node-version: ">=22.16.0 <23"
+          check-latest: true
           cache: npm
 
       - run: npm ci
